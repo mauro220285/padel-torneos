@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Padel Team — Revisión de Fixture</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:#4a9eff; --cyan:#00d4ff; --bg:#0a0a0f; --bg2:#111118; --bg3:#18181f;
+  --border:#222230; --text:#e0e0f0; --muted:#555570; --label:#7a7a99;
+  --verde:#4caf50; --rojo:#e63946; --amarillo:#f0b429;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 60px; }
+
+.app-header { width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%); border-bottom:1px solid var(--border); padding:18px 20px 14px; display:flex; align-items:center; justify-content:center; position:relative; }
+.app-header::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent); }
+.header-back { position:absolute; left:16px; background:none; border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+.header-back:hover { border-color:var(--azul); color:var(--azul); }
+.header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:6px; color:#fff; }
+.header-logo span { color:var(--azul); }
+
+.steps { display:flex; align-items:center; width:100%; max-width:500px; padding:20px 20px 4px; }
+.step { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; position:relative; }
+.step:not(:last-child)::after { content:''; position:absolute; top:14px; left:55%; right:-45%; height:1px; background:var(--border); }
+.step.done:not(:last-child)::after, .step.active:not(:last-child)::after { background:var(--azul); }
+.step-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:14px; border:1.5px solid var(--border); color:var(--muted); background:var(--bg2); z-index:1; }
+.step.active .step-num { background:var(--azul); border-color:var(--azul); color:#fff; box-shadow:0 0 14px rgba(74,158,255,0.5); }
+.step.done .step-num { background:#1a3a6e; border-color:var(--azul); color:var(--azul); }
+.step-label { font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+.step.active .step-label, .step.done .step-label { color:var(--azul); }
+
+.page-title { width:100%; max-width:500px; padding:20px 20px 6px; }
+.page-title h2 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:4px; color:#fff; line-height:1; }
+.page-title p { font-size:13px; color:var(--label); letter-spacing:1px; margin-top:4px; }
+
+.section { width:100%; max-width:500px; padding:16px 20px 0; }
+.section-label { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--azul); margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+.section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+
+/* RESUMEN */
+.resumen-box { background:linear-gradient(135deg,rgba(74,158,255,0.06),rgba(0,212,255,0.04)); border:1px solid rgba(74,158,255,0.25); border-radius:12px; padding:14px 16px; }
+.resumen-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.resumen-row:last-child { margin-bottom:0; }
+.resumen-key { font-size:12px; color:var(--label); letter-spacing:1px; }
+.resumen-val { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:2px; }
+.ok { color:var(--verde); } .warn { color:var(--amarillo); } .err { color:var(--rojo); }
+
+/* TABS DÍAS */
+.dias-tabs { display:flex; gap:6px; margin-bottom:14px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+.dias-tabs::-webkit-scrollbar { display:none; }
+.dia-tab { flex-shrink:0; padding:7px 14px; background:var(--bg3); border:1px solid var(--border); border-radius:20px; font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; color:var(--muted); cursor:pointer; transition:all 0.2s; text-transform:uppercase; }
+.dia-tab.activa { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
+
+/* PARTIDO CARD */
+.fixture-wrap { display:flex; flex-direction:column; gap:8px; }
+.partido-card { background:var(--bg3); border:1px solid var(--border); border-radius:12px; overflow:hidden; transition:border-color 0.2s; }
+.partido-card.conflicto { border-color:rgba(230,57,70,0.4); }
+.partido-card.llave-placeholder { border-color:rgba(240,180,41,0.3); background:rgba(240,180,41,0.04); }
+.partido-header { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); }
+.partido-hora { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; color:var(--azul); flex-shrink:0; width:70px; }
+.partido-info { flex:1; min-width:0; }
+.partido-zona { font-size:10px; letter-spacing:2px; color:var(--label); text-transform:uppercase; }
+.partido-parejas { font-family:'Oswald',sans-serif; font-size:14px; color:#fff; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.partido-acciones { display:flex; gap:6px; align-items:center; }
+.btn-mover { background:none; border:1px solid var(--border); border-radius:8px; padding:5px 8px; color:var(--muted); font-size:13px; cursor:pointer; transition:all 0.2s; }
+.btn-mover:hover { border-color:var(--azul); color:var(--azul); }
+.conflicto-badge { background:rgba(230,57,70,0.1); border:1px solid var(--rojo); border-radius:6px; padding:3px 8px; font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1px; color:var(--rojo); margin:6px 14px 10px; display:inline-block; }
+
+/* MODAL */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+.modal-overlay.visible { opacity:1; pointer-events:all; }
+.modal-sheet { width:100%; max-width:500px; background:var(--bg2); border-radius:16px 16px 0 0; border-top:2px solid var(--azul); padding:20px; transform:translateY(100%); transition:transform 0.3s cubic-bezier(.21,1.02,.73,1); }
+.modal-overlay.visible .modal-sheet { transform:translateY(0); }
+.modal-title { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:4px; color:#fff; margin-bottom:4px; }
+.modal-sub { font-size:12px; color:var(--muted); letter-spacing:1px; margin-bottom:16px; }
+.modal-opciones { display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; }
+.modal-opcion { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px 14px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:12px; }
+.modal-opcion:hover { border-color:var(--azul); }
+.modal-opcion.ocupado { opacity:0.4; pointer-events:none; }
+.modal-opcion-hora { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--azul); letter-spacing:2px; width:60px; flex-shrink:0; }
+.modal-opcion-cancha { font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; color:var(--muted); }
+.modal-opcion-estado { margin-left:auto; font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:1px; }
+.libre-badge { color:var(--verde); } .ocupado-badge { color:var(--rojo); }
+.modal-close { width:100%; margin-top:12px; padding:12px; background:var(--bg3); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; }
+
+.nav-row { display:flex; gap:10px; width:100%; max-width:500px; padding:0 20px; margin-top:28px; }
+.btn-back { flex:0 0 auto; padding:14px 20px; background:var(--bg3); border:1px solid var(--border); border-radius:12px; color:var(--muted); font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+.btn-back:hover { border-color:var(--azul); color:var(--azul); }
+.btn-next { flex:1; padding:16px; background:var(--verde); border:none; border-radius:12px; color:#fff; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; cursor:pointer; box-shadow:0 4px 24px rgba(76,175,80,0.3); }
+.divider { width:100%; max-width:500px; height:1px; background:var(--border); margin:18px 0 0; }
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--azul); color:#fff; font-family:'Oswald',sans-serif; font-size:14px; padding:10px 28px; border-radius:30px; letter-spacing:1px; transition:transform 0.3s cubic-bezier(.21,1.02,.73,1); z-index:9999; pointer-events:none; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.loading { text-align:center; padding:30px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <button class="header-back" onclick="history.back()">← VOLVER</button>
+  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+</div>
+
+<div class="steps">
+  <div class="step done"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
+  <div class="step done"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
+  <div class="step done"><div class="step-num">✓</div><div class="step-label">Parejas</div></div>
+  <div class="step active"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+</div>
+
+<div class="page-title">
+  <h2>Revisión de fixture</h2>
+  <p id="torneoSubtitulo">Revisá y ajustá el horario antes de confirmar</p>
+</div>
+
+<div class="section">
+  <div class="resumen-box">
+    <div class="resumen-row"><span class="resumen-key">Formato</span><span class="resumen-val" id="res-formato">—</span></div>
+    <div class="resumen-row"><span class="resumen-key">Total de partidos</span><span class="resumen-val" id="res-partidos">—</span></div>
+    <div class="resumen-row"><span class="resumen-key">Conflictos de horario</span><span class="resumen-val" id="res-conflictos">—</span></div>
+    <div class="resumen-row"><span class="resumen-key">Estado</span><span class="resumen-val" id="res-estado">—</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Fixture</div>
+  <div class="dias-tabs" id="diasTabs"></div>
+  <div class="fixture-wrap" id="fixtureWrap"><div class="loading">Generando fixture...</div></div>
+</div>
+
+<div class="divider"></div>
+
+<div class="nav-row">
+  <button class="btn-back" onclick="history.back()">← VOLVER</button>
+  <button class="btn-next" onclick="confirmarFixture()">✓ CONFIRMAR FIXTURE</button>
+</div>
+
+<!-- MODAL MOVER -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-sheet">
+    <div class="modal-title">MOVER PARTIDO</div>
+    <div class="modal-sub" id="modalSub">Seleccioná el nuevo horario y cancha</div>
+    <div class="modal-opciones" id="modalOpciones"></div>
+    <button class="modal-close" onclick="cerrarModal()">CANCELAR</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc,
+         collection, query, orderBy, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain: "padel-team-76749.firebaseapp.com",
+  projectId: "padel-team-76749",
+  storageBucket: "padel-team-76749.firebasestorage.app",
+  messagingSenderId: "449257104174",
+  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+// ── MOTOR DE FIXTURE ─────────────────────────────────────
+
+function generarSlots(config) {
+  const slots = [];
+  config.dias.forEach(dia => {
+    const [ah,am] = dia.apertura.split(':').map(Number);
+    const [ch,cm] = dia.cierre.split(':').map(Number);
+    const [mh,mm] = (config.horaCorteMediodia||'13:00').split(':').map(Number);
+    const corteMins = mh*60+mm;
+    const slotMins  = config.duracion + config.intervalo;
+    let actual = ah*60+am;
+    const fin  = ch*60+cm;
+    while (actual + config.duracion <= fin) {
+      const hh = String(Math.floor(actual/60)).padStart(2,'0');
+      const mn = String(actual%60).padStart(2,'0');
+      for (let c=1; c<=config.canchasDisponibles; c++)
+        slots.push({ dia: dia.fecha, hora:`${hh}:${mn}`, cancha:`CANCHA ${c}`, ocupado:false });
+      actual += slotMins;
+      if (config.intervaloMediodia > 0 && actual < corteMins && actual + config.duracion > corteMins)
+        actual = corteMins + config.intervaloMediodia;
+    }
+  });
+  return slots;
+}
+
+// Round Robin: genera todos los partidos entre un array de parejas
+function generarRoundRobin(parejas, zonaId) {
+  const partidos = [];
+  for (let i = 0; i < parejas.length; i++)
+    for (let j = i+1; j < parejas.length; j++)
+      partidos.push({ fase:'zona', zonaId, pareja1Id:parejas[i].id, pareja2Id:parejas[j].id, estado:'pendiente', resultado:null });
+  return partidos;
+}
+
+function asignarHorarios(partidos, slots, parejaMap) {
+  const resultado = [];
+  const slotsLibres = slots.map(s => ({...s}));
+  const ocupPareja = {}, ocupCancha = {};
+
+  partidos.forEach(partido => {
+    const p1 = parejaMap[partido.pareja1Id], p2 = parejaMap[partido.pareja2Id];
+    let slotElegido = null, conflicto = false;
+
+    for (const slot of slotsLibres) {
+      if (slot.ocupado) continue;
+      const clave = `${slot.dia}|${slot.hora}`;
+      const cc    = `${clave}|${slot.cancha}`;
+      if (ocupCancha[cc]) continue;
+      if (ocupPareja[partido.pareja1Id]?.has(clave)) continue;
+      if (ocupPareja[partido.pareja2Id]?.has(clave)) continue;
+      const r1 = p1?.restricciones?.[slot.dia]?.includes(slot.hora);
+      const r2 = p2?.restricciones?.[slot.dia]?.includes(slot.hora);
+      if (r1 || r2) { if (!slotElegido) { slotElegido = slot; conflicto = true; } continue; }
+      slotElegido = slot; conflicto = false; break;
+    }
+
+    if (slotElegido) {
+      slotElegido.ocupado = true;
+      const clave = `${slotElegido.dia}|${slotElegido.hora}`;
+      ocupCancha[`${clave}|${slotElegido.cancha}`] = true;
+      if (!ocupPareja[partido.pareja1Id]) ocupPareja[partido.pareja1Id] = new Set();
+      if (!ocupPareja[partido.pareja2Id]) ocupPareja[partido.pareja2Id] = new Set();
+      ocupPareja[partido.pareja1Id].add(clave);
+      ocupPareja[partido.pareja2Id].add(clave);
+      resultado.push({...partido, dia:slotElegido.dia, hora:slotElegido.hora, cancha:slotElegido.cancha, conflicto});
+    } else {
+      resultado.push({...partido, dia:null, hora:null, cancha:null, conflicto:true});
+    }
+  });
+  return resultado;
+}
+
+// ── ESTADO ───────────────────────────────────────────────
+let DIAS = [], HORAS = [], CANCHAS = [];
+let fixture = [];
+let zonasData = [];   // [ { id, nombre, parejas:[] } ]
+let diaActivo = 0;
+let partidoSeleccionado = null;
+let torneoConfig = null;
+
+// ── CARGA INICIAL ────────────────────────────────────────
+async function cargarYGenerar() {
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
+
+  showToast('Cargando datos...');
+
+  const tSnap = await getDoc(doc(db,'torneos',torneoId));
+  if (!tSnap.exists()) { showToast('⚠️ Torneo no encontrado'); return; }
+  torneoConfig = { id:torneoId, ...tSnap.data() };
+
+  document.getElementById('torneoSubtitulo').textContent = torneoConfig.nombre;
+
+  const formatoLabel = {
+    round_robin:       'ROUND ROBIN',
+    round_robin_llave: `ROUND ROBIN + LLAVE (top ${torneoConfig.clasificadosLlave||4})`
+  };
+  document.getElementById('res-formato').textContent = formatoLabel[torneoConfig.formato] || torneoConfig.formato?.toUpperCase() || '—';
+
+  const pSnap = await getDocs(query(collection(db,'torneos',torneoId,'parejas'), orderBy('seed')));
+  const parejas = pSnap.docs.map(d => ({id:d.id,...d.data()}));
+
+  // Ver si ya hay fixture confirmado
+  const metaSnap = await getDoc(doc(db,'torneos',torneoId,'fixture','meta'));
+  if (metaSnap.exists() && metaSnap.data().confirmado) {
+    const pSnap2 = await getDocs(query(collection(db,'torneos',torneoId,'partidos'),orderBy('orden')));
+    fixture = pSnap2.docs.map(d => ({id:d.id,...d.data()}));
+  } else {
+    generarFixture(parejas);
+  }
+
+  DIAS = torneoConfig.dias.map(d => {
+    const fecha = new Date(d.fecha+'T12:00:00');
+    const label = fecha.toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'2-digit'}).toUpperCase();
+    return { label, fecha:d.fecha };
+  });
+  const slots = generarSlots(torneoConfig);
+  HORAS   = [...new Set(slots.map(s=>s.hora))];
+  CANCHAS = [...new Set(slots.map(s=>s.cancha))];
+
+  renderTabs();
+  renderFixture();
+  showToast('');
+}
+
+function generarFixture(parejas) {
+  const formato = torneoConfig.formato || 'round_robin';
+  const parejaMap = {};
+  parejas.forEach(p => { parejaMap[p.id] = p; });
+  const slots = generarSlots(torneoConfig);
+  let partidos = [];
+
+  // Siempre hay una sola zona con todos (round robin completo)
+  zonasData = [{ id:'zona_A', nombre:'A', parejas: parejas.map(p => p.id) }];
+  partidos  = generarRoundRobin(parejas, 'zona_A');
+
+  fixture = asignarHorarios(partidos, slots, parejaMap);
+  fixture.forEach((p,i) => { p.id = `partido_${String(i+1).padStart(3,'0')}`; p.orden = i+1; });
+
+  // Si es round_robin_llave, agregar placeholders de eliminatoria AL FINAL
+  if (formato === 'round_robin_llave') {
+    const n = torneoConfig.clasificadosLlave || 4;
+    const rondas = generarRondasEliminatoria(n);
+    let ordenBase = fixture.length;
+    rondas.forEach(ronda => {
+      ronda.partidos.forEach(p => {
+        ordenBase++;
+        fixture.push({
+          id:       `partido_${String(ordenBase).padStart(3,'0')}`,
+          fase:     ronda.fase,
+          zonaId:   null,
+          pareja1Id: p.p1Label, // ej: "1° Zona A"
+          pareja2Id: p.p2Label,
+          estado:   'pendiente',
+          resultado: null,
+          esLlave:  true,
+          llavePos: p.pos,
+          dia:      null,
+          hora:     null,
+          cancha:   null,
+          conflicto: false,
+          orden:    ordenBase
+        });
+      });
+    });
+  }
+}
+
+// Genera la estructura de rondas para una llave de n equipos (n debe ser potencia de 2)
+function generarRondasEliminatoria(n) {
+  const nombres = {2:'final', 4:'semifinal', 8:'cuartos', 16:'octavos'};
+  const rondas = [];
+  let equipos = n;
+  while (equipos >= 2) {
+    const fase = nombres[equipos] || `ronda_${equipos}`;
+    const partidos = [];
+    for (let i = 1; i <= equipos/2; i++) {
+      partidos.push({
+        pos:    i,
+        p1Label: equipos === n ? `Clasificado ${i*2-1}°` : `Ganador partido ${fase}_${i*2-1}`,
+        p2Label: equipos === n ? `Clasificado ${i*2}°`   : `Ganador partido ${fase}_${i*2}`
+      });
+    }
+    rondas.push({ fase, partidos });
+    equipos = equipos / 2;
+  }
+  return rondas;
+}
+
+// ── RENDER TABS ──────────────────────────────────────────
+window.renderTabs = function() {
+  const wrap = document.getElementById('diasTabs');
+  if (!wrap) return;
+  const hayLlave = fixture.some(p => p.esLlave);
+  wrap.innerHTML = DIAS.map((d,i) =>
+    `<button class="dia-tab ${i===diaActivo?'activa':''}" onclick="selDia(${i})">${d.label}</button>`
+  ).join('') + (hayLlave ? `<button class="dia-tab ${diaActivo===999?'activa':''}" onclick="selDia(999)" style="border-color:rgba(240,180,41,0.4);${diaActivo===999?'background:rgba(240,180,41,0.1);border-color:var(--amarillo);color:var(--amarillo)':''}">🏆 LLAVE</button>` : '');
+};
+
+window.selDia = function(i) { diaActivo=i; renderTabs(); renderFixture(); };
+
+// ── RENDER FIXTURE ───────────────────────────────────────
+window.renderFixture = function() {
+  const wrap = document.getElementById('fixtureWrap');
+  if (!wrap) return;
+
+  const conflictos = fixture.filter(p => p.conflicto && !p.esLlave).length;
+  const partLlave  = fixture.filter(p => p.esLlave).length;
+  const partRR     = fixture.length - partLlave;
+  document.getElementById('res-partidos').textContent  = partLlave > 0 ? `${partRR} RR + ${partLlave} llave` : fixture.length;
+  document.getElementById('res-conflictos').textContent = conflictos;
+  const el = document.getElementById('res-estado');
+  if (conflictos === 0) { el.textContent='✓ LISTO'; el.className='resumen-val ok'; }
+  else { el.textContent=`⚠ ${conflictos} CONFLICTO(S)`; el.className='resumen-val warn'; }
+
+  const diaFecha = DIAS[diaActivo]?.fecha;
+  const partidos = diaActivo === 999
+    ? fixture.filter(p => p.esLlave)
+    : fixture.filter(p => p.dia === diaFecha);
+  wrap.innerHTML = '';
+
+  if (partidos.length === 0) {
+    wrap.innerHTML = '<div class="loading">Sin partidos este día</div>';
+    return;
+  }
+
+  const fasesLlave = { final:'FINAL', semifinal:'SEMIFINAL', cuartos:'CUARTOS DE FINAL', octavos:'OCTAVOS DE FINAL' };
+
+  partidos
+    .sort((a,b) => (a.hora||'99:99').localeCompare(b.hora||'99:99')||(a.cancha||'').localeCompare(b.cancha||''))
+    .forEach(p => {
+      const fmt = torneoConfig?.formato || '';
+      let zonaLabel;
+      if (p.esLlave) {
+        zonaLabel = fasesLlave[p.fase] || p.fase?.toUpperCase() || 'LLAVE';
+      } else if (fmt === 'round_robin' || fmt === 'round_robin_llave') {
+        zonaLabel = `Round Robin · ${p.cancha||''}`;
+      } else {
+        zonaLabel = `${(p.fase||'').toUpperCase()} · ${p.cancha||''}`;
+      }
+      const card = document.createElement('div');
+      card.className = 'partido-card' + (p.conflicto?' conflicto':'') + (p.esLlave?' llave-placeholder':'');
+      card.innerHTML = `
+        <div class="partido-header">
+          <div class="partido-hora" style="${p.esLlave?'font-size:14px;color:var(--muted);padding-top:4px;':''}">
+            ${p.esLlave ? '⏳ S/H' : (p.hora||'--:--')}
+          </div>
+          <div class="partido-info">
+            <div class="partido-zona">${zonaLabel}</div>
+            <div class="partido-parejas" style="${p.esLlave?'color:var(--muted);font-style:italic;':''}">
+              ${p.pareja1Id||'?'} <span style="color:var(--muted)">vs</span> ${p.pareja2Id||'?'}
+            </div>
+          </div>
+          <div class="partido-acciones">
+            ${p.esLlave ? '<span style="font-size:11px;color:var(--muted);font-family:Oswald,sans-serif;letter-spacing:1px;">SE ASIGNA<br>DESPUÉS</span>' 
+              : `<button class="btn-mover" onclick="abrirModal('${p.id||p.orden}')" title="Cambiar horario">⇄</button>`}
+          </div>
+        </div>
+        ${p.conflicto?'<span class="conflicto-badge">⚠ Restricción horaria</span>':''}`;
+      wrap.appendChild(card);
+    });
+};
+
+// ── MODAL MOVER ──────────────────────────────────────────
+window.abrirModal = function(id) {
+  partidoSeleccionado = fixture.find(p => (p.id||p.orden)==id || String(p.id||p.orden)===String(id));
+  if (!partidoSeleccionado) return;
+  document.getElementById('modalSub').textContent = `${partidoSeleccionado.pareja1Id||'?'} vs ${partidoSeleccionado.pareja2Id||'?'}`;
+  const opciones = document.getElementById('modalOpciones');
+  opciones.innerHTML = '';
+  HORAS.forEach(hora => {
+    CANCHAS.forEach(cancha => {
+      const ocupado = fixture.some(p =>
+        p.dia===DIAS[diaActivo]?.fecha && p.hora===hora && p.cancha===cancha &&
+        (p.id||p.orden) !== (partidoSeleccionado.id||partidoSeleccionado.orden)
+      );
+      const esActual = hora===partidoSeleccionado.hora && cancha===partidoSeleccionado.cancha;
+      const div = document.createElement('div');
+      div.className = 'modal-opcion' + (ocupado?' ocupado':'');
+      div.innerHTML = `
+        <div class="modal-opcion-hora">${hora}</div>
+        <div class="modal-opcion-cancha">${cancha}</div>
+        <div class="modal-opcion-estado ${ocupado?'ocupado-badge':'libre-badge'}">${esActual?'← ACTUAL':ocupado?'OCUPADO':'LIBRE'}</div>`;
+      if (!ocupado && !esActual) div.onclick = () => moverPartido(hora, cancha);
+      opciones.appendChild(div);
+    });
+  });
+  document.getElementById('modalOverlay').classList.add('visible');
+};
+
+window.cerrarModal = function() { document.getElementById('modalOverlay').classList.remove('visible'); };
+
+window.moverPartido = function(hora, cancha) {
+  if (!partidoSeleccionado) return;
+  const p = fixture.find(x => (x.id||x.orden)===(partidoSeleccionado.id||partidoSeleccionado.orden));
+  if (p) { p.hora=hora; p.cancha=cancha; p.conflicto=false; }
+  cerrarModal(); renderFixture(); showToast('✓ Partido movido');
+};
+
+// ── CONFIRMAR ────────────────────────────────────────────
+window.confirmarFixture = async function() {
+  const conflictos = fixture.filter(p => p.conflicto && !p.esLlave).length;
+  if (conflictos > 0 && !confirm(`Hay ${conflictos} conflicto(s) de horario. ¿Confirmar igual?`)) return;
+
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
+
+  showToast('Guardando fixture...');
+  try {
+    // 1. Guardar partidos de zona
+    await Promise.all(fixture.map((p,i) => {
+      const id = `partido_${String(i+1).padStart(3,'0')}`;
+      return setDoc(doc(db,'torneos',torneoId,'partidos',id), {...p, orden:i+1, id});
+    }));
+
+    // 2. GUARDAR ZONAS (bug fix crítico)
+    await Promise.all(zonasData.map(z =>
+      setDoc(doc(db,'torneos',torneoId,'zonas', z.id), {
+        nombre:  z.nombre,
+        parejas: z.parejas
+      })
+    ));
+
+    // 3. Meta del fixture
+    await setDoc(doc(db,'torneos',torneoId,'fixture','meta'), {
+      confirmado:   true,
+      confirmadoEn: serverTimestamp(),
+      formato:      torneoConfig.formato,
+      totalZonas:   zonasData.length
+    });
+
+    // 4. Actualizar estado del torneo
+    await updateDoc(doc(db,'torneos',torneoId), {
+      estado: 'activo',
+      actualizadoEn: serverTimestamp()
+    });
+
+    showToast('✓ Fixture confirmado');
+    setTimeout(() => { window.location.href = 'torneo_resultados.html'; }, 1200);
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al guardar: ' + e.message);
+  }
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!msg) { t.classList.remove('show'); return; }
+  t.textContent = msg; t.classList.add('show');
+  if (!msg.includes('...') && !msg.startsWith('C')) setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+cargarYGenerar();
+</script>
+</body>
+</html>

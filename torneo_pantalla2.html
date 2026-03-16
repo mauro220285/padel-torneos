@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Padel Team — Crear Torneo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:#4a9eff; --cyan:#00d4ff; --bg:#0a0a0f; --bg2:#111118; --bg3:#18181f;
+  --border:#222230; --text:#e0e0f0; --muted:#555570; --label:#7a7a99;
+  --verde:#4caf50; --amarillo:#f0b429;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 60px; }
+
+.app-header { width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%); border-bottom:1px solid var(--border); padding:18px 20px 14px; display:flex; align-items:center; justify-content:center; position:relative; }
+.app-header::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent); }
+.header-back { position:absolute; left:16px; background:none; border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+.header-back:hover { border-color:var(--azul); color:var(--azul); }
+.header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:6px; color:#fff; }
+.header-logo span { color:var(--azul); }
+
+.steps { display:flex; align-items:center; width:100%; max-width:500px; padding:20px 20px 4px; }
+.step { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; position:relative; }
+.step:not(:last-child)::after { content:''; position:absolute; top:14px; left:55%; right:-45%; height:1px; background:var(--border); }
+.step.done:not(:last-child)::after, .step.active:not(:last-child)::after { background:var(--azul); }
+.step-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:14px; border:1.5px solid var(--border); color:var(--muted); background:var(--bg2); z-index:1; }
+.step.active .step-num { background:var(--azul); border-color:var(--azul); color:#fff; box-shadow:0 0 14px rgba(74,158,255,0.5); }
+.step.done .step-num { background:#1a3a6e; border-color:var(--azul); color:var(--azul); }
+.step-label { font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+.step.active .step-label, .step.done .step-label { color:var(--azul); }
+
+.page-title { width:100%; max-width:500px; padding:20px 20px 6px; }
+.page-title h2 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:4px; color:#fff; line-height:1; }
+.page-title p { font-size:13px; color:var(--label); letter-spacing:1px; margin-top:4px; }
+
+.section { width:100%; max-width:500px; padding:16px 20px 0; }
+.section-label { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--azul); margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+.section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+
+.field { margin-bottom:10px; }
+.field label { display:block; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--label); margin-bottom:5px; }
+.field input, .field select { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px 14px; color:var(--text); font-family:'Oswald',sans-serif; font-size:15px; letter-spacing:1px; outline:none; transition:border-color 0.2s; -webkit-appearance:none; }
+.field input:focus, .field select:focus { border-color:var(--azul); }
+.field input::placeholder { color:var(--muted); }
+.field select option { background:#1a1a2a; }
+.field-row { display:flex; gap:10px; }
+.field-row .field { flex:1; }
+
+/* TIPO CARDS */
+.tipo-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+.tipo-card { background:var(--bg3); border:1.5px solid var(--border); border-radius:12px; padding:12px 14px; cursor:pointer; transition:all 0.2s; text-align:left; }
+.tipo-card:hover { border-color:var(--azul); }
+.tipo-card.selected { border-color:var(--azul); background:rgba(74,158,255,0.08); }
+.tipo-card.selected .tipo-nombre { color:var(--azul); }
+.tipo-nombre { font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; color:#fff; margin-bottom:2px; }
+.tipo-desc { font-size:11px; color:var(--muted); line-height:1.4; }
+.suma-wrap { display:none; }
+.suma-wrap.visible { display:block; }
+
+/* FORMATO CARDS — nuevos */
+.formato-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:0; }
+.formato-card { background:var(--bg3); border:1.5px solid var(--border); border-radius:12px; padding:14px 16px; cursor:pointer; transition:all 0.2s; display:flex; align-items:flex-start; gap:14px; }
+.formato-card:hover { border-color:var(--azul); }
+.formato-card.selected { border-color:var(--azul); background:rgba(74,158,255,0.08); }
+.formato-icon { font-size:24px; flex-shrink:0; margin-top:2px; }
+.formato-text .formato-nombre { font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; color:#fff; }
+.formato-card.selected .formato-nombre { color:var(--azul); }
+.formato-text .formato-desc { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.4; }
+
+/* CLASIFICADOS SELECTOR — aparece solo en round_robin_llave */
+.clasificados-wrap { display:none; margin-top:10px; }
+.clasificados-wrap.visible { display:block; }
+.clasificados-info { font-size:12px; color:var(--label); letter-spacing:1px; margin-top:8px; line-height:1.6; background:rgba(74,158,255,0.06); border:1px solid rgba(74,158,255,0.2); border-radius:8px; padding:8px 12px; }
+.clas-btn { flex:1; padding:10px 0; background:var(--bg3); border:1.5px solid var(--border); border-radius:10px; color:var(--muted); font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+.clas-btn:hover { border-color:var(--azul); color:var(--azul); }
+.clas-btn.selected { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
+
+/* STEPPER */
+.stepper { display:flex; align-items:center; background:var(--bg3); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.stepper button { width:44px; height:44px; background:none; border:none; color:var(--azul); font-size:22px; cursor:pointer; transition:background 0.15s; flex-shrink:0; }
+.stepper button:hover { background:rgba(74,158,255,0.1); }
+.stepper input { flex:1; background:none; border:none; border-left:1px solid var(--border); border-right:1px solid var(--border); color:var(--text); text-align:center; font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px; outline:none; padding:0; height:44px; }
+
+/* DÍAS */
+.dias-lista { display:flex; flex-direction:column; gap:8px; margin-bottom:8px; }
+.dia-row { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+.dia-row-top { display:flex; align-items:center; gap:10px; }
+.dia-num { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--azul); width:28px; flex-shrink:0; }
+.dia-row input[type="date"] { flex:1; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; color:var(--text); font-family:'Oswald',sans-serif; font-size:14px; outline:none; transition:border-color 0.2s; color-scheme:dark; }
+.dia-row-horarios { display:flex; gap:8px; }
+.dia-horario { flex:1; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:6px 10px; display:flex; flex-direction:column; gap:2px; }
+.dia-horario label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+.dia-horario input[type="time"] { background:none; border:none; color:var(--text); font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:2px; outline:none; width:100%; color-scheme:dark; padding:0; }
+.dia-row input:focus, .dia-horario input:focus { border-color:var(--azul); }
+.btn-add-dia { background:none; border:1px dashed var(--border); border-radius:10px; padding:10px 14px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; cursor:pointer; width:100%; text-align:center; transition:all 0.2s; margin-bottom:4px; }
+.btn-add-dia:hover { border-color:var(--azul); color:var(--azul); }
+.btn-del { background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:2px 4px; margin-left:auto; flex-shrink:0; }
+.btn-del:hover { color:#e63946; }
+
+/* TIEMPOS */
+.tiempos-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+/* CÁLCULO */
+.calculo-box { background:linear-gradient(135deg,rgba(74,158,255,0.06),rgba(0,212,255,0.04)); border:1px solid rgba(74,158,255,0.25); border-radius:12px; padding:14px 16px; margin-top:10px; }
+.calculo-title { font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:3px; color:var(--azul); text-transform:uppercase; margin-bottom:10px; }
+.calculo-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+.calculo-key { font-size:12px; color:var(--label); letter-spacing:1px; }
+.calculo-val { font-family:'Bebas Neue',sans-serif; font-size:20px; color:#fff; letter-spacing:2px; }
+.calculo-val.ok { color:var(--verde); }
+.calculo-val.warn { color:var(--amarillo); }
+.calculo-divider { height:1px; background:var(--border); margin:8px 0; }
+
+.nav-row { display:flex; gap:10px; width:100%; max-width:500px; padding:0 20px; margin-top:28px; }
+.btn-back { flex:0 0 auto; padding:14px 20px; background:var(--bg3); border:1px solid var(--border); border-radius:12px; color:var(--muted); font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+.btn-back:hover { border-color:var(--azul); color:var(--azul); }
+.btn-next { flex:1; padding:16px; background:var(--azul); border:none; border-radius:12px; color:#fff; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; cursor:pointer; transition:opacity 0.15s,transform 0.1s,box-shadow 0.2s; box-shadow:0 4px 24px rgba(74,158,255,0.3); }
+.btn-next:active { transform:scale(0.98); opacity:0.9; }
+
+.divider { width:100%; max-width:500px; height:1px; background:var(--border); margin:18px 0 0; }
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--azul); color:#fff; font-family:'Oswald',sans-serif; font-size:14px; padding:10px 28px; border-radius:30px; letter-spacing:1px; transition:transform 0.3s cubic-bezier(.21,1.02,.73,1); z-index:9999; pointer-events:none; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <button class="header-back" onclick="window.location.href='index.html'">← INICIO</button>
+  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+</div>
+
+<div class="steps">
+  <div class="step done"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
+  <div class="step active"><div class="step-num">2</div><div class="step-label">Torneo</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+</div>
+
+<div class="page-title">
+  <h2>Crear torneo</h2>
+  <p>Definí las características del torneo</p>
+</div>
+
+<!-- NOMBRE -->
+<div class="section">
+  <div class="section-label">Identificación</div>
+  <div class="field">
+    <label>Nombre del torneo</label>
+    <input type="text" id="nombreTorneo" placeholder="Ej: 7° Torneo Caballeros">
+  </div>
+</div>
+
+<!-- TIPO -->
+<div class="section">
+  <div class="section-label">Tipo de torneo</div>
+  <div class="tipo-grid">
+    <div class="tipo-card selected" onclick="selTipo(this,'libre')">
+      <div class="tipo-nombre">CATEGORÍA LIBRE</div>
+      <div class="tipo-desc">Sin restricción de nivel</div>
+    </div>
+    <div class="tipo-card" onclick="selTipo(this,'unica')">
+      <div class="tipo-nombre">CAT. ÚNICA</div>
+      <div class="tipo-desc">Solo una categoría específica</div>
+    </div>
+    <div class="tipo-card" onclick="selTipo(this,'suma')">
+      <div class="tipo-nombre">SUMA</div>
+      <div class="tipo-desc">La suma de cats no supera un máximo</div>
+    </div>
+  </div>
+  <div style="margin-top:8px;">
+    <div class="tipo-card" id="mixtoToggle" onclick="toggleMixto(this)" style="display:flex;align-items:center;gap:12px;">
+      <div style="width:20px;height:20px;border-radius:5px;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="mixtoCheck"></div>
+      <div>
+        <div class="tipo-nombre">MIXTO</div>
+        <div class="tipo-desc">Un hombre y una mujer por pareja · Combinable con los tipos anteriores</div>
+      </div>
+    </div>
+  </div>
+  <div class="suma-wrap" id="sumaWrap">
+    <div class="field">
+      <label>Suma máxima de categorías</label>
+      <input type="number" id="sumaMax" placeholder="Ej: 10">
+    </div>
+  </div>
+</div>
+
+<!-- FORMATO -->
+<div class="section">
+  <div class="section-label">Formato</div>
+  <div class="formato-grid">
+
+    <div class="formato-card selected" onclick="selFormato(this,'round_robin')">
+      <div class="formato-icon">🔄</div>
+      <div class="formato-text">
+        <div class="formato-nombre">ROUND ROBIN</div>
+        <div class="formato-desc">Todos contra todos. Se define una tabla final de posiciones. Sin llave eliminatoria.</div>
+      </div>
+    </div>
+
+    <div class="formato-card" onclick="selFormato(this,'round_robin_llave')">
+      <div class="formato-icon">🏆</div>
+      <div class="formato-text">
+        <div class="formato-nombre">ROUND ROBIN + LLAVE</div>
+        <div class="formato-desc">Todos contra todos. Los mejores N clasifican a una llave eliminatoria.</div>
+      </div>
+    </div>
+
+    <div class="formato-card" onclick="selFormato(this,'zonas_llave')">
+      <div class="formato-icon">⬡</div>
+      <div class="formato-text">
+        <div class="formato-nombre">ZONAS + LLAVE</div>
+        <div class="formato-desc">Fase de grupos por zonas. Los primeros de cada zona clasifican a eliminatoria.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Selector de clasificados — solo para round_robin_llave -->
+  <div class="clasificados-wrap" id="clasificadosWrap">
+    <div class="field" style="margin-top:10px;">
+      <label>¿Cuántas parejas clasifican a la llave?</label>
+      <!-- Botones fijos para potencias de 2 -->
+      <div id="clasificadosBtns" style="display:flex;gap:8px;margin-top:4px;">
+        <button class="clas-btn" data-val="2" onclick="selClasificados(2)">2</button>
+        <button class="clas-btn" data-val="4" onclick="selClasificados(4)">4</button>
+        <button class="clas-btn" data-val="8" onclick="selClasificados(8)">8</button>
+        <button class="clas-btn" data-val="16" onclick="selClasificados(16)">16</button>
+      </div>
+      <input type="hidden" id="clasificados" value="4">
+    </div>
+    <div class="clasificados-info" id="clasificadosInfo"></div>
+  </div>
+</div>
+
+<!-- INFRAESTRUCTURA -->
+<div class="section">
+  <div class="section-label">Infraestructura</div>
+  <div class="field-row">
+    <div class="field">
+      <label>Canchas disponibles</label>
+      <div class="stepper">
+        <button onclick="stepperChange('canchas',-1)">−</button>
+        <input type="number" id="canchas" value="2" min="1" max="20" readonly>
+        <button onclick="stepperChange('canchas',1)">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Cantidad de parejas</label>
+      <div class="stepper">
+        <button onclick="stepperChange('parejas',-1)">−</button>
+        <input type="number" id="parejas" value="8" min="4" max="64" readonly>
+        <button onclick="stepperChange('parejas',1)">+</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FECHAS -->
+<div class="section">
+  <div class="section-label">Fechas y horarios</div>
+  <div class="dias-lista" id="diasLista">
+    <div class="dia-row">
+      <div class="dia-row-top">
+        <span class="dia-num">1</span>
+        <input type="date" onchange="calcular()">
+        <button class="btn-del" onclick="eliminarDia(this)">✕</button>
+      </div>
+      <div class="dia-row-horarios">
+        <div class="dia-horario"><label>Apertura</label><input type="time" value="09:00" onchange="calcular()"></div>
+        <div class="dia-horario"><label>Cierre</label><input type="time" value="22:00" onchange="calcular()"></div>
+      </div>
+    </div>
+  </div>
+  <button class="btn-add-dia" onclick="agregarDia()">+ AGREGAR DÍA</button>
+</div>
+
+<!-- TIEMPOS -->
+<div class="section">
+  <div class="section-label">Tiempos</div>
+  <div class="tiempos-grid">
+    <div class="field">
+      <label>Duración partido (min)</label>
+      <div class="stepper">
+        <button onclick="stepperChange('duracion',-5)">−</button>
+        <input type="number" id="duracion" value="75" min="30" max="180" readonly>
+        <button onclick="stepperChange('duracion',5)">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Intervalo entre partidos</label>
+      <div class="stepper">
+        <button onclick="stepperChange('intervalo',-5)">−</button>
+        <input type="number" id="intervalo" value="15" min="0" max="60" readonly>
+        <button onclick="stepperChange('intervalo',5)">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Intervalo mediodía (min)</label>
+      <div class="stepper">
+        <button onclick="stepperChange('mediodia',-5)">−</button>
+        <input type="number" id="mediodia" value="0" min="0" max="120" readonly>
+        <button onclick="stepperChange('mediodia',5)">+</button>
+      </div>
+    </div>
+    <div class="field" id="horaMedodiaField" style="opacity:0.35;pointer-events:none;">
+      <label>Hora corte mediodía</label>
+      <input type="time" id="horaMediadia" value="13:00" style="height:44px;padding:0 10px;">
+    </div>
+  </div>
+</div>
+
+<!-- CÁLCULO AUTOMÁTICO -->
+<div class="section">
+  <div class="calculo-box">
+    <div class="calculo-title">⚡ Cálculo automático</div>
+    <div class="calculo-row">
+      <span class="calculo-key">Total de partidos estimados</span>
+      <span class="calculo-val" id="calc-partidos">—</span>
+    </div>
+    <div class="calculo-row">
+      <span class="calculo-key">Minutos disponibles (total)</span>
+      <span class="calculo-val" id="calc-minutos">—</span>
+    </div>
+    <div class="calculo-divider"></div>
+    <div class="calculo-row">
+      <span class="calculo-key">Minutos necesarios</span>
+      <span class="calculo-val" id="calc-necesarios">—</span>
+    </div>
+    <div class="calculo-row">
+      <span class="calculo-key">Estado</span>
+      <span class="calculo-val" id="calc-estado">—</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="nav-row">
+  <button class="btn-back" onclick="history.back()">← VOLVER</button>
+  <button class="btn-next" onclick="guardarYSeguir()">SIGUIENTE → PAREJAS</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain: "padel-team-76749.firebaseapp.com",
+  projectId: "padel-team-76749",
+  storageBucket: "padel-team-76749.firebasestorage.app",
+  messagingSenderId: "449257104174",
+  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let tipoActivo    = 'libre';
+let mixtoActivo   = false;
+let formatoActivo = 'round_robin';
+
+// ── TIPO ──
+window.selTipo = function(card, tipo) {
+  document.querySelectorAll('.tipo-card:not(#mixtoToggle)').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  tipoActivo = tipo;
+  document.getElementById('sumaWrap').classList.toggle('visible', tipo === 'suma');
+};
+
+window.toggleMixto = function(card) {
+  mixtoActivo = !mixtoActivo;
+  card.classList.toggle('selected', mixtoActivo);
+  const check = document.getElementById('mixtoCheck');
+  check.textContent = mixtoActivo ? '✓' : '';
+  check.style.color = 'var(--azul)';
+  check.style.borderColor = mixtoActivo ? 'var(--azul)' : 'var(--border)';
+};
+
+// ── FORMATO ──
+window.selFormato = function(card, formato) {
+  document.querySelectorAll('.formato-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  formatoActivo = formato;
+  const wrap = document.getElementById('clasificadosWrap');
+  wrap.classList.toggle('visible', formato === 'round_robin_llave' || formato === 'zonas_llave');
+  actualizarInfoClasificados();
+  calcular();
+};
+
+// ── CLASIFICADOS (botones fijos: 2, 4, 8, 16) ──
+window.selClasificados = function(n) {
+  document.getElementById('clasificados').value = n;
+  document.querySelectorAll('.clas-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.dataset.val) === n);
+  });
+  actualizarInfoClasificados();
+  calcular();
+};
+
+function actualizarInfoClasificados() {
+  if (formatoActivo !== 'round_robin_llave') return;
+  const n = parseInt(document.getElementById('clasificados')?.value) || 4;
+  const info = document.getElementById('clasificadosInfo');
+  if (!info) return;
+  const parejas = parseInt(document.getElementById('parejas').value) || 8;
+  let estructura = '';
+  let rondas = Math.log2(n);
+  const nombres = ['Final','Semifinal','Cuartos de final','Octavos de final'];
+  const partes = [];
+  for (let r = rondas; r >= 1; r--) partes.push(nombres[rondas - r] || `Ronda de ${Math.pow(2,r)}`);
+  estructura = partes.join(' → ');
+  const partLlave = n - 1;
+  if (n >= parejas) {
+    info.innerHTML = `⚠️ Los clasificados (${n}) deben ser menos que el total de parejas (${parejas})`;
+  } else {
+    info.innerHTML = `<strong style="color:var(--azul)">${n} clasificados</strong> · ${estructura}<br><span style="color:var(--muted)">${partLlave} partido${partLlave>1?'s':''} de llave + ${parejas*(parejas-1)/2} del round robin</span>`;
+  }
+}
+
+// ── STEPPER ──
+window.stepperChange = function(id, delta) {
+  const inp = document.getElementById(id);
+  const val = parseInt(inp.value) + delta;
+  const min = parseInt(inp.min);
+  const max = parseInt(inp.max);
+  inp.value = Math.min(max, Math.max(min, val));
+  // Activar/desactivar hora corte mediodía
+  if (id === 'mediodia') {
+    const field = document.getElementById('horaMedodiaField');
+    const activo = parseInt(inp.value) > 0;
+    field.style.opacity = activo ? '1' : '0.35';
+    field.style.pointerEvents = activo ? 'auto' : 'none';
+  }
+  calcular();
+};
+
+// Seleccionar 4 por defecto al cargar
+selClasificados(4);
+
+// ── DÍAS ──
+window.agregarDia = function() {
+  const lista = document.getElementById('diasLista');
+  const n = lista.children.length + 1;
+  const row = document.createElement('div');
+  row.className = 'dia-row';
+  row.innerHTML = `
+    <div class="dia-row-top">
+      <span class="dia-num">${n}</span>
+      <input type="date" onchange="calcular()">
+      <button class="btn-del" onclick="eliminarDia(this)">✕</button>
+    </div>
+    <div class="dia-row-horarios">
+      <div class="dia-horario"><label>Apertura</label><input type="time" value="09:00" onchange="calcular()"></div>
+      <div class="dia-horario"><label>Cierre</label><input type="time" value="22:00" onchange="calcular()"></div>
+    </div>`;
+  lista.appendChild(row);
+  calcular();
+};
+
+window.eliminarDia = function(btn) {
+  const lista = document.getElementById('diasLista');
+  if (lista.children.length <= 1) return;
+  btn.closest('.dia-row').remove();
+  [...lista.children].forEach((row, i) => row.querySelector('.dia-num').textContent = i + 1);
+  calcular();
+};
+
+// ── CÁLCULO AUTOMÁTICO ──
+window.calcular = function() {
+  const parejas   = parseInt(document.getElementById('parejas').value);
+  const canchas   = parseInt(document.getElementById('canchas').value);
+  const duracion  = parseInt(document.getElementById('duracion').value);
+  const intervalo = parseInt(document.getElementById('intervalo').value);
+  const mediodia  = parseInt(document.getElementById('mediodia').value);
+
+  // Partidos según formato
+  let partidos = 0;
+  const rrPartidos = (parejas * (parejas - 1)) / 2;
+  if (formatoActivo === 'round_robin') {
+    partidos = rrPartidos;
+  } else if (formatoActivo === 'round_robin_llave') {
+    const clasificados = parseInt(document.getElementById('clasificados')?.value) || 4;
+    partidos = rrPartidos + (clasificados - 1); // partidos eliminatorios = clasificados - 1
+  } else {
+    partidos = rrPartidos; // fallback
+  }
+
+  let minutosTotal = 0;
+  document.querySelectorAll('#diasLista .dia-row').forEach(dia => {
+    const apertura = dia.querySelectorAll('input[type="time"]')[0].value;
+    const cierre   = dia.querySelectorAll('input[type="time"]')[1].value;
+    if (!apertura || !cierre) return;
+    const [ah, am] = apertura.split(':').map(Number);
+    const [ch, cm] = cierre.split(':').map(Number);
+    let mins = (ch * 60 + cm) - (ah * 60 + am);
+    if (mediodia > 0) mins -= mediodia;
+    minutosTotal += Math.max(0, mins) * canchas;
+  });
+
+  const slotMin = duracion + intervalo;
+  const minutosNecesarios = partidos * slotMin;
+
+  document.getElementById('calc-partidos').textContent  = partidos;
+  document.getElementById('calc-minutos').textContent   = minutosTotal > 0 ? minutosTotal + ' min' : '—';
+  document.getElementById('calc-necesarios').textContent = minutosNecesarios + ' min';
+
+  const estadoEl = document.getElementById('calc-estado');
+  if (minutosTotal === 0) {
+    estadoEl.textContent = 'Ingresá fechas y horarios';
+    estadoEl.className = 'calculo-val';
+  } else if (minutosTotal >= minutosNecesarios) {
+    estadoEl.textContent = '✓ ALCANZA';
+    estadoEl.className = 'calculo-val ok';
+  } else {
+    const falta = minutosNecesarios - minutosTotal;
+    estadoEl.textContent = `⚠ FALTAN ~${falta} MIN`;
+    estadoEl.className = 'calculo-val warn';
+  }
+};
+
+// ── GUARDAR Y SEGUIR ──
+window.guardarYSeguir = async function() {
+  const nombre = document.getElementById('nombreTorneo').value.trim();
+  if (!nombre) { showToast('⚠️ Ingresá el nombre del torneo'); return; }
+
+  const diaRows = [...document.querySelectorAll('#diasLista .dia-row')];
+  const dias = diaRows.map(row => {
+    const inputs = row.querySelectorAll('input');
+    return { fecha: inputs[0].value, apertura: inputs[1].value, cierre: inputs[2].value };
+  }).filter(d => d.fecha);
+  if (dias.length === 0) { showToast('⚠️ Ingresá al menos una fecha'); return; }
+
+  const clasificados = (formatoActivo === 'round_robin_llave' || formatoActivo === 'zonas_llave')
+    ? parseInt(document.getElementById('clasificados').value) || 4
+    : null;
+
+  // Validar clasificados vs parejas
+  if (formatoActivo === 'round_robin_llave') {
+    const parejasCant = parseInt(document.getElementById('parejas').value);
+    if (clasificados >= parejasCant) { showToast('⚠️ Los clasificados deben ser menos que el total de parejas'); return; }
+    if ((clasificados & (clasificados - 1)) !== 0) { showToast('⚠️ Los clasificados deben ser 2, 4, 8 o 16'); return; }
+  }
+
+  const torneo = {
+    nombre,
+    tipo:               mixtoActivo && tipoActivo !== 'libre' ? `${tipoActivo}_mixto` : mixtoActivo ? 'mixto' : tipoActivo,
+    mixto:              mixtoActivo,
+    formato:            formatoActivo,
+    sumaMaxima:         tipoActivo === 'suma' ? parseInt(document.getElementById('sumaMax')?.value)||0 : null,
+    canchasDisponibles: parseInt(document.getElementById('canchas').value),
+    totalParejas:       parseInt(document.getElementById('parejas').value),
+    clasificadosLlave:  clasificados,
+    duracion:           parseInt(document.getElementById('duracion').value),
+    intervalo:          parseInt(document.getElementById('intervalo').value),
+    intervaloMediodia:  parseInt(document.getElementById('mediodia').value),
+    horaCorteMediodia:  document.getElementById('horaMediadia')?.value || '13:00',
+    tercerSet:          'superTiebreak',
+    dias,
+    escalaPuntos: { 1:100, 2:90, 3:80, 5:70, 9:60, 99:50 },
+    estado: 'borrador'
+  };
+
+  try {
+    showToast('Guardando...');
+    const slug = nombre.toLowerCase().normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+    const torneoId = `${dias[0].fecha}-${slug}`;
+
+    await setDoc(doc(db, 'torneos', torneoId), { ...torneo, creadoEn: serverTimestamp() });
+    sessionStorage.setItem('torneoId', torneoId);
+    sessionStorage.setItem('torneoNombre', nombre);
+
+    showToast('✓ Torneo guardado');
+    setTimeout(() => { window.location.href = 'torneo_pantalla3.html'; }, 1200);
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al guardar. Revisá conexión.');
+  }
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+window.showToast = showToast;
+
+calcular();
+</script>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Padel Team — Inicio</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:#4a9eff; --cyan:#00d4ff; --bg:#0a0a0f; --bg2:#111118; --bg3:#18181f;
+  --border:#222230; --text:#e0e0f0; --muted:#555570; --label:#7a7a99;
+  --verde:#4caf50; --rojo:#e63946; --amarillo:#f0b429;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif;
+  min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 60px;
+}
+
+/* HEADER */
+.app-header {
+  width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border); padding:18px 20px 14px;
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.app-header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent);
+}
+.header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:6px; color:#fff; }
+.header-logo span { color:var(--azul); }
+
+/* HERO */
+.hero {
+  width:100%; max-width:500px; padding:32px 20px 8px;
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+}
+.hero-icon { font-size:56px; margin-bottom:12px; }
+.hero h1 { font-family:'Bebas Neue',sans-serif; font-size:38px; letter-spacing:6px; color:#fff; line-height:1; }
+.hero p { font-size:13px; color:var(--label); letter-spacing:2px; margin-top:6px; }
+
+/* SECTION */
+.section { width:100%; max-width:500px; padding:20px 20px 0; }
+.section-label {
+  font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:4px;
+  text-transform:uppercase; color:var(--azul); margin-bottom:12px;
+  display:flex; align-items:center; gap:10px;
+}
+.section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+
+/* TORNEO CARD */
+.torneo-card {
+  background:var(--bg3); border:1.5px solid var(--border); border-radius:14px;
+  padding:16px; margin-bottom:10px; cursor:pointer; transition:all 0.2s;
+  display:flex; align-items:center; gap:14px;
+}
+.torneo-card:hover { border-color:var(--azul); background:rgba(74,158,255,0.04); }
+.torneo-card.activo { border-color:var(--azul); background:rgba(74,158,255,0.06); }
+.torneo-badge {
+  width:44px; height:44px; border-radius:10px; display:flex; align-items:center;
+  justify-content:center; font-size:22px; flex-shrink:0;
+  background:rgba(74,158,255,0.1); border:1px solid rgba(74,158,255,0.2);
+}
+.torneo-card.finalizado .torneo-badge { background:rgba(85,85,112,0.15); border-color:var(--border); }
+.torneo-card.borrador .torneo-badge  { background:rgba(240,180,41,0.1); border-color:rgba(240,180,41,0.3); }
+.torneo-info { flex:1; min-width:0; }
+.torneo-nombre { font-family:'Oswald',sans-serif; font-size:15px; letter-spacing:2px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.torneo-meta { font-size:11px; color:var(--muted); letter-spacing:1px; margin-top:3px; }
+.torneo-estado {
+  padding:4px 10px; border-radius:20px; font-family:'Oswald',sans-serif;
+  font-size:9px; letter-spacing:2px; text-transform:uppercase; flex-shrink:0;
+}
+.estado-activo   { background:rgba(74,158,255,0.12); border:1px solid var(--azul); color:var(--azul); }
+.estado-borrador { background:rgba(240,180,41,0.1); border:1px solid var(--amarillo); color:var(--amarillo); }
+.estado-finalizado { background:rgba(76,175,80,0.1); border:1px solid var(--verde); color:var(--verde); }
+
+/* SELECCIONADO INDICATOR */
+.torneo-card.seleccionado {
+  border-color:var(--azul);
+  box-shadow:0 0 0 2px rgba(74,158,255,0.25);
+}
+.torneo-check { width:22px; height:22px; border-radius:50%; background:var(--azul); display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; flex-shrink:0; display:none; }
+.torneo-card.seleccionado .torneo-check { display:flex; }
+
+/* LOADING */
+.loading-state { text-align:center; padding:30px 20px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px; }
+.loading-dots { display:inline-flex; gap:4px; margin-top:10px; }
+.loading-dots span { width:6px; height:6px; border-radius:50%; background:var(--azul); animation:dot 1.4s infinite; }
+.loading-dots span:nth-child(2) { animation-delay:.2s; }
+.loading-dots span:nth-child(3) { animation-delay:.4s; }
+@keyframes dot { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+
+/* ACCIONES RAPIDAS */
+.acciones { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px; }
+.accion-btn {
+  background:var(--bg3); border:1px solid var(--border); border-radius:12px;
+  padding:14px 12px; text-align:center; cursor:pointer; transition:all 0.2s; text-decoration:none;
+}
+.accion-btn:hover { border-color:var(--azul); background:rgba(74,158,255,0.04); }
+.accion-icon { font-size:24px; display:block; margin-bottom:6px; }
+.accion-label { font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; color:var(--label); text-transform:uppercase; }
+
+/* BTN PRINCIPAL */
+.btn-seleccionar {
+  width:100%; max-width:500px; margin:24px 20px 0; padding:16px;
+  background:var(--azul); border:none; border-radius:12px; color:#fff;
+  font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
+  cursor:pointer; box-shadow:0 4px 24px rgba(74,158,255,0.3); transition:all 0.15s;
+  display:none;
+}
+.btn-seleccionar.visible { display:block; }
+.btn-seleccionar:active { transform:scale(0.98); opacity:0.9; }
+
+.btn-nuevo {
+  width:100%; background:none; border:1.5px dashed var(--border);
+  border-radius:12px; padding:14px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:13px; letter-spacing:3px; cursor:pointer; text-align:center; transition:all 0.2s;
+  margin-top:4px;
+}
+.btn-nuevo:hover { border-color:var(--azul); color:var(--azul); }
+
+/* VISTA PÚBLICA LINK */
+.public-link {
+  width:100%; max-width:500px; padding:16px 20px 0;
+  display:flex; align-items:center; gap:10px;
+}
+.public-link a {
+  flex:1; display:flex; align-items:center; gap:10px; padding:12px 16px;
+  background:rgba(0,212,255,0.05); border:1px solid rgba(0,212,255,0.2);
+  border-radius:12px; text-decoration:none; color:var(--cyan); transition:all 0.2s;
+  font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px;
+}
+.public-link a:hover { background:rgba(0,212,255,0.1); }
+.public-link-icon { font-size:18px; }
+
+/* DIVIDER */
+.divider { width:100%; max-width:500px; height:1px; background:var(--border); margin:18px 0 0; }
+
+/* TOAST */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--azul); color:#fff; font-family:'Oswald',sans-serif; font-size:14px; padding:10px 28px; border-radius:30px; letter-spacing:1px; transition:transform 0.3s cubic-bezier(.21,1.02,.73,1); z-index:9999; pointer-events:none; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+</div>
+
+<div class="hero">
+  <div class="hero-icon">🎾</div>
+  <h1>BIENVENIDO</h1>
+  <p>Seleccioná un torneo para continuar</p>
+</div>
+
+<!-- ACCIONES RÁPIDAS -->
+<div class="section">
+  <div class="section-label">Acceso rápido</div>
+  <div class="acciones">
+    <div class="accion-btn" onclick="irACrear()">
+      <span class="accion-icon">➕</span>
+      <span class="accion-label">Nuevo torneo</span>
+    </div>
+    <div class="accion-btn" id="btn-resultados-rapido" style="display:none;" onclick="irAResultados()">
+      <span class="accion-icon">📊</span>
+      <span class="accion-label">Cargar resultados</span>
+    </div>
+    <div class="accion-btn" id="btn-configuracion" onclick="window.location.href='torneo_pantalla1.html'">
+      <span class="accion-icon">⚙️</span>
+      <span class="accion-label">Config. cancha</span>
+    </div>
+    <div class="accion-btn" id="btn-informes-rapido" style="display:none;" onclick="irAInformes()">
+      <span class="accion-icon">📋</span>
+      <span class="accion-label">Ver informes</span>
+    </div>
+  </div>
+</div>
+
+<!-- TORNEOS ACTIVOS / RECIENTES -->
+<div class="section">
+  <div class="section-label">Torneos</div>
+  <div id="torneosList">
+    <div class="loading-state">
+      Cargando torneos...
+      <div class="loading-dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+  <button class="btn-nuevo" onclick="irACrear()">+ CREAR NUEVO TORNEO</button>
+</div>
+
+<!-- BTN CONTINUAR -->
+<div style="width:100%;max-width:500px;padding:0 20px;">
+  <button class="btn-seleccionar" id="btnSeleccionar" onclick="seleccionarTorneo()">
+    CONTINUAR CON ESTE TORNEO →
+  </button>
+</div>
+
+<!-- LINK VISTA PÚBLICA -->
+<div class="public-link" id="publicLinkWrap" style="display:none;">
+  <a href="torneo_publico.html" id="publicLink">
+    <span class="public-link-icon">👁️</span>
+    VER VISTA PÚBLICA (JUGADORES)
+  </a>
+</div>
+
+<div class="divider"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, query, orderBy, getDocs, getDoc, doc, limit }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain: "padel-team-76749.firebaseapp.com",
+  projectId: "padel-team-76749",
+  storageBucket: "padel-team-76749.firebasestorage.app",
+  messagingSenderId: "449257104174",
+  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let torneoSeleccionadoId   = null;
+let torneoSeleccionadoData = null;
+
+// ── CARGAR TORNEOS ──────────────────────────────────────
+async function cargarTorneos() {
+  const lista = document.getElementById('torneosList');
+  try {
+    const snap = await getDocs(query(collection(db, 'torneos'), orderBy('creadoEn', 'desc'), limit(20)));
+    if (snap.empty) {
+      lista.innerHTML = `<div class="loading-state" style="padding:20px;">
+        <div style="font-size:32px;margin-bottom:10px;">🎾</div>
+        No hay torneos aún. ¡Creá el primero!
+      </div>`;
+      return;
+    }
+
+    const torneos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Restaurar selección previa
+    const prevId = sessionStorage.getItem('torneoId');
+
+    lista.innerHTML = '';
+    torneos.forEach(t => {
+      const esBorrador  = t.estado === 'borrador';
+      const esFinalizado = t.estado === 'finalizado';
+      const esActivo    = t.estado === 'activo';
+      const icono       = esFinalizado ? '✅' : esBorrador ? '📝' : '🏆';
+      const estadoClass = esActivo ? 'estado-activo' : esBorrador ? 'estado-borrador' : 'estado-finalizado';
+      const estadoTxt   = esActivo ? 'ACTIVO' : esBorrador ? 'BORRADOR' : 'FINALIZADO';
+      const cardClass   = esActivo ? 'activo' : esBorrador ? 'borrador' : 'finalizado';
+      const fecha       = t.dias?.[0]?.fecha ? new Date(t.dias[0].fecha + 'T12:00:00').toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+
+      const card = document.createElement('div');
+      card.className = `torneo-card ${cardClass} ${t.id === prevId ? 'seleccionado' : ''}`;
+      card.dataset.id = t.id;
+      card.innerHTML = `
+        <div class="torneo-badge">${icono}</div>
+        <div class="torneo-info">
+          <div class="torneo-nombre">${t.nombre || t.id}</div>
+          <div class="torneo-meta">${fecha}${t.totalParejas ? ' · ' + t.totalParejas + ' parejas' : ''}</div>
+        </div>
+        <span class="torneo-estado ${estadoClass}">${estadoTxt}</span>
+        <div class="torneo-check">✓</div>`;
+
+      card.onclick = () => elegirTorneo(t.id, t, card);
+      lista.appendChild(card);
+    });
+
+    // Auto-seleccionar el previo si existe
+    if (prevId) {
+      const prevCard = lista.querySelector(`[data-id="${prevId}"]`);
+      if (prevCard) {
+        const prevTorneo = torneos.find(t => t.id === prevId);
+        if (prevTorneo) elegirTorneo(prevId, prevTorneo, prevCard);
+      }
+    }
+  } catch(e) {
+    console.error(e);
+    lista.innerHTML = `<div class="loading-state">Error al cargar torneos.<br><small style="color:var(--rojo)">${e.message}</small></div>`;
+  }
+}
+
+function elegirTorneo(id, data, card) {
+  document.querySelectorAll('.torneo-card').forEach(c => c.classList.remove('seleccionado'));
+  card.classList.add('seleccionado');
+  torneoSeleccionadoId   = id;
+  torneoSeleccionadoData = data;
+  document.getElementById('btnSeleccionar').classList.add('visible');
+  document.getElementById('publicLinkWrap').style.display = 'flex';
+  document.getElementById('publicLink').href = `torneo_publico.html?id=${id}`;
+
+  // Mostrar accesos rápidos relevantes
+  if (data.estado === 'activo') {
+    document.getElementById('btn-resultados-rapido').style.display = '';
+    document.getElementById('btn-informes-rapido').style.display   = '';
+    document.getElementById('btn-configuracion').style.display = 'none';
+  }
+}
+
+window.irACrear = function() {
+  sessionStorage.removeItem('torneoId');
+  sessionStorage.removeItem('torneoNombre');
+  window.location.href = 'torneo_pantalla2.html';
+};
+
+window.irAResultados = function() {
+  if (torneoSeleccionadoId) {
+    sessionStorage.setItem('torneoId', torneoSeleccionadoId);
+    sessionStorage.setItem('torneoNombre', torneoSeleccionadoData?.nombre || '');
+    window.location.href = 'torneo_resultados.html';
+  }
+};
+
+window.irAInformes = function() {
+  if (torneoSeleccionadoId) {
+    sessionStorage.setItem('torneoId', torneoSeleccionadoId);
+    sessionStorage.setItem('torneoNombre', torneoSeleccionadoData?.nombre || '');
+    window.location.href = 'torneo_pantalla5.html';
+  }
+};
+
+window.seleccionarTorneo = function() {
+  if (!torneoSeleccionadoId) return;
+  sessionStorage.setItem('torneoId', torneoSeleccionadoId);
+  sessionStorage.setItem('torneoNombre', torneoSeleccionadoData?.nombre || '');
+
+  const estado = torneoSeleccionadoData?.estado;
+  if (estado === 'borrador') {
+    window.location.href = 'torneo_pantalla4.html';
+  } else if (estado === 'activo') {
+    window.location.href = 'torneo_resultados.html';
+  } else if (estado === 'finalizado') {
+    window.location.href = 'torneo_pantalla5.html';
+  } else {
+    window.location.href = 'torneo_pantalla2.html';
+  }
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+cargarTorneos();
+</script>
+</body>
+</html>

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Padel Team — Carga de Parejas</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:   #4a9eff;
+  --cyan:   #00d4ff;
+  --bg:     #0a0a0f;
+  --bg2:    #111118;
+  --bg3:    #18181f;
+  --border: #222230;
+  --text:   #e0e0f0;
+  --muted:  #555570;
+  --label:  #7a7a99;
+  --verde:  #4caf50;
+  --rojo:   #e63946;
+  --amarillo:#f0b429;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif;
+  min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 60px;
+}
+
+/* HEADER */
+.app-header {
+  width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border); padding:18px 20px 14px;
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.header-back {
+  position:absolute; left:16px;
+  background:none; border:1px solid var(--border); border-radius:8px;
+  padding:6px 10px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:12px; letter-spacing:2px; cursor:pointer; transition:all 0.2s;
+}
+.header-back:hover { border-color:var(--azul); color:var(--azul); }
+.app-header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent);
+}
+.header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:6px; color:#fff; }
+.header-logo span { color:var(--azul); }
+
+/* STEPS */
+.steps { display:flex; align-items:center; width:100%; max-width:500px; padding:20px 20px 4px; }
+.step { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; position:relative; }
+.step:not(:last-child)::after { content:''; position:absolute; top:14px; left:55%; right:-45%; height:1px; background:var(--border); }
+.step.done:not(:last-child)::after, .step.active:not(:last-child)::after { background:var(--azul); }
+.step-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:14px; border:1.5px solid var(--border); color:var(--muted); background:var(--bg2); z-index:1; }
+.step.active .step-num { background:var(--azul); border-color:var(--azul); color:#fff; box-shadow:0 0 14px rgba(74,158,255,0.5); }
+.step.done .step-num { background:#1a3a6e; border-color:var(--azul); color:var(--azul); }
+.step-label { font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+.step.active .step-label, .step.done .step-label { color:var(--azul); }
+
+/* PAGE TITLE */
+.page-title { width:100%; max-width:500px; padding:20px 20px 6px; }
+.page-title h2 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:4px; color:#fff; line-height:1; }
+.page-title p { font-size:13px; color:var(--label); letter-spacing:1px; margin-top:4px; }
+
+/* SECTION */
+.section { width:100%; max-width:500px; padding:16px 20px 0; }
+.section-label { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:4px; text-transform:uppercase; color:var(--azul); margin-bottom:12px; display:flex; align-items:center; gap:10px; }
+.section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+
+/* CONTADOR PAREJAS */
+.parejas-counter {
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--bg3); border:1px solid var(--border); border-radius:10px;
+  padding:10px 16px; margin-bottom:14px;
+}
+.counter-label { font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px; color:var(--label); text-transform:uppercase; }
+.counter-val { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:2px; }
+.counter-val span { color:var(--azul); }
+.counter-val .sep { color:var(--muted); font-size:20px; }
+
+/* PAREJA CARD */
+.pareja-card {
+  background:var(--bg3); border:1px solid var(--border); border-radius:12px;
+  margin-bottom:10px; overflow:hidden; transition:border-color 0.2s;
+}
+.pareja-card.completa { border-color:rgba(74,158,255,0.3); }
+.pareja-header {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  border-bottom:1px solid var(--border); cursor:pointer;
+  background:rgba(255,255,255,0.02);
+}
+.pareja-num { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--azul); width:28px; flex-shrink:0; }
+.pareja-resumen { flex:1; min-width:0; }
+.pareja-nombre-resumen { font-family:'Oswald',sans-serif; font-size:14px; color:#fff; letter-spacing:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pareja-sub-resumen { font-size:11px; color:var(--muted); letter-spacing:1px; }
+.pareja-chevron { color:var(--muted); font-size:14px; transition:transform 0.2s; flex-shrink:0; }
+.pareja-card.open .pareja-chevron { transform:rotate(180deg); }
+.pareja-body { display:none; padding:12px 14px; }
+.pareja-card.open .pareja-body { display:block; }
+
+/* JUGADOR dentro de pareja */
+.jugador-block { margin-bottom:12px; }
+.jugador-label { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--azul); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+.jugador-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+.field { margin-bottom:8px; }
+.field label { display:block; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--label); margin-bottom:4px; }
+.field input, .field select {
+  width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+  padding:10px 12px; color:var(--text); font-family:'Oswald',sans-serif;
+  font-size:14px; letter-spacing:1px; outline:none; transition:border-color 0.2s; -webkit-appearance:none;
+}
+.field input:focus, .field select:focus { border-color:var(--azul); }
+.field input::placeholder { color:var(--muted); }
+.field select option { background:#1a1a2a; }
+.field-row { display:flex; gap:8px; }
+.field-row .field { flex:1; }
+
+/* GÉNERO toggle (para mixto) */
+.genero-toggle { display:flex; gap:6px; margin-bottom:8px; }
+.genero-btn {
+  flex:1; padding:8px; background:var(--bg2); border:1px solid var(--border);
+  border-radius:8px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:12px; letter-spacing:2px; cursor:pointer; text-align:center; transition:all 0.2s;
+}
+.genero-btn.activo { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
+
+/* RESTRICCIONES HORARIAS */
+.restricciones-wrap { margin-top:8px; }
+.restricciones-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--label); margin-bottom:8px; display:block; }
+.dias-tabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
+.dia-tab {
+  padding:5px 12px; background:var(--bg2); border:1px solid var(--border);
+  border-radius:20px; font-family:'Oswald',sans-serif; font-size:11px;
+  letter-spacing:2px; color:var(--muted); cursor:pointer; transition:all 0.2s; text-transform:uppercase;
+}
+.dia-tab.activa { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
+.dia-panel { display:none; }
+.dia-panel.visible { display:block; }
+.restricciones-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.hora-chip {
+  padding:5px 10px; background:var(--bg2); border:1px solid var(--border);
+  border-radius:20px; font-family:'Oswald',sans-serif; font-size:12px;
+  letter-spacing:1px; color:var(--muted); cursor:pointer; transition:all 0.2s;
+}
+.hora-chip.bloqueada { background:rgba(230,57,70,0.1); border-color:var(--rojo); color:var(--rojo); }
+
+/* BTN AGREGAR PAREJA */
+.btn-add-pareja {
+  width:100%; background:none; border:1.5px dashed var(--border);
+  border-radius:12px; padding:14px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:13px; letter-spacing:3px; cursor:pointer; text-align:center; transition:all 0.2s;
+  margin-top:4px;
+}
+.btn-add-pareja:hover { border-color:var(--azul); color:var(--azul); }
+
+/* BTN ELIMINAR PAREJA */
+.btn-del-pareja {
+  width:100%; background:none; border:none; padding:8px; color:var(--muted);
+  font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:2px;
+  cursor:pointer; text-align:center; transition:color 0.2s; margin-top:4px;
+}
+.btn-del-pareja:hover { color:var(--rojo); }
+
+/* DISTRIBUCIÓN AUTOMÁTICA */
+.dist-box {
+  background:linear-gradient(135deg,rgba(74,158,255,0.06),rgba(0,212,255,0.04));
+  border:1px solid rgba(74,158,255,0.25); border-radius:12px; padding:14px 16px; margin-top:10px;
+}
+.dist-title { font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:3px; color:var(--azul); text-transform:uppercase; margin-bottom:10px; }
+.dist-zona { margin-bottom:8px; }
+.dist-zona-nombre { font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:3px; color:#fff; margin-bottom:4px; }
+.dist-zona-parejas { display:flex; flex-wrap:wrap; gap:6px; }
+.dist-chip { padding:4px 10px; background:rgba(74,158,255,0.1); border:1px solid rgba(74,158,255,0.25); border-radius:20px; font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:1px; color:var(--azul); }
+.dist-empty { font-size:12px; color:var(--muted); font-style:italic; }
+
+/* BOTONES NAV */
+.nav-row { display:flex; gap:10px; width:100%; max-width:500px; padding:0 20px; margin-top:28px; }
+.btn-back { flex:0 0 auto; padding:14px 20px; background:var(--bg3); border:1px solid var(--border); border-radius:12px; color:var(--muted); font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; }
+.btn-back:hover { border-color:var(--azul); color:var(--azul); }
+.btn-next { flex:1; padding:16px; background:var(--azul); border:none; border-radius:12px; color:#fff; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; cursor:pointer; box-shadow:0 4px 24px rgba(74,158,255,0.3); transition:opacity 0.15s,transform 0.1s; }
+.btn-next:active { transform:scale(0.98); opacity:0.9; }
+
+.divider { width:100%; max-width:500px; height:1px; background:var(--border); margin:18px 0 0; }
+
+/* TOAST */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--azul); color:#fff; font-family:'Oswald',sans-serif; font-size:14px; padding:10px 28px; border-radius:30px; letter-spacing:1px; transition:transform 0.3s cubic-bezier(.21,1.02,.73,1); z-index:9999; pointer-events:none; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <button class="header-back" onclick="history.back()">← VOLVER</button>
+  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+</div>
+
+<div class="steps">
+  <div class="step done"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
+  <div class="step done"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
+  <div class="step active"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+</div>
+
+<div class="page-title">
+  <h2>Carga de parejas</h2>
+  <p>Ingresá los datos de cada pareja</p>
+</div>
+
+<!-- CONTADOR -->
+<div class="section">
+  <div class="parejas-counter">
+    <span class="counter-label">Parejas cargadas</span>
+    <span class="counter-val"><span id="cargadas">0</span><span class="sep"> / </span><span id="total">8</span></span>
+  </div>
+</div>
+
+<!-- LISTA DE PAREJAS -->
+<div class="section">
+  <div class="section-label">Parejas</div>
+  <div id="parejasList"></div>
+  <button class="btn-add-pareja" onclick="agregarPareja()">+ AGREGAR PAREJA</button>
+</div>
+
+<!-- DISTRIBUCIÓN AUTOMÁTICA -->
+<div class="section">
+  <div class="section-label">Distribución en zonas</div>
+  <div class="dist-box">
+    <div class="dist-title">⚡ Distribución automática</div>
+    <div id="distContent"><span class="dist-empty">Cargá al menos 4 parejas para ver la distribución</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="nav-row">
+  <button class="btn-back" onclick="history.back()">← VOLVER</button>
+  <button class="btn-next" onclick="guardarYSeguir()">SIGUIENTE → REVISIÓN</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Configuración simulada (vendrá de pantalla 2)
+const CONFIG = {
+  tipo: 'libre',
+  formato: 'zonas',
+  totalParejas: 8,
+  dias: [
+    { fecha: '2026-03-14', label: 'VIE 14/03', apertura: '09:00', cierre: '22:00' },
+    { fecha: '2026-03-15', label: 'SÁB 15/03', apertura: '09:00', cierre: '22:00' },
+  ],
+  duracion: 75,
+  intervalo: 15
+};
+
+// Calcular horarios disponibles por día
+function calcularHorariosDia(apertura, cierre, duracion, intervalo) {
+  const horarios = [];
+  const [ah, am] = apertura.split(':').map(Number);
+  const [ch, cm] = cierre.split(':').map(Number);
+  const slotMin = duracion + intervalo;
+  let actual = ah * 60 + am;
+  const fin = ch * 60 + cm;
+  while (actual + duracion <= fin) {
+    const hh = String(Math.floor(actual / 60)).padStart(2, '0');
+    const mm = String(actual % 60).padStart(2, '0');
+    horarios.push(`${hh}:${mm}`);
+    actual += slotMin;
+  }
+  return horarios;
+}
+
+// Precalcular horarios por día
+CONFIG.dias.forEach(dia => {
+  dia.horarios = calcularHorariosDia(dia.apertura, dia.cierre, CONFIG.duracion, CONFIG.intervalo);
+});
+
+let parejas = [];
+let parejasTotal = CONFIG.totalParejas;
+
+const CATEGORIAS = ['1°','2°','3°','4°','5°','6°','7°','8°'];
+
+document.getElementById('total').textContent = parejasTotal;
+
+// ── CREAR PAREJA ──
+function crearParejaHTML(n, pareja) {
+  const card = document.createElement('div');
+  card.className = 'pareja-card';
+  card.dataset.id = pareja.id;
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'pareja-header';
+  header.innerHTML = `
+    <span class="pareja-num">${n}</span>
+    <div class="pareja-resumen">
+      <div class="pareja-nombre-resumen" id="resumen-${pareja.id}">Sin nombre</div>
+      <div class="pareja-sub-resumen" id="sub-${pareja.id}">Completar datos →</div>
+    </div>
+    <span class="pareja-chevron">▼</span>`;
+  header.onclick = () => {
+    card.classList.toggle('open');
+  };
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'pareja-body';
+
+  // Jugador 1
+  const j1 = jugadorHTML(pareja.id, 1);
+  // Jugador 2
+  const j2 = jugadorHTML(pareja.id, 2);
+
+  // Restricciones horarias por día
+  const restr = document.createElement('div');
+  restr.className = 'restricciones-wrap';
+
+  const diasTabs = CONFIG.dias.map((dia, di) => `
+    <button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${dia.label}</button>
+  `).join('');
+
+  const diasPanels = CONFIG.dias.map((dia, di) => `
+    <div class="dia-panel ${di === 0 ? 'visible' : ''}" data-di="${di}">
+      <div class="restricciones-chips">
+        ${dia.horarios.map(h => `
+          <span class="hora-chip" onclick="toggleChip(this,'${pareja.id}',${di},'${h}')">${h}</span>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  restr.innerHTML = `
+    <span class="restricciones-label">🚫 Horarios en que NO puede jugar</span>
+    <div class="dias-tabs" id="tabs-${pareja.id}">${diasTabs}</div>
+    <div class="dias-panels" id="panels-${pareja.id}">${diasPanels}
+    </div>`;
+
+  // Btn eliminar
+  const btnDel = document.createElement('button');
+  btnDel.className = 'btn-del-pareja';
+  btnDel.textContent = '✕ Eliminar pareja';
+  btnDel.onclick = () => eliminarPareja(pareja.id);
+
+  body.appendChild(j1);
+  body.appendChild(j2);
+  body.appendChild(restr);
+  body.appendChild(btnDel);
+  card.appendChild(header);
+  card.appendChild(body);
+  return card;
+}
+
+function jugadorHTML(parejaId, num) {
+  const wrap = document.createElement('div');
+  wrap.className = 'jugador-block';
+
+  const labelDiv = document.createElement('div');
+  labelDiv.className = 'jugador-label';
+  labelDiv.innerHTML = `Jugador ${num}`;
+  wrap.appendChild(labelDiv);
+
+  // Nombre
+  const fieldNombre = document.createElement('div');
+  fieldNombre.className = 'field';
+  fieldNombre.innerHTML = `<label>Nombre y apellido</label>
+    <input type="text" id="j${num}-nombre-${parejaId}" placeholder="Nombre del jugador..."
+      oninput="actualizarResumen('${parejaId}')">`;
+  wrap.appendChild(fieldNombre);
+
+  // Categoría (si aplica) + género (si mixto)
+  const extraRow = document.createElement('div');
+  extraRow.className = 'field-row';
+
+  if (CONFIG.tipo !== 'libre') {
+    const fieldCat = document.createElement('div');
+    fieldCat.className = 'field';
+    fieldCat.innerHTML = `<label>Categoría</label>
+      <select id="j${num}-cat-${parejaId}" onchange="actualizarResumen('${parejaId}')">
+        ${CATEGORIAS.map(c => `<option value="${c}">${c} Categoría</option>`).join('')}
+      </select>`;
+    extraRow.appendChild(fieldCat);
+  }
+
+  if (CONFIG.tipo === 'mixto') {
+    const fieldGen = document.createElement('div');
+    fieldGen.className = 'field';
+    fieldGen.innerHTML = `<label>Género</label>
+      <div class="genero-toggle">
+        <button class="genero-btn ${num===1?'activo':''}" onclick="selGenero(this,'${parejaId}',${num},'M')">♂ MASC</button>
+        <button class="genero-btn ${num===2?'activo':''}" onclick="selGenero(this,'${parejaId}',${num},'F')">♀ FEM</button>
+      </div>`;
+    extraRow.appendChild(fieldGen);
+  }
+
+  if (extraRow.children.length > 0) wrap.appendChild(extraRow);
+  return wrap;
+}
+
+// ── ACTUALIZAR RESUMEN EN HEADER ──
+window.actualizarResumen = function(id) {
+  const p = parejas.find(p => p.id === id);
+  if (!p) return;
+  const n1 = document.getElementById(`j1-nombre-${id}`)?.value || '';
+  const n2 = document.getElementById(`j2-nombre-${id}`)?.value || '';
+  const resumen = document.getElementById(`resumen-${id}`);
+  const sub = document.getElementById(`sub-${id}`);
+  if (n1 || n2) {
+    resumen.textContent = [n1, n2].filter(Boolean).join(' / ') || 'Sin nombre';
+    if (CONFIG.tipo !== 'libre') {
+      const c1 = document.getElementById(`j1-cat-${id}`)?.value || '';
+      const c2 = document.getElementById(`j2-cat-${id}`)?.value || '';
+      sub.textContent = [c1, c2].filter(Boolean).join(' + ');
+    } else {
+      sub.textContent = n1 && n2 ? '✓ Pareja completa' : 'Falta un jugador';
+    }
+  } else {
+    resumen.textContent = 'Sin nombre';
+    sub.textContent = 'Completar datos →';
+  }
+  actualizarContador();
+  distribuirZonas();
+};
+
+// ── TABS POR DÍA ──
+window.selTabDia = function(btn, parejaId, di) {
+  const tabsWrap  = document.getElementById(`tabs-${parejaId}`);
+  const panelsWrap = document.getElementById(`panels-${parejaId}`);
+  tabsWrap.querySelectorAll('.dia-tab').forEach(t => t.classList.remove('activa'));
+  panelsWrap.querySelectorAll('.dia-panel').forEach(p => p.classList.remove('visible'));
+  btn.classList.add('activa');
+  panelsWrap.querySelector(`.dia-panel[data-di="${di}"]`).classList.add('visible');
+};
+
+// ── TOGGLE CHIP HORARIO ──
+window.toggleChip = function(chip, parejaId, di, hora) {
+  chip.classList.toggle('bloqueada');
+};
+
+// ── GÉNERO ──
+window.selGenero = function(btn, parejaId, num, gen) {
+  const wrap = btn.closest('.genero-toggle');
+  wrap.querySelectorAll('.genero-btn').forEach(b => b.classList.remove('activo'));
+  btn.classList.add('activo');
+};
+
+// ── AGREGAR / ELIMINAR PAREJA ──
+window.agregarPareja = function() {
+  const id = 'p' + Date.now();
+  parejas.push({ id });
+  const n = parejas.length;
+  const card = crearParejaHTML(n, { id });
+  document.getElementById('parejasList').appendChild(card);
+  card.classList.add('open');
+  actualizarContador();
+  distribuirZonas();
+};
+
+window.eliminarPareja = function(id) {
+  parejas = parejas.filter(p => p.id !== id);
+  document.querySelector(`.pareja-card[data-id="${id}"]`)?.remove();
+  // renumerar
+  document.querySelectorAll('.pareja-card').forEach((card, i) => {
+    card.querySelector('.pareja-num').textContent = i + 1;
+  });
+  actualizarContador();
+  distribuirZonas();
+};
+
+// ── CONTADOR ──
+function actualizarContador() {
+  let completas = 0;
+  parejas.forEach(p => {
+    const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
+    const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
+    if (n1 && n2) completas++;
+  });
+  document.getElementById('cargadas').textContent = completas;
+  document.getElementById('total').textContent = Math.max(parejasTotal, parejas.length);
+}
+
+// ── DISTRIBUCIÓN EN ZONAS ──
+function distribuirZonas() {
+  const cont = document.getElementById('distContent');
+  if (parejas.length < 4) {
+    cont.innerHTML = '<span class="dist-empty">Cargá al menos 4 parejas para ver la distribución</span>';
+    return;
+  }
+  // Distribución simple: grupos de 4 (o 3 si no cierra)
+  const porZona = 4;
+  const cantZonas = Math.ceil(parejas.length / porZona);
+  let html = '';
+  for (let z = 0; z < cantZonas; z++) {
+    const letra = String.fromCharCode(65 + z);
+    const inicio = z * porZona;
+    const grupo = parejas.slice(inicio, inicio + porZona);
+    const chips = grupo.map((p, i) => {
+      const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || `Jugador ${inicio+i*2+1}`;
+      const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || `Jugador ${inicio+i*2+2}`;
+      const nombre = (n1 !== `Jugador ${inicio+i*2+1}` || n2 !== `Jugador ${inicio+i*2+2}`)
+        ? `${n1} / ${n2}` : `Pareja ${inicio+i+1}`;
+      return `<span class="dist-chip">${nombre}</span>`;
+    }).join('');
+    html += `<div class="dist-zona">
+      <div class="dist-zona-nombre">ZONA ${letra}</div>
+      <div class="dist-zona-parejas">${chips}</div>
+    </div>`;
+  }
+  cont.innerHTML = html;
+}
+
+// ── GUARDAR Y SEGUIR ──
+window.guardarYSeguir = async function() {
+  if (parejas.length < 4) { showToast('⚠️ Necesitás al menos 4 parejas'); return; }
+  const incompletas = parejas.filter(p => {
+    const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
+    const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
+    return !n1 || !n2;
+  });
+  if (incompletas.length > 0) { showToast(`⚠️ ${incompletas.length} pareja(s) sin completar`); return; }
+
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
+
+  showToast('Guardando parejas...');
+
+  // Recolectar datos de cada pareja desde los inputs
+  const datosParejas = parejas.map((p, i) => {
+    const j1Nombre = document.getElementById(`j1-nombre-${p.id}`)?.value?.trim() || '';
+    const j2Nombre = document.getElementById(`j2-nombre-${p.id}`)?.value?.trim() || '';
+    const j1Cat    = document.getElementById(`j1-cat-${p.id}`)?.value || '';
+    const j2Cat    = document.getElementById(`j2-cat-${p.id}`)?.value || '';
+
+    // Recolectar restricciones por día
+    const restricciones = {};
+    CONFIG.dias.forEach((dia, di) => {
+      const bloqueadas = [];
+      document.querySelectorAll(`#panels-${p.id} [data-di="${di}"] .hora-chip.bloqueada`)
+        .forEach(chip => bloqueadas.push(chip.textContent.trim()));
+      if (bloqueadas.length > 0) restricciones[dia.fecha] = bloqueadas;
+    });
+
+    return { j1Nombre, j2Nombre, j1Categoria: j1Cat, j2Categoria: j2Cat, restricciones, seed: i + 1 };
+  });
+
+  try {\n    // Guardar en Firebase\n    const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");\n    const { getFirestore, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");\n    const fbConf = {\n      apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",\n      authDomain: "padel-team-76749.firebaseapp.com",\n      projectId: "padel-team-76749",\n      storageBucket: "padel-team-76749.firebasestorage.app",\n      messagingSenderId: "449257104174",\n      appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"\n    };\n    const fbApp = getApps().find(a=>a.name==='p3-app') || initializeApp(fbConf, 'p3-app');\n    const fbDb = getFirestore(fbApp);
+
+    await Promise.all(datosParejas.map((p, i) => {
+      const id = `pareja_${String(i+1).padStart(2,'0')}`;
+      return setDoc(doc(fbDb, 'torneos', torneoId, 'parejas', id), p);
+    }));
+
+    showToast('✓ Parejas guardadas');
+    setTimeout(() => { window.location.href = 'torneo_pantalla4.html'; }, 1200);
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al guardar parejas');
+  }
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Inicializar: leer config de sessionStorage si existe, sino usar simulada
+const storedTorneoId = sessionStorage.getItem('torneoId');
+if (storedTorneoId) {
+  // Intentar cargar config real de Firebase
+  (async () => {
+    try {
+      const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+      const { getFirestore, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+      const fbConf = {
+        apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+        authDomain: "padel-team-76749.firebaseapp.com",
+        projectId: "padel-team-76749",
+        storageBucket: "padel-team-76749.firebasestorage.app",
+        messagingSenderId: "449257104174",
+        appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+      };
+      const fbApp = getApps().find(a=>a.name==='p3-app') || initializeApp(fbConf, 'p3-app');
+      const fbDb = getFirestore(fbApp);
+      const snap = await getDoc(doc(fbDb, 'torneos', storedTorneoId));
+      if (snap.exists()) {
+        const t = snap.data();
+        CONFIG.tipo           = t.tipo || 'libre';
+        CONFIG.formato        = t.formato || 'zonas';
+        CONFIG.totalParejas   = t.totalParejas || 8;
+        CONFIG.canchasDisponibles = t.canchasDisponibles || 2;
+        CONFIG.duracion       = t.duracion || 75;
+        CONFIG.intervalo      = t.intervalo || 15;
+        CONFIG.dias           = t.dias || CONFIG.dias;
+        CONFIG.dias.forEach(dia => {
+          dia.horarios = calcularHorariosDia(dia.apertura, dia.cierre, CONFIG.duracion, CONFIG.intervalo);
+        });
+        document.querySelector('.page-title p').textContent =
+          `${t.nombre} · ${t.dias?.[0]?.fecha || ''}`;
+      }
+    } catch(e) { console.error('Error cargando torneo:', e); }
+    // Inicializar parejas después de cargar config
+    for (let i = 0; i < CONFIG.totalParejas; i++) agregarPareja();
+    document.querySelectorAll('.pareja-card').forEach((c, i) => { if (i > 0) c.classList.remove('open'); });
+  })();
+} else {
+  for (let i = 0; i < CONFIG.totalParejas; i++) agregarPareja();
+  document.querySelectorAll('.pareja-card').forEach((c, i) => { if (i > 0) c.classList.remove('open'); });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Padel Team — Carga de Resultados</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:#4a9eff; --cyan:#00d4ff; --bg:#0a0a0f; --bg2:#111118; --bg3:#18181f;
+  --border:#222230; --text:#e0e0f0; --muted:#555570; --label:#7a7a99;
+  --verde:#4caf50; --rojo:#e63946; --amarillo:#f0b429; --oro:#FFD700;
+  --plata:#C0C0C0; --bronce:#cd7f32;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 80px; }
+
+.app-header { width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%); border-bottom:1px solid var(--border); padding:18px 20px 14px; display:flex; align-items:center; justify-content:center; position:relative; }
+.app-header::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent); }
+.header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:6px; color:#fff; }
+.header-logo span { color:var(--azul); }
+.header-back {
+  position:absolute; left:16px;
+  background:none; border:1px solid var(--border); border-radius:8px;
+  padding:6px 10px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:12px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; text-decoration:none; display:flex; align-items:center;
+}
+.header-back:hover { border-color:var(--azul); color:var(--azul); }
+.header-right {
+  position:absolute; right:16px;
+  background:none; border:1px solid rgba(0,212,255,0.3); border-radius:8px;
+  padding:6px 10px; color:var(--cyan); font-family:'Oswald',sans-serif;
+  font-size:11px; letter-spacing:2px; cursor:pointer; transition:all 0.2s; text-decoration:none; display:flex; align-items:center;
+}
+.header-right:hover { background:rgba(0,212,255,0.08); }
+
+
+.page-title { width:100%; max-width:500px; padding:20px 20px 6px; }
+.page-title h2 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:4px; color:#fff; line-height:1; }
+.page-title p { font-size:13px; color:var(--label); letter-spacing:1px; margin-top:4px; }
+
+/* TABS FASE */
+.fase-tabs { display:flex; gap:6px; width:100%; max-width:500px; padding:12px 20px 0; overflow-x:auto; scrollbar-width:none; }
+.fase-tabs::-webkit-scrollbar { display:none; }
+.fase-tab { flex-shrink:0; padding:7px 14px; background:var(--bg3); border:1px solid var(--border); border-radius:20px; font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; color:var(--muted); cursor:pointer; transition:all 0.2s; text-transform:uppercase; position:relative; }
+.fase-tab.activa { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
+.fase-tab .badge-pend { position:absolute; top:-4px; right:-4px; background:var(--rojo); color:#fff; border-radius:50%; width:16px; height:16px; font-size:9px; display:flex; align-items:center; justify-content:center; font-family:'Oswald',sans-serif; }
+
+.section { width:100%; max-width:500px; padding:14px 20px 0; }
+
+/* TABLA DE POSICIONES */
+.tabla-zona { background:var(--bg3); border:1px solid var(--border); border-radius:12px; margin-bottom:12px; overflow:hidden; }
+.tabla-zona-header { padding:10px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.tabla-zona-nombre { font-family:'Bebas Neue',sans-serif; font-size:20px; letter-spacing:4px; color:var(--azul); }
+.tabla-zona-desc { font-size:11px; color:var(--muted); letter-spacing:1px; }
+.tabla-cols { display:grid; grid-template-columns:24px 1fr 28px 28px 28px 28px 40px; gap:4px; padding:7px 14px; border-bottom:1px solid var(--border); }
+.tabla-col-label { font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; text-align:center; }
+.tabla-col-label:nth-child(2) { text-align:left; }
+.tabla-fila { display:grid; grid-template-columns:24px 1fr 28px 28px 28px 28px 40px; gap:4px; padding:8px 14px; border-bottom:1px solid var(--border); align-items:center; transition:background 0.15s; }
+.tabla-fila:last-child { border-bottom:none; }
+.tabla-fila.clasifica { background:rgba(74,158,255,0.04); }
+.tf-pos { font-family:'Bebas Neue',sans-serif; font-size:18px; text-align:center; }
+.tf-pos.p1 { color:var(--oro); } .tf-pos.p2 { color:var(--plata); } .tf-pos.pX { color:var(--muted); }
+.tf-nombre { font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:1px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tf-num { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--text); text-align:center; }
+.tf-pts { font-family:'Bebas Neue',sans-serif; font-size:20px; color:var(--azul); text-align:right; letter-spacing:1px; }
+.clasifica-badge { font-size:9px; letter-spacing:1px; color:var(--verde); }
+
+/* PARTIDO CARD */
+.partido-card { background:var(--bg3); border:1px solid var(--border); border-radius:12px; margin-bottom:8px; overflow:hidden; cursor:pointer; transition:border-color 0.2s; }
+.partido-card:hover { border-color:rgba(74,158,255,0.3); }
+.partido-card.finalizado { border-color:rgba(76,175,80,0.3); }
+.partido-card.en_juego { border-color:rgba(240,180,41,0.4); animation:pulseBorder 2s infinite; }
+@keyframes pulseBorder { 0%,100%{border-color:rgba(240,180,41,0.4)} 50%{border-color:rgba(240,180,41,0.8)} }
+.pc-header { display:flex; align-items:center; gap:10px; padding:10px 14px; }
+.pc-hora { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px; color:var(--azul); width:64px; flex-shrink:0; }
+.pc-info { flex:1; min-width:0; }
+.pc-fase-label { font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; }
+.pc-parejas { font-family:'Oswald',sans-serif; font-size:14px; color:#fff; letter-spacing:1px; }
+.pc-estado { flex-shrink:0; }
+.estado-badge { padding:4px 10px; border-radius:20px; font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+.badge-pend-style { background:rgba(85,85,112,0.2); border:1px solid var(--border); color:var(--muted); }
+.badge-juego { background:rgba(240,180,41,0.12); border:1px solid var(--amarillo); color:var(--amarillo); }
+.badge-fin { background:rgba(76,175,80,0.12); border:1px solid var(--verde); color:var(--verde); }
+.pc-resultado-resumen { padding:6px 14px 10px; display:flex; align-items:center; gap:8px; }
+.pc-res-pareja { font-family:'Oswald',sans-serif; font-size:12px; color:var(--muted); flex:1; }
+.pc-res-score { font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:2px; }
+.score-ganador { color:#fff; }
+.score-perdedor { color:var(--muted); }
+.pc-res-sets { display:flex; gap:6px; }
+.set-chip { font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:1px; padding:2px 6px; border-radius:4px; }
+.set-win { background:rgba(76,175,80,0.1); color:var(--verde); }
+.set-loss { background:rgba(85,85,112,0.1); color:var(--muted); }
+
+/* MODAL CARGA DE RESULTADO */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:100; display:flex; align-items:flex-end; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+.modal-overlay.visible { opacity:1; pointer-events:all; }
+.modal-sheet { width:100%; max-width:500px; background:var(--bg2); border-radius:16px 16px 0 0; border-top:2px solid var(--azul); padding:20px 20px 36px; transform:translateY(100%); transition:transform 0.3s cubic-bezier(.21,1.02,.73,1); max-height:90vh; overflow-y:auto; }
+.modal-overlay.visible .modal-sheet { transform:translateY(0); }
+.modal-title { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:4px; color:#fff; margin-bottom:2px; }
+.modal-sub { font-size:12px; color:var(--muted); letter-spacing:1px; margin-bottom:18px; }
+.modal-parejas { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+.modal-pareja-nombre { flex:1; font-family:'Oswald',sans-serif; font-size:16px; letter-spacing:1px; color:#fff; }
+.modal-pareja-nombre.right { text-align:right; }
+.modal-vs { font-size:11px; color:var(--muted); letter-spacing:2px; flex-shrink:0; }
+
+/* INGRESO DE SETS */
+.sets-wrap { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+.set-row { display:flex; align-items:center; gap:10px; background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:10px 14px; }
+.set-label { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:2px; color:var(--muted); width:40px; flex-shrink:0; text-transform:uppercase; }
+.set-scores { display:flex; align-items:center; gap:8px; flex:1; justify-content:center; }
+.score-input-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.score-label-mini { font-size:9px; letter-spacing:1px; color:var(--muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:80px; }
+.score-input { width:56px; height:52px; background:var(--bg2); border:1px solid var(--border); border-radius:10px; color:var(--azul); font-family:'Bebas Neue',sans-serif; font-size:34px; text-align:center; outline:none; transition:border-color 0.2s; -webkit-appearance:none; }
+.score-input:focus { border-color:var(--azul); }
+.score-input.ganador { border-color:var(--verde); color:var(--verde); background:rgba(76,175,80,0.06); }
+.score-input.perdedor { color:var(--muted); }
+.score-sep { font-family:'Bebas Neue',sans-serif; font-size:28px; color:var(--border); }
+.set-del { background:none; border:none; color:var(--muted); font-size:16px; cursor:pointer; padding:4px; transition:color 0.2s; flex-shrink:0; }
+.set-del:hover { color:var(--rojo); }
+.btn-agregar-set { background:none; border:1px dashed var(--border); border-radius:8px; padding:10px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; cursor:pointer; text-align:center; transition:all 0.2s; width:100%; }
+.btn-agregar-set:hover { border-color:var(--azul); color:var(--azul); }
+.tercer-set-aviso { font-size:11px; color:var(--amarillo); background:rgba(240,180,41,0.06); border:1px solid rgba(240,180,41,0.2); border-radius:8px; padding:8px 12px; letter-spacing:0.5px; margin-bottom:10px; display:none; }
+.resultado-preview { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:16px; display:none; }
+.resultado-preview-title { font-size:10px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.resultado-preview-ganador { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; color:var(--verde); }
+.resultado-preview-score { font-family:'Oswald',sans-serif; font-size:13px; color:var(--muted); letter-spacing:1px; margin-top:2px; }
+.modal-btns { display:flex; gap:8px; }
+.btn-cancelar { flex:0 0 auto; padding:14px 20px; background:var(--bg3); border:1px solid var(--border); border-radius:12px; color:var(--muted); font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; }
+.btn-guardar { flex:1; padding:14px; background:var(--verde); border:none; border-radius:12px; color:#fff; font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; cursor:pointer; box-shadow:0 4px 20px rgba(76,175,80,0.3); transition:opacity 0.15s; }
+.btn-guardar:disabled { background:var(--muted); box-shadow:none; cursor:not-allowed; opacity:0.5; }
+.btn-en-juego { flex:1; padding:14px; background:rgba(240,180,41,0.12); border:1px solid var(--amarillo); border-radius:12px; color:var(--amarillo); font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; cursor:pointer; }
+
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--verde); color:#fff; font-family:'Oswald',sans-serif; font-size:14px; padding:10px 28px; border-radius:30px; letter-spacing:1px; transition:transform 0.3s cubic-bezier(.21,1.02,.73,1); z-index:9999; pointer-events:none; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.empty-state { text-align:center; padding:30px 20px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <a class="header-back" href="index.html">← INICIO</a>
+  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <a class="header-right" href="torneo_publico.html">👁️ PÚBLICA</a>
+</div>
+
+<div class="page-title">
+  <h2>Carga de resultados</h2>
+  <p id="torneo-label">7° Torneo Caballeros · 14 y 15 de marzo 2026</p>
+</div>
+
+<!-- TABS DE FASE -->
+<div class="fase-tabs" id="faseTabs"></div>
+
+<!-- CONTENIDO -->
+<div class="section" id="contenidoFase"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-sheet">
+    <div class="modal-title">CARGAR RESULTADO</div>
+    <div class="modal-sub" id="modal-sub">Fase de zona</div>
+    <div class="modal-parejas">
+      <div class="modal-pareja-nombre" id="modal-p1">Pareja 1</div>
+      <div class="modal-vs">VS</div>
+      <div class="modal-pareja-nombre right" id="modal-p2">Pareja 2</div>
+    </div>
+    <div class="sets-wrap" id="setsWrap"></div>
+    <button class="btn-agregar-set" id="btnAgregarSet" onclick="agregarSet()">+ AGREGAR SET</button>
+    <div class="tercer-set-aviso" id="tercerSetAviso"></div>
+    <div class="resultado-preview" id="resultadoPreview">
+      <div class="resultado-preview-title">Resultado detectado</div>
+      <div class="resultado-preview-ganador" id="previewGanador"></div>
+      <div class="resultado-preview-score" id="previewScore"></div>
+    </div>
+    <div class="modal-btns" style="margin-bottom:10px;">
+      <button class="btn-en-juego" onclick="marcarEnJuego()">▶ EN JUEGO</button>
+      <button class="btn-guardar" id="btnGuardar" onclick="guardarResultado()" disabled>✓ GUARDAR</button>
+    </div>
+    <button class="btn-cancelar" style="width:100%;" onclick="cerrarModal()">CANCELAR</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, getDocs, updateDoc, setDoc,
+         collection, query, orderBy, onSnapshot, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain: "padel-team-76749.firebaseapp.com",
+  projectId: "padel-team-76749",
+  storageBucket: "padel-team-76749.firebasestorage.app",
+  messagingSenderId: "449257104174",
+  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let TORNEO         = { nombre:'', tercerSet:'superTiebreak', formato:'round_robin', clasificadosLlave:4 };
+let PAREJAS        = {};
+let partidos       = [];
+let FASES          = [];
+let faseActiva     = '';
+let partidoEditando = null;
+let setsActuales   = [];
+let torneoId       = null;
+let unsubscribe    = null;
+
+async function init() {
+  torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) { showToast('No hay torneo activo'); return; }
+
+  const tSnap = await getDoc(doc(db, 'torneos', torneoId));
+  if (!tSnap.exists()) { showToast('Torneo no encontrado'); return; }
+  const t = tSnap.data();
+  TORNEO = {
+    nombre:            t.nombre,
+    tercerSet:         t.tercerSet        || 'superTiebreak',
+    formato:           t.formato          || 'round_robin',
+    clasificadosLlave: t.clasificadosLlave || 4
+  };
+  document.getElementById('torneo-label').textContent =
+    `${t.nombre} · ${t.dias?.[0]?.fecha || ''}`;
+
+  const pSnap = await getDocs(collection(db, 'torneos', torneoId, 'parejas'));
+  pSnap.docs.forEach(d => {
+    const p = d.data();
+    PAREJAS[d.id] = `${p.j1Nombre} / ${p.j2Nombre}`;
+  });
+
+  // Armar tabs segun formato
+  if (TORNEO.formato === 'round_robin') {
+    FASES = [{ id: 'zona_A', label: 'Posiciones', zonaId: 'A' }];
+  } else if (TORNEO.formato === 'round_robin_llave') {
+    FASES = [
+      { id: 'zona_A', label: 'Round Robin', zonaId: 'A' },
+      { id: 'elim',   label: 'Eliminacion' }
+    ];
+  } else {
+    const zSnap = await getDocs(collection(db, 'torneos', torneoId, 'zonas'));
+    const zonas = zSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b) => a.nombre.localeCompare(b.nombre));
+    FASES = [
+      ...zonas.map(z => ({ id: `zona_${z.nombre}`, label: `Zona ${z.nombre}`, zonaId: z.nombre })),
+      { id: 'elim', label: 'Eliminacion' }
+    ];
+  }
+  faseActiva = FASES[0]?.id || 'elim';
+
+  if (unsubscribe) unsubscribe();
+  unsubscribe = onSnapshot(
+    query(collection(db, 'torneos', torneoId, 'partidos'), orderBy('orden')),
+    snap => {
+      partidos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderTabs();
+      renderContenido();
+    }
+  );
+}
+
+// ── TABLA DE POSICIONES ──────────────────────────────────
+function calcularTabla(zonaId) {
+  const ids = [...new Set(
+    partidos.filter(p => p.fase==='zona' && p.zonaId===`zona_${zonaId}`)
+      .flatMap(p => [p.pareja1Id, p.pareja2Id])
+  )];
+  const tabla = {};
+  ids.forEach(id => { tabla[id] = {PJ:0,PG:0,PP:0,setsG:0,setsP:0,gamesG:0,gamesP:0,pts:0}; });
+
+  partidos
+    .filter(p => p.fase==='zona' && p.zonaId===`zona_${zonaId}` && p.estado==='finalizado' && p.resultado)
+    .forEach(p => {
+      const r=p.resultado, t1=tabla[p.pareja1Id], t2=tabla[p.pareja2Id];
+      if (!t1||!t2) return;
+      t1.PJ++; t2.PJ++;
+      t1.setsG+=r.setsP1||0; t1.setsP+=r.setsP2||0; t2.setsG+=r.setsP2||0; t2.setsP+=r.setsP1||0;
+      t1.gamesG+=r.gamesP1||0; t1.gamesP+=r.gamesP2||0; t2.gamesG+=r.gamesP2||0; t2.gamesP+=r.gamesP1||0;
+      if (r.ganadorId===p.pareja1Id) { t1.PG++; t1.pts+=2; t2.PP++; }
+      else { t2.PG++; t2.pts+=2; t1.PP++; }
+    });
+
+  return Object.entries(tabla).sort(([aId,a],[bId,b]) => {
+    if (b.pts!==a.pts) return b.pts-a.pts;
+    if ((b.setsG-b.setsP)!==(a.setsG-a.setsP)) return (b.setsG-b.setsP)-(a.setsG-a.setsP);
+    if ((b.gamesG-b.gamesP)!==(a.gamesG-a.gamesP)) return (b.gamesG-b.gamesP)-(a.gamesG-a.gamesP);
+    // Enfrentamiento directo
+    const dir = partidos.find(p =>
+      p.fase==='zona' && p.zonaId===`zona_${zonaId}` && p.estado==='finalizado' &&
+      ((p.pareja1Id===aId&&p.pareja2Id===bId)||(p.pareja1Id===bId&&p.pareja2Id===aId))
+    );
+    if (dir?.resultado?.ganadorId===aId) return -1;
+    if (dir?.resultado?.ganadorId===bId) return 1;
+    return 0;
+  });
+}
+
+// ── RENDER TABS ──────────────────────────────────────────
+function renderTabs() {
+  const wrap = document.getElementById('faseTabs');
+  wrap.innerHTML = FASES.map(f => {
+    let pendientes = 0;
+    if (f.id === 'elim') {
+      pendientes = partidos.filter(p => p.fase!=='zona' && p.estado==='pendiente').length;
+    } else {
+      pendientes = partidos.filter(p => p.zonaId===`zona_${f.zonaId}` && p.estado==='pendiente').length;
+    }
+    return `<button class="fase-tab ${faseActiva===f.id?'activa':''}" onclick="selFase('${f.id}')">
+      ${f.label}${pendientes>0?`<span class="badge-pend">${pendientes}</span>`:''}
+    </button>`;
+  }).join('');
+}
+
+// ── RENDER CONTENIDO ─────────────────────────────────────
+function renderContenido() {
+  const wrap = document.getElementById('contenidoFase');
+  wrap.innerHTML = '';
+
+  if (faseActiva.startsWith('zona_')) {
+    const zonaId = faseActiva.replace('zona_','');
+    const tabla  = calcularTabla(zonaId);
+    const ps     = partidos.filter(p => p.fase==='zona' && p.zonaId===`zona_${zonaId}`);
+    const jugados = ps.filter(p => p.estado==='finalizado').length;
+
+    // Cuantos clasifican a llave (solo si hay llave)
+    const hayLlave = TORNEO.formato === 'round_robin_llave' || TORNEO.formato === 'zonas_llave';
+    const nClasifican = TORNEO.formato === 'round_robin_llave'
+      ? TORNEO.clasificadosLlave
+      : 2; // zonas: top 2 de cada zona
+
+    wrap.innerHTML = `
+      <div class="tabla-zona">
+        <div class="tabla-zona-header">
+          <span class="tabla-zona-nombre">${TORNEO.formato==='round_robin'||TORNEO.formato==='round_robin_llave' ? 'TABLA' : `ZONA ${zonaId}`}</span>
+          <span class="tabla-zona-desc">${jugados}/${ps.length} partidos jugados</span>
+        </div>
+        <div class="tabla-cols">
+          <span class="tabla-col-label">#</span>
+          <span class="tabla-col-label">Pareja</span>
+          <span class="tabla-col-label" title="Sets ganados">SG</span>
+          <span class="tabla-col-label" title="Games ganados">GG</span>
+          <span class="tabla-col-label" title="Partidos jugados">PJ</span>
+          <span class="tabla-col-label" title="Partidos ganados">PG</span>
+          <span class="tabla-col-label">Pts</span>
+        </div>
+        ${tabla.map(([id,t],i) => {
+          const pc = i===0?'p1':i===1?'p2':'pX';
+          const clasifica = hayLlave && i < nClasifican;
+          return `<div class="tabla-fila ${clasifica?'clasifica':''}">
+            <span class="tf-pos ${pc}">${i+1}</span>
+            <span class="tf-nombre">${PAREJAS[id]||id}${clasifica?'<br><span class="clasifica-badge">CLASIFICA</span>':''}</span>
+            <span class="tf-num">${t.setsG}</span>
+            <span class="tf-num">${t.gamesG}</span>
+            <span class="tf-num">${t.PJ}</span>
+            <span class="tf-num">${t.PG}</span>
+            <span class="tf-pts">${t.pts}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    ps.forEach(p => wrap.innerHTML += renderPartidoCard(p));
+
+  } else {
+    // Fase eliminatoria
+    const elim = partidos.filter(p => p.fase!=='zona');
+    if (elim.length === 0) {
+      wrap.innerHTML = '<div class="empty-state">Los cruces se generan al finalizar la fase de Round Robin</div>';
+      return;
+    }
+    const labels = { cuartos:'CUARTOS DE FINAL', semis:'SEMIFINAL', final:'FINAL' };
+    ['cuartos','semis','final'].forEach(fase => {
+      const ps = elim.filter(p => p.fase===fase);
+      if (!ps.length) return;
+      wrap.innerHTML += `<div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:4px;color:var(--azul);margin-bottom:10px;margin-top:4px;">${labels[fase]}</div>`;
+      ps.forEach(p => wrap.innerHTML += renderPartidoCard(p));
+    });
+  }
+}
+
+function renderPartidoCard(p) {
+  const estadoClass = p.estado==='finalizado' ? 'finalizado' : p.estado==='en_juego' ? 'en_juego' : '';
+  const badgeClass  = p.estado==='finalizado' ? 'badge-fin'  : p.estado==='en_juego' ? 'badge-juego' : 'badge-pend-style';
+  const badgeText   = p.estado==='finalizado' ? '✓ Finalizado' : p.estado==='en_juego' ? 'En juego' : 'Pendiente';
+  const p1Name = PAREJAS[p.pareja1Id]||p.pareja1Id||'?';
+  const p2Name = PAREJAS[p.pareja2Id]||p.pareja2Id||'?';
+
+  let faseLabel = '';
+  if (p.fase==='zona') {
+    const zonaLetra = p.zonaId?.replace('zona_','') || '';
+    const zonaText = (TORNEO.formato==='round_robin'||TORNEO.formato==='round_robin_llave') ? 'Round Robin' : `Zona ${zonaLetra}`;
+    faseLabel = `${zonaText} · ${p.cancha||''}`;
+  } else {
+    const labels = { cuartos:'Cuartos', semis:'Semifinal', final:'Final' };
+    faseLabel = (labels[p.fase]||p.fase?.toUpperCase()||'') + (p.cancha ? ` · ${p.cancha}` : '');
+  }
+
+  let resumenHtml = '';
+  if (p.resultado?.sets) {
+    const g1 = p.resultado.ganadorId===p.pareja1Id;
+    resumenHtml = `<div class="pc-resultado-resumen">
+      <span class="pc-res-pareja ${g1?'score-ganador':'score-perdedor'}">${p1Name}</span>
+      <div class="pc-res-sets">
+        ${p.resultado.sets.map(s => {
+          const w = g1 ? s.p1>s.p2 : s.p2>s.p1;
+          return `<span class="set-chip ${w?'set-win':'set-loss'}">${s.p1}-${s.p2}</span>`;
+        }).join('')}
+      </div>
+      <span class="pc-res-pareja right ${!g1?'score-ganador':'score-perdedor'}">${p2Name}</span>
+    </div>`;
+  }
+
+  return `<div class="partido-card ${estadoClass}" onclick="abrirModal('${p.id}')">
+    <div class="pc-header">
+      <div class="pc-hora">${p.hora||'--:--'}</div>
+      <div class="pc-info">
+        <div class="pc-fase-label">${faseLabel}</div>
+        <div class="pc-parejas">${p1Name} <span style="color:var(--muted)">vs</span> ${p2Name}</div>
+      </div>
+      <div class="pc-estado"><span class="estado-badge ${badgeClass}">${badgeText}</span></div>
+    </div>
+    ${resumenHtml}
+  </div>`;
+}
+
+window.selFase = function(id) { faseActiva=id; renderTabs(); renderContenido(); };
+
+// ── MODAL ────────────────────────────────────────────────
+window.abrirModal = function(id) {
+  partidoEditando = partidos.find(p => p.id===id);
+  if (!partidoEditando) return;
+  const p1Name = PAREJAS[partidoEditando.pareja1Id]||partidoEditando.pareja1Id||'?';
+  const p2Name = PAREJAS[partidoEditando.pareja2Id]||partidoEditando.pareja2Id||'?';
+  document.getElementById('modal-p1').textContent = p1Name;
+  document.getElementById('modal-p2').textContent = p2Name;
+
+  let subLabel = '';
+  if (partidoEditando.fase==='zona') {
+    subLabel = (TORNEO.formato==='round_robin'||TORNEO.formato==='round_robin_llave') ? 'Round Robin' : `Zona ${partidoEditando.zonaId?.replace('zona_','')}`;
+  } else {
+    const labels = { cuartos:'Cuartos de Final', semis:'Semifinal', final:'Final' };
+    subLabel = labels[partidoEditando.fase] || partidoEditando.fase?.toUpperCase() || '';
+  }
+  document.getElementById('modal-sub').textContent =
+    `${subLabel}${partidoEditando.hora ? ' · ' + partidoEditando.hora : ''}${partidoEditando.cancha ? ' · ' + partidoEditando.cancha : ''}`;
+
+  setsActuales = partidoEditando.resultado?.sets
+    ? partidoEditando.resultado.sets.map(s => ({...s}))
+    : [{p1:'',p2:''},{p1:'',p2:''}];
+
+  renderSets();
+  document.getElementById('modalOverlay').classList.add('visible');
+};
+
+window.cerrarModal = function() {
+  document.getElementById('modalOverlay').classList.remove('visible');
+  partidoEditando = null;
+};
+
+function renderSets() {
+  const wrap  = document.getElementById('setsWrap');
+  const p1Nm  = (PAREJAS[partidoEditando?.pareja1Id]||'P1').split('/')[0].trim();
+  const p2Nm  = (PAREJAS[partidoEditando?.pareja2Id]||'P2').split('/')[0].trim();
+
+  wrap.innerHTML = setsActuales.map((s,i) => {
+    const es3  = i===2;
+    const label = es3 ? (TORNEO.tercerSet==='superTiebreak'?'Super TB':'Set 3') : `Set ${i+1}`;
+    const g1 = s.p1!==''&&s.p2!==''&&Number(s.p1)>Number(s.p2);
+    const g2 = s.p1!==''&&s.p2!==''&&Number(s.p2)>Number(s.p1);
+    const maxVal = es3&&TORNEO.tercerSet==='superTiebreak' ? 10 : 7;
+    return `<div class="set-row">
+      <span class="set-label">${label}</span>
+      <div class="set-scores">
+        <div class="score-input-wrap">
+          <span class="score-label-mini">${p1Nm}</span>
+          <input class="score-input ${g1?'ganador':g2?'perdedor':''}" type="number" min="0" max="${maxVal}"
+            value="${s.p1}" oninput="updateSet(${i},1,this.value)" inputmode="numeric">
+        </div>
+        <span class="score-sep">-</span>
+        <div class="score-input-wrap">
+          <span class="score-label-mini">${p2Nm}</span>
+          <input class="score-input ${g2?'ganador':g1?'perdedor':''}" type="number" min="0" max="${maxVal}"
+            value="${s.p2}" oninput="updateSet(${i},2,this.value)" inputmode="numeric">
+        </div>
+      </div>
+      ${setsActuales.length>2?`<button class="set-del" onclick="eliminarSet(${i})">✕</button>`:'<span style="width:24px"></span>'}
+    </div>`;
+  }).join('');
+
+  actualizarPreview();
+}
+
+window.updateSet   = function(i,p,v){ setsActuales[i][p===1?'p1':'p2']=v; actualizarPreview(); renderSets(); };
+window.eliminarSet = function(i){ setsActuales.splice(i,1); renderSets(); };
+window.agregarSet  = function(){
+  if (setsActuales.length>=3) return;
+  setsActuales.push({p1:'',p2:''});
+  const av = document.getElementById('tercerSetAviso');
+  av.style.display='block';
+  av.textContent = TORNEO.tercerSet==='superTiebreak' ? 'Super Tie-Break a 10 puntos' : 'Set 3 completo';
+  renderSets();
+};
+
+function actualizarPreview() {
+  const sets = setsActuales.filter(s => s.p1!==''&&s.p2!=='');
+  if (sets.length < 2) { ocultarPreview(); return; }
+  let s1=0,s2=0,g1=0,g2=0;
+  sets.forEach(s => { const a=Number(s.p1),b=Number(s.p2); if(a>b)s1++;else s2++; g1+=a;g2+=b; });
+  if (s1<2&&s2<2) { ocultarPreview(); return; }
+  const ganadorId = s1>=2 ? partidoEditando.pareja1Id : partidoEditando.pareja2Id;
+  document.getElementById('previewGanador').textContent = 'Ganador: ' + (PAREJAS[ganadorId]||ganadorId);
+  document.getElementById('previewScore').textContent   = `Sets ${s1}-${s2} · Games ${g1}-${g2} · ${sets.map(s=>`${s.p1}-${s.p2}`).join('  ')}`;
+  document.getElementById('resultadoPreview').style.display='block';
+  document.getElementById('btnGuardar').disabled=false;
+  window._ganadorId=ganadorId; window._s1=s1; window._s2=s2; window._g1=g1; window._g2=g2;
+}
+
+function ocultarPreview() {
+  document.getElementById('resultadoPreview').style.display='none';
+  document.getElementById('btnGuardar').disabled=true;
+  document.getElementById('tercerSetAviso').style.display='none';
+}
+
+// ── GUARDAR ──────────────────────────────────────────────
+window.marcarEnJuego = async function() {
+  if (!partidoEditando) return;
+  await updateDoc(doc(db,'torneos',torneoId,'partidos',partidoEditando.id),{
+    estado:'en_juego', iniciadoEn: serverTimestamp()
+  });
+  cerrarModal();
+  showToast('Partido marcado como en juego');
+};
+
+window.guardarResultado = async function() {
+  if (!partidoEditando||document.getElementById('btnGuardar').disabled) return;
+  const sets = setsActuales.filter(s=>s.p1!==''&&s.p2!=='').map(s=>({p1:Number(s.p1),p2:Number(s.p2)}));
+  const resultado = {
+    sets,
+    ganadorId:  window._ganadorId,
+    perdedorId: window._ganadorId===partidoEditando.pareja1Id ? partidoEditando.pareja2Id : partidoEditando.pareja1Id,
+    setsP1:window._s1, setsP2:window._s2, gamesP1:window._g1, gamesP2:window._g2
+  };
+  try {
+    await updateDoc(doc(db,'torneos',torneoId,'partidos',partidoEditando.id),{
+      estado:'finalizado', resultado, finalizadoEn: serverTimestamp()
+    });
+    cerrarModal();
+    showToast('Resultado guardado');
+    verificarYGenerarSiguienteRonda();
+  } catch(e) {
+    console.error(e); showToast('Error al guardar');
+  }
+};
+
+// ── GENERAR SIGUIENTE RONDA AUTOMATICAMENTE ───────────────
+async function verificarYGenerarSiguienteRonda() {
+  // Esperar un tick para que el onSnapshot actualice "partidos"
+  await new Promise(r => setTimeout(r, 600));
+
+  const formato = TORNEO.formato;
+
+  // ── ROUND ROBIN (puro o con llave): verificar si terminaron todos los de zona
+  if (formato === 'round_robin' || formato === 'round_robin_llave') {
+    const deZona   = partidos.filter(p => p.fase==='zona');
+    const zonaOk   = deZona.length > 0 && deZona.every(p => p.estado==='finalizado');
+    const yaHayElim = partidos.some(p => p.fase!=='zona');
+
+    if (zonaOk && !yaHayElim && formato === 'round_robin_llave') {
+      // Obtener tabla completa zona_A y tomar los top N
+      const tabla        = calcularTabla('A');
+      const nClasifican  = TORNEO.clasificadosLlave || 4;
+      const clasificados = tabla.slice(0, nClasifican).map(([id]) => id);
+      await generarLlave(clasificados);
+      showToast(`Fase de grupos completa — Llave de ${nClasifican} generada`);
+      return;
+    }
+    // Verificar avance dentro de la llave (semis->final, cuartos->semis->final)
+    if (yaHayElim) {
+      await verificarSiguienteRondaElim();
+    }
+    return;
+  }
+
+  // ── ZONAS + LLAVE: verificar todas las zonas
+  if (formato === 'zonas_llave') {
+    const zonaIds      = [...new Set(partidos.filter(p=>p.fase==='zona').map(p=>p.zonaId))];
+    const todasOk      = zonaIds.every(zId =>
+      partidos.filter(p=>p.zonaId===zId).every(p=>p.estado==='finalizado')
+    );
+    const yaHayElim    = partidos.some(p=>p.fase==='cuartos'||p.fase==='semis'||p.fase==='final');
+    if (!todasOk || yaHayElim) {
+      // Verificar si hay que generar siguiente ronda eliminatoria
+      verificarSiguienteRondaElim();
+      return;
+    }
+    // Generar cuartos o semis desde zonas
+    const clasificados = zonaIds.flatMap(zId => {
+      const letra = zId.replace('zona_','');
+      const tabla = calcularTabla(letra);
+      return [tabla[0]?.[0], tabla[1]?.[0]].filter(Boolean);
+    });
+    await generarLlave(clasificados);
+    showToast('Fase de grupos completa — Llave generada');
+  }
+}
+
+// Verificar si hay que avanzar dentro de la llave (cuartos->semis->final)
+async function verificarSiguienteRondaElim() {
+  const rondas = ['cuartos','semis'];
+  for (const ronda of rondas) {
+    const deRonda = partidos.filter(p => p.fase===ronda);
+    if (deRonda.length === 0) continue;
+    const rondaOk = deRonda.every(p => p.estado==='finalizado');
+    const siguienteRonda = ronda==='cuartos' ? 'semis' : 'final';
+    const yaHaySiguiente = partidos.some(p => p.fase===siguienteRonda);
+    if (rondaOk && !yaHaySiguiente) {
+      const ganadores = deRonda.map(p => p.resultado?.ganadorId).filter(Boolean);
+      await generarLlave(ganadores, siguienteRonda);
+      const labels = { semis:'Semifinales generadas', final:'Final generada' };
+      showToast(labels[siguienteRonda] || 'Siguiente ronda generada');
+      return;
+    }
+  }
+}
+
+// Generar llave a partir de un array de equipos clasificados
+async function generarLlave(clasificados, forzarFase) {
+  const n = clasificados.length;
+  let fase;
+  if (forzarFase) {
+    fase = forzarFase;
+  } else if (n >= 8) { fase = 'cuartos'; }
+  else if (n >= 4)   { fase = 'semis'; }
+  else               { fase = 'final'; }
+
+  let orden = Math.max(...partidos.map(p => p.orden||0), 0) + 1;
+  const cruces = [];
+
+  if (fase === 'final' && n === 2) {
+    cruces.push({ p1: clasificados[0], p2: clasificados[1] });
+  } else {
+    // Cruzar: 1 vs N, 2 vs N-1, etc.
+    const mitad = Math.floor(n / 2);
+    for (let i = 0; i < mitad; i++) {
+      cruces.push({ p1: clasificados[i], p2: clasificados[n-1-i] });
+    }
+  }
+
+  await Promise.all(cruces.map((c, i) => {
+    const id = `partido_${String(orden+i).padStart(3,'0')}`;
+    return setDoc(doc(db,'torneos',torneoId,'partidos',id), {
+      id, fase,
+      pareja1Id: c.p1,
+      pareja2Id: c.p2,
+      estado: 'pendiente',
+      resultado: null,
+      orden: orden + i,
+      hora: null, cancha: null, conflicto: false
+    });
+  }));
+
+  // Si hay tab de eliminacion, cambiar a ella
+  const elimFase = FASES.find(f => f.id==='elim');
+  if (elimFase) { faseActiva = 'elim'; }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+window.showToast = showToast;
+
+init();
+</script>
+</body>
+</html>
