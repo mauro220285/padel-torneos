@@ -69,7 +69,41 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 .formato-card.selected .formato-nombre { color:var(--azul); }
 .formato-text .formato-desc { font-size:11px; color:var(--muted); margin-top:3px; line-height:1.4; }
 
-/* CLASIFICADOS SELECTOR — aparece solo en round_robin_llave */
+/* ZONAS CONFIG */
+.zonas-config-wrap { display:none; margin-top:12px; }
+.zonas-config-wrap.visible { display:block; }
+.zona-config-row {
+  background:var(--bg3); border:1px solid var(--border); border-radius:10px;
+  padding:12px 14px; margin-bottom:8px; display:flex; flex-direction:column; gap:8px;
+}
+.zona-config-header { display:flex; align-items:center; gap:10px; }
+.zona-config-letra {
+  font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px;
+  color:var(--azul); width:28px; flex-shrink:0;
+}
+.zona-config-fields { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.zona-config-field label {
+  display:block; font-size:10px; letter-spacing:2px; color:var(--label);
+  text-transform:uppercase; margin-bottom:4px;
+}
+.zona-config-field .stepper { width:100%; }
+.btn-del-zona {
+  margin-left:auto; background:none; border:none; color:var(--muted);
+  font-size:16px; cursor:pointer; padding:2px 4px; transition:color 0.2s;
+}
+.btn-del-zona:hover { color:var(--rojo); }
+.btn-add-zona {
+  background:none; border:1px dashed var(--border); border-radius:10px;
+  padding:10px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:12px; letter-spacing:2px; cursor:pointer; width:100%;
+  text-align:center; transition:all 0.2s; margin-top:4px;
+}
+.btn-add-zona:hover { border-color:var(--azul); color:var(--azul); }
+.zonas-resumen {
+  font-size:12px; color:var(--label); letter-spacing:1px; margin-top:8px;
+  background:rgba(74,158,255,0.06); border:1px solid rgba(74,158,255,0.2);
+  border-radius:8px; padding:8px 12px; line-height:1.6;
+}
 .clasificados-wrap { display:none; margin-top:10px; }
 .clasificados-wrap.visible { display:block; }
 .clasificados-info { font-size:12px; color:var(--label); letter-spacing:1px; margin-top:8px; line-height:1.6; background:rgba(74,158,255,0.06); border:1px solid rgba(74,158,255,0.2); border-radius:8px; padding:8px 12px; }
@@ -217,7 +251,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
   </div>
 
-  <!-- Selector de clasificados — para round_robin_llave y zonas_llave -->
+  <!-- Selector de clasificados — solo para round_robin_llave -->
   <div class="clasificados-wrap" id="clasificadosWrap">
     <div class="field" style="margin-top:10px;">
       <label>¿Cuántas parejas clasifican a la llave?</label>
@@ -228,6 +262,13 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
       </div>
     </div>
     <div class="clasificados-info" id="clasificadosInfo"></div>
+  </div>
+
+  <!-- Configurador de zonas — solo para zonas_llave -->
+  <div class="zonas-config-wrap" id="zonasConfigWrap">
+    <div id="zonasList"></div>
+    <button class="btn-add-zona" onclick="agregarZonaConfig()">+ AGREGAR ZONA</button>
+    <div class="zonas-resumen" id="zonasResumen"></div>
   </div>
 </div>
 
@@ -382,14 +423,114 @@ window.selFormato = function(card, formato) {
   document.querySelectorAll('.formato-card').forEach(c => c.classList.remove('selected'));
   card.classList.add('selected');
   formatoActivo = formato;
-  const wrap = document.getElementById('clasificadosWrap');
-  wrap.classList.toggle('visible', formato === 'round_robin_llave' || formato === 'zonas_llave');
+  const wrapRR = document.getElementById('clasificadosWrap');
+  const wrapZonas = document.getElementById('zonasConfigWrap');
+  wrapRR.classList.toggle('visible', formato === 'round_robin_llave');
+  wrapZonas.classList.toggle('visible', formato === 'zonas_llave');
+  if (formato === 'zonas_llave' && document.getElementById('zonasList').children.length === 0) {
+    agregarZonaConfig(); agregarZonaConfig();
+  }
   actualizarInfoClasificados();
   calcular();
 };
 
 
-function actualizarInfoClasificados() {
+// ── ZONAS CONFIG ──
+const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+window.agregarZonaConfig = function() {
+  const lista = document.getElementById('zonasList');
+  const idx = lista.children.length;
+  const letra = LETRAS[idx] || `Z${idx}`;
+  const div = document.createElement('div');
+  div.className = 'zona-config-row';
+  div.innerHTML = `
+    <div class="zona-config-header">
+      <span class="zona-config-letra">ZONA ${letra}</span>
+      <button class="btn-del-zona" onclick="eliminarZonaConfig(this)">✕</button>
+    </div>
+    <div class="zona-config-fields">
+      <div class="zona-config-field">
+        <label>Parejas en zona</label>
+        <div class="stepper">
+          <button onclick="stepZona(this,-1,'parejas')">−</button>
+          <input type="number" value="3" min="2" max="20" readonly data-zona-parejas>
+          <button onclick="stepZona(this,1,'parejas')">+</button>
+        </div>
+      </div>
+      <div class="zona-config-field">
+        <label>Clasifican</label>
+        <div class="stepper">
+          <button onclick="stepZona(this,-1,'clasif')">−</button>
+          <input type="number" value="2" min="1" max="10" readonly data-zona-clasif>
+          <button onclick="stepZona(this,1,'clasif')">+</button>
+        </div>
+      </div>
+    </div>`;
+  lista.appendChild(div);
+  actualizarLetrasZonas();
+  actualizarZonasResumen();
+};
+
+window.eliminarZonaConfig = function(btn) {
+  const lista = document.getElementById('zonasList');
+  if (lista.children.length <= 1) return;
+  btn.closest('.zona-config-row').remove();
+  actualizarLetrasZonas();
+  actualizarZonasResumen();
+};
+
+window.stepZona = function(btn, delta, tipo) {
+  const inp = tipo === 'parejas'
+    ? btn.closest('.zona-config-field').querySelector('[data-zona-parejas]')
+    : btn.closest('.zona-config-field').querySelector('[data-zona-clasif]');
+  const val = parseInt(inp.value) + delta;
+  const min = parseInt(inp.min);
+  const max = parseInt(inp.max);
+  inp.value = Math.min(max, Math.max(min, val));
+  // Asegurar que clasificados no supere parejas
+  const row = btn.closest('.zona-config-row');
+  const pInp = row.querySelector('[data-zona-parejas]');
+  const cInp = row.querySelector('[data-zona-clasif]');
+  if (parseInt(cInp.value) >= parseInt(pInp.value)) {
+    cInp.value = parseInt(pInp.value) - 1;
+  }
+  actualizarZonasResumen();
+  calcular();
+};
+
+function actualizarLetrasZonas() {
+  const lista = document.getElementById('zonasList');
+  [...lista.children].forEach((row, i) => {
+    row.querySelector('.zona-config-letra').textContent = `ZONA ${LETRAS[i] || 'Z'+i}`;
+  });
+}
+
+function actualizarZonasResumen() {
+  const lista = document.getElementById('zonasList');
+  const resumen = document.getElementById('zonasResumen');
+  if (!lista || !resumen) return;
+  let totalParejas = 0, totalClasif = 0;
+  [...lista.children].forEach(row => {
+    totalParejas += parseInt(row.querySelector('[data-zona-parejas]')?.value || 0);
+    totalClasif  += parseInt(row.querySelector('[data-zona-clasif]')?.value || 0);
+  });
+  resumen.innerHTML = `<strong style="color:var(--azul)">${lista.children.length} zonas</strong> · ${totalParejas} parejas totales · ${totalClasif} clasifican a la llave`;
+  // Actualizar stepper de parejas para que refleje el total
+  const pInput = document.getElementById('parejas');
+  if (pInput) pInput.value = totalParejas;
+}
+
+function getZonasConfig() {
+  const lista = document.getElementById('zonasList');
+  return [...lista.children].map((row, i) => ({
+    letra: LETRAS[i] || 'Z'+i,
+    parejas: parseInt(row.querySelector('[data-zona-parejas]')?.value || 3),
+    clasifican: parseInt(row.querySelector('[data-zona-clasif]')?.value || 2)
+  }));
+}
+
+
   if (formatoActivo !== 'round_robin_llave' && formatoActivo !== 'zonas_llave') return;
   const n = parseInt(document.getElementById('clasificados')?.value) || 4;
   const info = document.getElementById('clasificadosInfo');
@@ -522,14 +663,25 @@ window.guardarYSeguir = async function() {
   }).filter(d => d.fecha);
   if (dias.length === 0) { showToast('⚠️ Ingresá al menos una fecha'); return; }
 
-  const clasificados = (formatoActivo === 'round_robin_llave' || formatoActivo === 'zonas_llave')
+  const clasificados = formatoActivo === 'round_robin_llave'
     ? parseInt(document.getElementById('clasificados').value) || 4
     : null;
 
+  const zonasConfig = formatoActivo === 'zonas_llave' ? getZonasConfig() : null;
+  const totalParejas = formatoActivo === 'zonas_llave'
+    ? (zonasConfig?.reduce((s, z) => s + z.parejas, 0) || 0)
+    : parseInt(document.getElementById('parejas').value);
+  const clasificadosLlave = formatoActivo === 'zonas_llave'
+    ? (zonasConfig?.reduce((s, z) => s + z.clasifican, 0) || 0)
+    : clasificados;
+
   // Validar clasificados vs parejas
-  if (formatoActivo === 'round_robin_llave' || formatoActivo === 'zonas_llave') {
+  if (formatoActivo === 'round_robin_llave') {
     const parejasCant = parseInt(document.getElementById('parejas').value);
     if (clasificados >= parejasCant) { showToast('⚠️ Los clasificados deben ser menos que el total de parejas'); return; }
+  }
+  if (formatoActivo === 'zonas_llave') {
+    if (!zonasConfig || zonasConfig.length === 0) { showToast('⚠️ Configurá al menos una zona'); return; }
   }
 
   const torneo = {
@@ -539,8 +691,9 @@ window.guardarYSeguir = async function() {
     formato:            formatoActivo,
     sumaMaxima:         tipoActivo === 'suma' ? parseInt(document.getElementById('sumaMax')?.value)||0 : null,
     canchasDisponibles: parseInt(document.getElementById('canchas').value),
-    totalParejas:       parseInt(document.getElementById('parejas').value),
-    clasificadosLlave:  clasificados,
+    totalParejas,
+    clasificadosLlave,
+    zonasConfig,
     duracion:           parseInt(document.getElementById('duracion').value),
     intervalo:          parseInt(document.getElementById('intervalo').value),
     intervaloMediodia:  parseInt(document.getElementById('mediodia').value),
