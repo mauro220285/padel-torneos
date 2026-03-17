@@ -217,18 +217,15 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
   </div>
 
-  <!-- Selector de clasificados — solo para round_robin_llave -->
+  <!-- Selector de clasificados — para round_robin_llave y zonas_llave -->
   <div class="clasificados-wrap" id="clasificadosWrap">
     <div class="field" style="margin-top:10px;">
       <label>¿Cuántas parejas clasifican a la llave?</label>
-      <!-- Botones fijos para potencias de 2 -->
-      <div id="clasificadosBtns" style="display:flex;gap:8px;margin-top:4px;">
-        <button class="clas-btn" data-val="2" onclick="selClasificados(2)">2</button>
-        <button class="clas-btn" data-val="4" onclick="selClasificados(4)">4</button>
-        <button class="clas-btn" data-val="8" onclick="selClasificados(8)">8</button>
-        <button class="clas-btn" data-val="16" onclick="selClasificados(16)">16</button>
+      <div class="stepper" style="margin-top:6px;">
+        <button onclick="stepperChange('clasificados',-1)">−</button>
+        <input type="number" id="clasificados" value="4" min="2" max="64" readonly>
+        <button onclick="stepperChange('clasificados',1)">+</button>
       </div>
-      <input type="hidden" id="clasificados" value="4">
     </div>
     <div class="clasificados-info" id="clasificadosInfo"></div>
   </div>
@@ -250,7 +247,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
       <label>Cantidad de parejas</label>
       <div class="stepper">
         <button onclick="stepperChange('parejas',-1)">−</button>
-        <input type="number" id="parejas" value="8" min="4" max="64" readonly>
+        <input type="number" id="parejas" value="8" min="4" max="128" readonly>
         <button onclick="stepperChange('parejas',1)">+</button>
       </div>
     </div>
@@ -391,34 +388,25 @@ window.selFormato = function(card, formato) {
   calcular();
 };
 
-// ── CLASIFICADOS (botones fijos: 2, 4, 8, 16) ──
-window.selClasificados = function(n) {
-  document.getElementById('clasificados').value = n;
-  document.querySelectorAll('.clas-btn').forEach(b => {
-    b.classList.toggle('selected', parseInt(b.dataset.val) === n);
-  });
-  actualizarInfoClasificados();
-  calcular();
-};
 
 function actualizarInfoClasificados() {
-  if (formatoActivo !== 'round_robin_llave') return;
+  if (formatoActivo !== 'round_robin_llave' && formatoActivo !== 'zonas_llave') return;
   const n = parseInt(document.getElementById('clasificados')?.value) || 4;
   const info = document.getElementById('clasificadosInfo');
   if (!info) return;
   const parejas = parseInt(document.getElementById('parejas').value) || 8;
-  let estructura = '';
-  let rondas = Math.log2(n);
-  const nombres = ['Final','Semifinal','Cuartos de final','Octavos de final'];
-  const partes = [];
-  for (let r = rondas; r >= 1; r--) partes.push(nombres[rondas - r] || `Ronda de ${Math.pow(2,r)}`);
-  estructura = partes.join(' → ');
-  const partLlave = n - 1;
   if (n >= parejas) {
     info.innerHTML = `⚠️ Los clasificados (${n}) deben ser menos que el total de parejas (${parejas})`;
-  } else {
-    info.innerHTML = `<strong style="color:var(--azul)">${n} clasificados</strong> · ${estructura}<br><span style="color:var(--muted)">${partLlave} partido${partLlave>1?'s':''} de llave + ${parejas*(parejas-1)/2} del round robin</span>`;
+    return;
   }
+  // Sugerir estructura de llave
+  let estructura = '';
+  if (n >= 16) estructura = 'Octavos → Cuartos → Semifinal → Final';
+  else if (n >= 8) estructura = 'Cuartos → Semifinal → Final';
+  else if (n >= 4) estructura = 'Semifinal → Final';
+  else if (n >= 2) estructura = 'Final';
+  else estructura = 'Definir manualmente';
+  info.innerHTML = `<strong style="color:var(--azul)">${n} clasificados</strong> · ${estructura}`;
 }
 
 // ── STEPPER ──
@@ -439,7 +427,7 @@ window.stepperChange = function(id, delta) {
 };
 
 // Seleccionar 4 por defecto al cargar
-selClasificados(4);
+actualizarInfoClasificados();
 
 // ── DÍAS ──
 window.agregarDia = function() {
@@ -539,10 +527,9 @@ window.guardarYSeguir = async function() {
     : null;
 
   // Validar clasificados vs parejas
-  if (formatoActivo === 'round_robin_llave') {
+  if (formatoActivo === 'round_robin_llave' || formatoActivo === 'zonas_llave') {
     const parejasCant = parseInt(document.getElementById('parejas').value);
     if (clasificados >= parejasCant) { showToast('⚠️ Los clasificados deben ser menos que el total de parejas'); return; }
-    if ((clasificados & (clasificados - 1)) !== 0) { showToast('⚠️ Los clasificados deben ser 2, 4, 8 o 16'); return; }
   }
 
   const torneo = {

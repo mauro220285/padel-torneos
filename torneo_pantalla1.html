@@ -340,6 +340,20 @@ body {
   margin-bottom: 4px;
 }
 .btn-add-tel:hover { border-color: var(--azul); color: var(--azul); }
+.wa-toggle {
+  width: 34px; height: 34px; border-radius: 8px; border: none;
+  background: none; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; transition: all 0.2s;
+  font-size: 20px; opacity: 0.3; filter: grayscale(1);
+}
+.wa-toggle.activo { opacity: 1; filter: none; }
+.tel-del {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  background: none; cursor: pointer; color: var(--muted); font-size: 14px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  transition: color 0.2s;
+}
+.tel-del:hover { color: var(--rojo); }
 
 /* ── ZONA / IDIOMA / MONEDA ── */
 .config-grid {
@@ -464,10 +478,14 @@ body {
     <div class="tel-row">
       <span class="tel-label">TEL 1</span>
       <input type="tel" placeholder="Nombre y teléfono...">
+      <button class="wa-toggle" title="¿Tiene WhatsApp?" onclick="toggleWA(this)">📱</button>
+      <button class="tel-del" onclick="eliminarTel(this)">✕</button>
     </div>
     <div class="tel-row">
       <span class="tel-label">TEL 2</span>
       <input type="tel" placeholder="Nombre y teléfono...">
+      <button class="wa-toggle" title="¿Tiene WhatsApp?" onclick="toggleWA(this)">📱</button>
+      <button class="tel-del" onclick="eliminarTel(this)">✕</button>
     </div>
   </div>
   <button class="btn-add-tel" onclick="agregarTel()">+ AGREGAR TELÉFONO</button>
@@ -475,10 +493,6 @@ body {
   <div class="red-social">
     <span class="icon">📸</span>
     <input type="text" placeholder="Instagram  @usuario">
-  </div>
-  <div class="red-social">
-    <span class="icon">💬</span>
-    <input type="text" placeholder="WhatsApp  +54 ...">
   </div>
   <div class="red-social">
     <span class="icon">📘</span>
@@ -568,14 +582,27 @@ document.getElementById('logoInput').addEventListener('change', (e) => {
   reader.readAsDataURL(file);
 });
 
-// ── AGREGAR TELÉFONO ──
+// ── TELÉFONOS ──
 window.agregarTel = function() {
   const wrap = document.getElementById('telefonos');
   const n = wrap.children.length + 1;
   const row = document.createElement('div');
   row.className = 'tel-row';
-  row.innerHTML = `<span class="tel-label">TEL ${n}</span><input type="tel" placeholder="Nombre y teléfono...">`;
+  row.innerHTML = `<span class="tel-label">TEL ${n}</span><input type="tel" placeholder="Nombre y teléfono..."><button class="wa-toggle" title="¿Tiene WhatsApp?" onclick="toggleWA(this)">📱</button><button class="tel-del" onclick="eliminarTel(this)">✕</button>`;
   wrap.appendChild(row);
+};
+
+window.toggleWA = function(btn) {
+  btn.classList.toggle('activo');
+};
+
+window.eliminarTel = function(btn) {
+  const wrap = document.getElementById('telefonos');
+  if (wrap.children.length <= 1) return;
+  btn.closest('.tel-row').remove();
+  [...wrap.children].forEach((row, i) => {
+    row.querySelector('.tel-label').textContent = `TEL ${i+1}`;
+  });
 };
 
 // ── GUARDAR Y SEGUIR ──
@@ -583,7 +610,10 @@ window.guardarYSeguir = async function() {
   const nombre = document.getElementById('nombreCancha').value.trim();
   if (!nombre) { showToast('⚠️ Ingresá el nombre de la cancha'); return; }
 
-  const tels = [...document.querySelectorAll('#telefonos input')].map(i => i.value).filter(Boolean);
+  const tels = [...document.querySelectorAll('#telefonos .tel-row')].map(row => ({
+    numero: row.querySelector('input').value,
+    whatsapp: row.querySelector('.wa-toggle').classList.contains('activo')
+  })).filter(t => t.numero);
   const redes = [...document.querySelectorAll('.red-social input')].map(i => i.value).filter(Boolean);
 
   const config = {
@@ -630,7 +660,9 @@ async function cargarConfig() {
       c.telefonos.forEach((t, i) => {
         const row = document.createElement('div');
         row.className = 'tel-row';
-        row.innerHTML = `<span class="tel-label">TEL ${i+1}</span><input type="tel" value="${t}" placeholder="Nombre y teléfono...">`;
+        const num = typeof t === 'object' ? t.numero : t;
+        const wa  = typeof t === 'object' ? t.whatsapp : false;
+        row.innerHTML = `<span class="tel-label">TEL ${i+1}</span><input type="tel" value="${num}" placeholder="Nombre y teléfono..."><button class="wa-toggle${wa?' activo':''}" title="¿Tiene WhatsApp?" onclick="toggleWA(this)">📱</button><button class="tel-del" onclick="eliminarTel(this)">✕</button>`;
         wrap.appendChild(row);
       });
     }
