@@ -633,7 +633,10 @@ window.calcular = function() {
     if (!apertura || !cierre) return;
     const [ah, am] = apertura.split(':').map(Number);
     const [ch, cm] = cierre.split(':').map(Number);
-    let mins = (ch * 60 + cm) - (ah * 60 + am);
+    let cierreMin = ch * 60 + cm;
+    // Si cierre es 00:00 o menor que apertura, tratar como medianoche (24:00 = 1440)
+    if (cierreMin === 0 || cierreMin <= ah * 60 + am) cierreMin = 1440;
+    let mins = cierreMin - (ah * 60 + am);
     if (mediodia > 0) mins -= mediodia;
     minutosTotal += Math.max(0, mins) * canchas;
   });
