@@ -488,12 +488,10 @@ function distribuirZonas() {
     return;
   }
 
-  // Si hay zonasConfig usar esa distribución, sino distribución automática
   const zonasConfig = CONFIG.zonasConfig;
   let html = '';
 
   if (zonasConfig && zonasConfig.length > 0) {
-    // Distribución según zonasConfig — serpentina
     let idx = 0;
     zonasConfig.forEach(z => {
       const grupo = parejas.slice(idx, idx + z.parejas);
@@ -510,7 +508,6 @@ function distribuirZonas() {
       </div>`;
     });
   } else {
-    // Distribución automática: grupos de 4 (o 3 si no cierra)
     const porZona = 4;
     const cantZonas = Math.ceil(parejas.length / porZona);
     for (let z = 0; z < cantZonas; z++) {
@@ -619,7 +616,7 @@ if (storedTorneoId) {
         CONFIG.dias.forEach(dia => {
           dia.horarios = calcularHorariosDia(dia.apertura, dia.cierre, CONFIG.duracion, CONFIG.intervalo);
         });
-        // Actualizar parejasTotal con el valor real
+        // Actualizar parejasTotal con el valor real de Firebase
         parejasTotal = CONFIG.totalParejas;
         document.getElementById('total').textContent = parejasTotal;
         document.querySelector('.page-title p').textContent =
