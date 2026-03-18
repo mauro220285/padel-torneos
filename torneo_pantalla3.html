@@ -561,7 +561,20 @@ window.guardarYSeguir = async function() {
     return { j1Nombre, j2Nombre, j1Categoria: j1Cat, j2Categoria: j2Cat, restricciones, seed: i + 1 };
   });
 
-  try {\n    // Guardar en Firebase\n    const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");\n    const { getFirestore, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");\n    const fbConf = {\n      apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",\n      authDomain: "padel-team-76749.firebaseapp.com",\n      projectId: "padel-team-76749",\n      storageBucket: "padel-team-76749.firebasestorage.app",\n      messagingSenderId: "449257104174",\n      appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"\n    };\n    const fbApp = getApps().find(a=>a.name==='p3-app') || initializeApp(fbConf, 'p3-app');\n    const fbDb = getFirestore(fbApp);
+  try {
+    // Guardar en Firebase
+    const { initializeApp, getApps, getApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getFirestore, doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const fbConf = {
+      apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+      authDomain: "padel-team-76749.firebaseapp.com",
+      projectId: "padel-team-76749",
+      storageBucket: "padel-team-76749.firebasestorage.app",
+      messagingSenderId: "449257104174",
+      appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+    };
+    const fbApp = getApps().find(a=>a.name==='p3-app') || initializeApp(fbConf, 'p3-app');
+    const fbDb = getFirestore(fbApp);
 
     await Promise.all(datosParejas.map((p, i) => {
       const id = `pareja_${String(i+1).padStart(2,'0')}`;
