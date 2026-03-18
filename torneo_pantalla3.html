@@ -487,10 +487,8 @@ function distribuirZonas() {
     cont.innerHTML = '<span class="dist-empty">Cargá al menos 4 parejas para ver la distribución</span>';
     return;
   }
-
   const zonasConfig = CONFIG.zonasConfig;
   let html = '';
-
   if (zonasConfig && zonasConfig.length > 0) {
     let idx = 0;
     zonasConfig.forEach(z => {
@@ -612,11 +610,10 @@ if (storedTorneoId) {
         CONFIG.duracion       = t.duracion || 75;
         CONFIG.intervalo      = t.intervalo || 15;
         CONFIG.dias           = t.dias || CONFIG.dias;
-        CONFIG.zonasConfig    = t.zonasConfig || null;
         CONFIG.dias.forEach(dia => {
           dia.horarios = calcularHorariosDia(dia.apertura, dia.cierre, CONFIG.duracion, CONFIG.intervalo);
         });
-        // Actualizar parejasTotal con el valor real de Firebase
+        CONFIG.zonasConfig = t.zonasConfig || null;
         parejasTotal = CONFIG.totalParejas;
         document.getElementById('total').textContent = parejasTotal;
         document.querySelector('.page-title p').textContent =
