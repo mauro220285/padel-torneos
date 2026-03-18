@@ -741,6 +741,101 @@ function showToast(msg) {
 window.showToast = showToast;
 
 calcular();
+
+// ── CARGAR TORNEO EXISTENTE AL VOLVER ──
+(async () => {
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) return;
+  try {
+    const { getDoc, doc: fbDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const snap = await getDoc(fbDoc(db, 'torneos', torneoId));
+    if (!snap.exists()) return;
+    const t = snap.data();
+
+    // Nombre
+    if (t.nombre) document.getElementById('nombreTorneo').value = t.nombre;
+
+    // Tipo
+    const tipoBase = t.tipo?.replace('_mixto','') || 'libre';
+    const esMixto = t.mixto || t.tipo?.includes('mixto');
+    document.querySelectorAll('.tipo-card:not(#mixtoToggle)').forEach(c => c.classList.remove('selected'));
+    const tipoCard = [...document.querySelectorAll('.tipo-card:not(#mixtoToggle)')].find(c => c.getAttribute('onclick')?.includes(`'${tipoBase}'`));
+    if (tipoCard) { tipoCard.classList.add('selected'); tipoActivo = tipoBase; }
+    document.getElementById('sumaWrap')?.classList.toggle('visible', tipoBase === 'suma');
+    if (t.sumaMaxima) document.getElementById('sumaMax').value = t.sumaMaxima;
+    if (esMixto) {
+      mixtoActivo = true;
+      const btn = document.getElementById('mixtoToggle');
+      if (btn) {
+        btn.classList.add('selected');
+        const check = document.getElementById('mixtoCheck');
+        if (check) { check.textContent = '✓'; check.style.borderColor = 'var(--azul)'; }
+      }
+    }
+
+    // Formato
+    if (t.formato) {
+      const fmtCard = [...document.querySelectorAll('.formato-card')].find(c => c.getAttribute('onclick')?.includes(`'${t.formato}'`));
+      if (fmtCard) selFormato(fmtCard, t.formato);
+    }
+
+    // Clasificados RR
+    if (t.clasificadosLlave && t.formato === 'round_robin_llave') {
+      document.getElementById('clasificados').value = t.clasificadosLlave;
+    }
+
+    // Zonas config
+    if (t.zonasConfig && t.formato === 'zonas_llave') {
+      const lista = document.getElementById('zonasList');
+      lista.innerHTML = '';
+      t.zonasConfig.forEach(() => agregarZonaConfig());
+      [...lista.children].forEach((row, i) => {
+        const zc = t.zonasConfig[i];
+        if (!zc) return;
+        row.querySelector('[data-zona-parejas]').value = zc.parejas;
+        row.querySelector('[data-zona-clasif]').value  = zc.clasifican;
+      });
+      actualizarZonasResumen();
+    }
+
+    // Infraestructura
+    if (t.canchasDisponibles) document.getElementById('canchas').value = t.canchasDisponibles;
+    if (t.totalParejas && t.formato !== 'zonas_llave') document.getElementById('parejas').value = t.totalParejas;
+
+    // Tiempos
+    if (t.duracion)  document.getElementById('duracion').value  = t.duracion;
+    if (t.intervalo) document.getElementById('intervalo').value = t.intervalo;
+    if (t.intervaloMediodia) {
+      document.getElementById('mediodia').value = t.intervaloMediodia;
+      const field = document.getElementById('horaMedodiaField');
+      if (field && t.intervaloMediodia > 0) { field.style.opacity='1'; field.style.pointerEvents='auto'; }
+    }
+    if (t.horaCorteMediodia) document.getElementById('horaMediadia').value = t.horaCorteMediodia;
+
+    // Días
+    if (t.dias && t.dias.length > 0) {
+      const lista = document.getElementById('diasLista');
+      lista.innerHTML = '';
+      t.dias.forEach((dia, i) => {
+        const row = document.createElement('div');
+        row.className = 'dia-row';
+        row.innerHTML = `
+          <div class="dia-row-top">
+            <span class="dia-num">${i+1}</span>
+            <input type="date" value="${dia.fecha}" onchange="calcular()">
+            <button class="btn-del" onclick="eliminarDia(this)">✕</button>
+          </div>
+          <div class="dia-row-horarios">
+            <div class="dia-horario"><label>Apertura</label><input type="time" value="${dia.apertura||'09:00'}" onchange="calcular()"></div>
+            <div class="dia-horario"><label>Cierre</label><input type="time" value="${dia.cierre||'22:00'}" onchange="calcular()"></div>
+          </div>`;
+        lista.appendChild(row);
+      });
+    }
+
+    calcular();
+  } catch(e) { console.error('Error cargando torneo en P2:', e); }
+})();
 </script>
 </body>
 </html>
