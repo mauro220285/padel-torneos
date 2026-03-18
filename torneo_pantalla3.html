@@ -483,29 +483,51 @@ function actualizarContador() {
 // ── DISTRIBUCIÓN EN ZONAS ──
 function distribuirZonas() {
   const cont = document.getElementById('distContent');
-  if (parejas.length < 4) {
+  if (parejas.length < 2) {
     cont.innerHTML = '<span class="dist-empty">Cargá al menos 4 parejas para ver la distribución</span>';
     return;
   }
-  // Distribución simple: grupos de 4 (o 3 si no cierra)
-  const porZona = 4;
-  const cantZonas = Math.ceil(parejas.length / porZona);
+
+  // Si hay zonasConfig usar esa distribución, sino distribución automática
+  const zonasConfig = CONFIG.zonasConfig;
   let html = '';
-  for (let z = 0; z < cantZonas; z++) {
-    const letra = String.fromCharCode(65 + z);
-    const inicio = z * porZona;
-    const grupo = parejas.slice(inicio, inicio + porZona);
-    const chips = grupo.map((p, i) => {
-      const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || `Jugador ${inicio+i*2+1}`;
-      const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || `Jugador ${inicio+i*2+2}`;
-      const nombre = (n1 !== `Jugador ${inicio+i*2+1}` || n2 !== `Jugador ${inicio+i*2+2}`)
-        ? `${n1} / ${n2}` : `Pareja ${inicio+i+1}`;
-      return `<span class="dist-chip">${nombre}</span>`;
-    }).join('');
-    html += `<div class="dist-zona">
-      <div class="dist-zona-nombre">ZONA ${letra}</div>
-      <div class="dist-zona-parejas">${chips}</div>
-    </div>`;
+
+  if (zonasConfig && zonasConfig.length > 0) {
+    // Distribución según zonasConfig — serpentina
+    let idx = 0;
+    zonasConfig.forEach(z => {
+      const grupo = parejas.slice(idx, idx + z.parejas);
+      idx += z.parejas;
+      const chips = grupo.map((p, i) => {
+        const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
+        const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
+        const nombre = (n1 && n2) ? `${n1} / ${n2}` : `Pareja ${parejas.indexOf(p)+1}`;
+        return `<span class="dist-chip">${nombre}</span>`;
+      }).join('');
+      html += `<div class="dist-zona">
+        <div class="dist-zona-nombre">ZONA ${z.letra} · ${z.parejas} parejas · ${z.clasifican} clasifican</div>
+        <div class="dist-zona-parejas">${chips}</div>
+      </div>`;
+    });
+  } else {
+    // Distribución automática: grupos de 4 (o 3 si no cierra)
+    const porZona = 4;
+    const cantZonas = Math.ceil(parejas.length / porZona);
+    for (let z = 0; z < cantZonas; z++) {
+      const letra = String.fromCharCode(65 + z);
+      const inicio = z * porZona;
+      const grupo = parejas.slice(inicio, inicio + porZona);
+      const chips = grupo.map((p, i) => {
+        const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
+        const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
+        const nombre = (n1 && n2) ? `${n1} / ${n2}` : `Pareja ${inicio+i+1}`;
+        return `<span class="dist-chip">${nombre}</span>`;
+      }).join('');
+      html += `<div class="dist-zona">
+        <div class="dist-zona-nombre">ZONA ${letra}</div>
+        <div class="dist-zona-parejas">${chips}</div>
+      </div>`;
+    }
   }
   cont.innerHTML = html;
 }
@@ -593,9 +615,13 @@ if (storedTorneoId) {
         CONFIG.duracion       = t.duracion || 75;
         CONFIG.intervalo      = t.intervalo || 15;
         CONFIG.dias           = t.dias || CONFIG.dias;
+        CONFIG.zonasConfig    = t.zonasConfig || null;
         CONFIG.dias.forEach(dia => {
           dia.horarios = calcularHorariosDia(dia.apertura, dia.cierre, CONFIG.duracion, CONFIG.intervalo);
         });
+        // Actualizar parejasTotal con el valor real
+        parejasTotal = CONFIG.totalParejas;
+        document.getElementById('total').textContent = parejasTotal;
         document.querySelector('.page-title p').textContent =
           `${t.nombre} · ${t.dias?.[0]?.fecha || ''}`;
       }
