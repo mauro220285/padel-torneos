@@ -273,8 +273,16 @@ function calcularHorariosDia(apertura, cierre, duracion, intervalo) {
 }
 
 // Precalcular horarios por día
+function calcularHorariosCorregido(dia, duracion, intervalo) {
+  const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
+  const [ch, cm] = (dia.cierre||'22:00').split(':').map(Number);
+  const aperturaMin = ah * 60 + am;
+  const cierreMin = ch * 60 + cm;
+  const cierreAdj = (cierreMin <= aperturaMin) ? '23:59' : dia.cierre;
+  return calcularHorariosDia(dia.apertura, cierreAdj, duracion, intervalo);
+}
 CONFIG.dias.forEach(dia => {
-  dia.horarios = calcularHorariosDia(dia.apertura, dia.cierre, CONFIG.duracion, CONFIG.intervalo);
+  dia.horarios = calcularHorariosCorregido(dia, CONFIG.duracion, CONFIG.intervalo);
 });
 
 let parejas = [];
@@ -628,13 +636,7 @@ if (storedTorneoId) {
           if (!dia.label && dia.fecha) {
             dia.label = new Date(dia.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'2-digit', month:'2-digit' }).toUpperCase();
           }
-          const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
-          const [ch, cm] = (dia.cierre||'22:00').split(':').map(Number);
-          const aperturaMin = ah * 60 + am;
-          const cierreMin = ch * 60 + cm;
-          // Si cierre <= apertura asumimos que es pasada medianoche
-          const cierreAdj = (cierreMin <= aperturaMin) ? '23:59' : dia.cierre;
-          dia.horarios = calcularHorariosDia(dia.apertura, cierreAdj, CONFIG.duracion, CONFIG.intervalo);
+          dia.horarios = calcularHorariosCorregido(dia, CONFIG.duracion, CONFIG.intervalo);
         });
         CONFIG.zonasConfig = t.zonasConfig || null;
         parejasTotal = CONFIG.totalParejas;
