@@ -317,9 +317,10 @@ function crearParejaHTML(n, pareja) {
   const restr = document.createElement('div');
   restr.className = 'restricciones-wrap';
 
-  const diasTabs = CONFIG.dias.map((dia, di) => `
-    <button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${dia.label}</button>
-  `).join('');
+  const diasTabs = CONFIG.dias.map((dia, di) => {
+    const lbl = dia.label || (dia.fecha ? new Date(dia.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'2-digit', month:'2-digit' }).toUpperCase() : `DÍA ${di+1}`);
+    return `<button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${lbl}</button>`;
+  }).join('');
 
   const diasPanels = CONFIG.dias.map((dia, di) => `
     <div class="dia-panel ${di === 0 ? 'visible' : ''}" data-di="${di}">
@@ -641,12 +642,6 @@ if (storedTorneoId) {
   for (let i = 0; i < CONFIG.totalParejas; i++) agregarPareja();
   document.querySelectorAll('.pareja-card').forEach((c, i) => { if (i > 0) c.classList.remove('open'); });
 }
-
-// ============================================================
-// PADEL TEAM - PANTALLA 3 - CARGA DE PAREJAS v2.1.0
-// Fix labels de dias y horarios multiples dias
-// 19/03/2026
-// ============================================================
 </script>
 </body>
 </html>
