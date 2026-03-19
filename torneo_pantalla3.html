@@ -317,10 +317,9 @@ function crearParejaHTML(n, pareja) {
   const restr = document.createElement('div');
   restr.className = 'restricciones-wrap';
 
-  const diasTabs = CONFIG.dias.map((dia, di) => {
-    const lbl = dia.label || (dia.fecha ? new Date(dia.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'2-digit', month:'2-digit' }).toUpperCase() : `DÍA ${di+1}`);
-    return `<button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${lbl}</button>`;
-  }).join('');
+  const diasTabs = CONFIG.dias.map((dia, di) => `
+    <button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${dia.label}</button>
+  `).join('');
 
   const diasPanels = CONFIG.dias.map((dia, di) => `
     <div class="dia-panel ${di === 0 ? 'visible' : ''}" data-di="${di}">
@@ -625,7 +624,14 @@ if (storedTorneoId) {
         CONFIG.intervalo      = t.intervalo || 15;
         CONFIG.dias           = t.dias || CONFIG.dias;
         CONFIG.dias.forEach(dia => {
-          dia.horarios = calcularHorariosDia(dia.apertura, dia.cierre, CONFIG.duracion, CONFIG.intervalo);
+          // Generar label desde fecha si no existe
+          if (!dia.label && dia.fecha) {
+            dia.label = new Date(dia.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'2-digit', month:'2-digit' }).toUpperCase();
+          }
+          const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
+          const [ch, cm] = (dia.cierre||'22:00').split(':').map(Number);
+          const cierreStr = (ch === 0 && cm === 0) ? '23:59' : dia.cierre;
+          dia.horarios = calcularHorariosDia(dia.apertura, cierreStr, CONFIG.duracion, CONFIG.intervalo);
         });
         CONFIG.zonasConfig = t.zonasConfig || null;
         parejasTotal = CONFIG.totalParejas;
