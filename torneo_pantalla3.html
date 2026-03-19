@@ -630,8 +630,11 @@ if (storedTorneoId) {
           }
           const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
           const [ch, cm] = (dia.cierre||'22:00').split(':').map(Number);
-          const cierreStr = (ch === 0 && cm === 0) ? '23:59' : dia.cierre;
-          dia.horarios = calcularHorariosDia(dia.apertura, cierreStr, CONFIG.duracion, CONFIG.intervalo);
+          const aperturaMin = ah * 60 + am;
+          const cierreMin = ch * 60 + cm;
+          // Si cierre <= apertura asumimos que es pasada medianoche
+          const cierreAdj = (cierreMin <= aperturaMin) ? '23:59' : dia.cierre;
+          dia.horarios = calcularHorariosDia(dia.apertura, cierreAdj, CONFIG.duracion, CONFIG.intervalo);
         });
         CONFIG.zonasConfig = t.zonasConfig || null;
         parejasTotal = CONFIG.totalParejas;
