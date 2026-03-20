@@ -128,6 +128,13 @@ body {
 /* RESTRICCIONES HORARIAS */
 .restricciones-wrap { margin-top:8px; }
 .restricciones-label { font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--label); margin-bottom:8px; display:block; }
+.dia-restr-block { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px 10px; margin-bottom:6px; }
+.dia-restr-header { display:flex; align-items:center; justify-content:space-between; }
+.dia-restr-label { font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; color:#fff; }
+.dia-estado-btns { display:flex; gap:4px; }
+.dia-estado-btn { background:none; border:1px solid var(--border); border-radius:6px; padding:3px 6px; cursor:pointer; font-size:14px; opacity:0.4; transition:all 0.2s; }
+.dia-estado-btn.activo { opacity:1; border-color:var(--azul); background:rgba(74,158,255,0.1); }
+.dia-horarios-panel { margin-top:8px; }
 .dias-tabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; }
 .dia-tab {
   padding:5px 12px; background:var(--bg2); border:1px solid var(--border);
@@ -143,7 +150,7 @@ body {
   border-radius:20px; font-family:'Oswald',sans-serif; font-size:12px;
   letter-spacing:1px; color:var(--muted); cursor:pointer; transition:all 0.2s;
 }
-.hora-chip.bloqueada { background:rgba(230,57,70,0.1); border-color:var(--rojo); color:var(--rojo); }
+.hora-chip.bloqueado { background:rgba(230,57,70,0.1); border-color:var(--rojo); color:var(--rojo); }
 
 /* BTN AGREGAR PAREJA */
 .btn-add-pareja {
@@ -255,16 +262,15 @@ const CONFIG = {
   intervalo: 15
 };
 
-// Calcular horarios disponibles por día
-function calcularHorariosDia(apertura, cierre, duracion, intervalo) {
+// Calcular horarios disponibles por día usando cantidad de slots
+function calcularHorariosDia(apertura, slots, duracion, intervalo) {
   const horarios = [];
-  const [ah, am] = apertura.split(':').map(Number);
-  const [ch, cm] = cierre.split(':').map(Number);
+  const [ah, am] = (apertura||'09:00').split(':').map(Number);
   const slotMin = duracion + intervalo;
   let actual = ah * 60 + am;
-  const fin = ch * 60 + cm;
-  while (actual + duracion <= fin) {
-    const hh = String(Math.floor(actual / 60)).padStart(2, '0');
+  const n = parseInt(slots) || 8;
+  for (let i = 0; i < n; i++) {
+    const hh = String(Math.floor(actual / 60) % 24).padStart(2, '0');
     const mm = String(actual % 60).padStart(2, '0');
     horarios.push(`${hh}:${mm}`);
     actual += slotMin;
@@ -274,12 +280,7 @@ function calcularHorariosDia(apertura, cierre, duracion, intervalo) {
 
 // Precalcular horarios por día
 function calcularHorariosCorregido(dia, duracion, intervalo) {
-  const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
-  const [ch, cm] = (dia.cierre||'22:00').split(':').map(Number);
-  const aperturaMin = ah * 60 + am;
-  const cierreMin = ch * 60 + cm;
-  const cierreAdj = (cierreMin <= aperturaMin) ? '23:59' : dia.cierre;
-  return calcularHorariosDia(dia.apertura, cierreAdj, duracion, intervalo);
+  return calcularHorariosDia(dia.apertura, dia.slots || 8, duracion, intervalo);
 }
 CONFIG.dias.forEach(dia => {
   dia.horarios = calcularHorariosCorregido(dia, CONFIG.duracion, CONFIG.intervalo);
@@ -321,30 +322,37 @@ function crearParejaHTML(n, pareja) {
   // Jugador 2
   const j2 = jugadorHTML(pareja.id, 2);
 
-  // Restricciones horarias por día
+  // Restricciones horarias por día — 3 estados
   const restr = document.createElement('div');
   restr.className = 'restricciones-wrap';
 
-  const diasTabs = CONFIG.dias.map((dia, di) => {
+  const diasHTML = CONFIG.dias.map((dia, di) => {
     const lbl = dia.label || (dia.fecha ? new Date(dia.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'2-digit', month:'2-digit' }).toUpperCase() : `DÍA ${di+1}`);
-    return `<button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${lbl}</button>`;
+    const horariosHTML = (dia.horarios || []).map(h =>
+      `<span class="hora-chip" onclick="toggleChip(this,'${pareja.id}',${di},'${h}')">${h}</span>`
+    ).join('');
+    return `
+    <div class="dia-restr-block" id="dia-block-${pareja.id}-${di}">
+      <div class="dia-restr-header">
+        <span class="dia-restr-label">${lbl}</span>
+        <div class="dia-estado-btns">
+          <button class="dia-estado-btn estado-libre activo" onclick="setEstadoDia(this,'${pareja.id}',${di},'libre')" title="Disponible todo el día">🟢</button>
+          <button class="dia-estado-btn estado-parcial" onclick="setEstadoDia(this,'${pareja.id}',${di},'parcial')" title="Con restricciones">🟡</button>
+          <button class="dia-estado-btn estado-bloqueado" onclick="setEstadoDia(this,'${pareja.id}',${di},'bloqueado')" title="No puede jugar">🔴</button>
+        </div>
+      </div>
+      <div class="dia-horarios-panel" id="panel-${pareja.id}-${di}" style="display:none;">
+        <div class="restricciones-chips">${horariosHTML}</div>
+      </div>
+      <div class="dia-bloqueado-label" id="bloq-${pareja.id}-${di}" style="display:none;">
+        <span style="color:var(--rojo);font-size:11px;letter-spacing:1px;">✕ No puede jugar este día</span>
+      </div>
+    </div>`;
   }).join('');
 
-  const diasPanels = CONFIG.dias.map((dia, di) => `
-    <div class="dia-panel ${di === 0 ? 'visible' : ''}" data-di="${di}">
-      <div class="restricciones-chips">
-        ${dia.horarios.map(h => `
-          <span class="hora-chip" onclick="toggleChip(this,'${pareja.id}',${di},'${h}')">${h}</span>
-        `).join('')}
-      </div>
-    </div>
-  `).join('');
-
   restr.innerHTML = `
-    <span class="restricciones-label">🚫 Horarios en que NO puede jugar</span>
-    <div class="dias-tabs" id="tabs-${pareja.id}">${diasTabs}</div>
-    <div class="dias-panels" id="panels-${pareja.id}">${diasPanels}
-    </div>`;
+    <span class="restricciones-label">📅 Disponibilidad por día</span>
+    ${diasHTML}`;
 
   // Btn eliminar
   const btnDel = document.createElement('button');
@@ -433,7 +441,30 @@ window.actualizarResumen = function(id) {
 };
 
 // ── TABS POR DÍA ──
-window.selTabDia = function(btn, parejaId, di) {
+window.setEstadoDia = function(btn, parejaId, di, estado) {
+  // Actualizar botones
+  const block = document.getElementById(`dia-block-${parejaId}-${di}`);
+  block.querySelectorAll('.dia-estado-btn').forEach(b => b.classList.remove('activo'));
+  btn.classList.add('activo');
+
+  // Mostrar/ocultar panel de horarios y mensaje bloqueado
+  const panel = document.getElementById(`panel-${parejaId}-${di}`);
+  const bloq  = document.getElementById(`bloq-${parejaId}-${di}`);
+
+  panel.style.display  = estado === 'parcial'   ? 'block' : 'none';
+  bloq.style.display   = estado === 'bloqueado' ? 'block' : 'none';
+
+  // Si libre, limpiar todos los chips seleccionados
+  if (estado === 'libre') {
+    panel.querySelectorAll('.hora-chip.bloqueado').forEach(c => c.classList.remove('bloqueado'));
+  }
+  // Si bloqueado, marcar todos los chips
+  if (estado === 'bloqueado') {
+    panel.querySelectorAll('.hora-chip').forEach(c => c.classList.add('bloqueado'));
+  }
+};
+
+
   const tabsWrap  = document.getElementById(`tabs-${parejaId}`);
   const panelsWrap = document.getElementById(`panels-${parejaId}`);
   tabsWrap.querySelectorAll('.dia-tab').forEach(t => t.classList.remove('activa'));
@@ -444,7 +475,8 @@ window.selTabDia = function(btn, parejaId, di) {
 
 // ── TOGGLE CHIP HORARIO ──
 window.toggleChip = function(chip, parejaId, di, hora) {
-  chip.classList.toggle('bloqueada');
+  chip.classList.toggle('bloqueado');
+};
 };
 
 // ── GÉNERO ──
@@ -558,13 +590,22 @@ window.guardarYSeguir = async function() {
     const j1Cat    = document.getElementById(`j1-cat-${p.id}`)?.value || '';
     const j2Cat    = document.getElementById(`j2-cat-${p.id}`)?.value || '';
 
-    // Recolectar restricciones por día
+    // Recolectar restricciones por día con nuevo sistema de 3 estados
     const restricciones = {};
     CONFIG.dias.forEach((dia, di) => {
-      const bloqueadas = [];
-      document.querySelectorAll(`#panels-${p.id} [data-di="${di}"] .hora-chip.bloqueada`)
-        .forEach(chip => bloqueadas.push(chip.textContent.trim()));
-      if (bloqueadas.length > 0) restricciones[dia.fecha] = bloqueadas;
+      const block = document.getElementById(`dia-block-${p.id}-${di}`);
+      const btnActivo = block?.querySelector('.dia-estado-btn.activo');
+      const estado = btnActivo?.classList.contains('estado-bloqueado') ? 'bloqueado'
+                   : btnActivo?.classList.contains('estado-parcial')   ? 'parcial'
+                   : 'libre';
+      if (estado === 'bloqueado') {
+        restricciones[dia.fecha] = 'bloqueado';
+      } else if (estado === 'parcial') {
+        const bloqueadas = [];
+        document.querySelectorAll(`#panel-${p.id}-${di} .hora-chip.bloqueado`)
+          .forEach(chip => bloqueadas.push(chip.textContent.trim()));
+        if (bloqueadas.length > 0) restricciones[dia.fecha] = bloqueadas;
+      }
     });
 
     return { j1Nombre, j2Nombre, j1Categoria: j1Cat, j2Categoria: j2Cat, restricciones, seed: i + 1 };

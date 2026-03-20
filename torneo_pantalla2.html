@@ -307,7 +307,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
       </div>
       <div class="dia-row-horarios">
         <div class="dia-horario"><label>Apertura</label><input type="time" value="09:00" onchange="calcular()"></div>
-        <div class="dia-horario"><label>Cierre</label><input type="time" value="22:00" onchange="calcular()"></div>
+        <div class="dia-horario"><label>Cant. slots</label><input type="number" value="8" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
       </div>
     </div>
   </div>
@@ -585,7 +585,7 @@ window.agregarDia = function() {
     </div>
     <div class="dia-row-horarios">
       <div class="dia-horario"><label>Apertura</label><input type="time" value="09:00" onchange="calcular()"></div>
-      <div class="dia-horario"><label>Cierre</label><input type="time" value="22:00" onchange="calcular()"></div>
+      <div class="dia-horario"><label>Cant. slots</label><input type="number" value="8" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
     </div>`;
   lista.appendChild(row);
   calcular();
@@ -628,17 +628,9 @@ window.calcular = function() {
 
   let minutosTotal = 0;
   document.querySelectorAll('#diasLista .dia-row').forEach(dia => {
-    const apertura = dia.querySelectorAll('input[type="time"]')[0].value;
-    const cierre   = dia.querySelectorAll('input[type="time"]')[1].value;
-    if (!apertura || !cierre) return;
-    const [ah, am] = apertura.split(':').map(Number);
-    const [ch, cm] = cierre.split(':').map(Number);
-    let cierreMin = ch * 60 + cm;
-    // Si cierre es 00:00 o menor que apertura, tratar como medianoche (24:00 = 1440)
-    if (cierreMin === 0 || cierreMin <= ah * 60 + am) cierreMin = 1440;
-    let mins = cierreMin - (ah * 60 + am);
-    if (mediodia > 0) mins -= mediodia;
-    minutosTotal += Math.max(0, mins) * canchas;
+    const slotsInput = dia.querySelector('input[type="number"]:not([id])');
+    const slots = parseInt(slotsInput?.value) || 0;
+    minutosTotal += slots * canchas * slotMin;
   });
 
   const slotMin = duracion + intervalo;
@@ -669,8 +661,14 @@ window.guardarYSeguir = async function() {
 
   const diaRows = [...document.querySelectorAll('#diasLista .dia-row')];
   const dias = diaRows.map(row => {
-    const inputs = row.querySelectorAll('input');
-    return { fecha: inputs[0].value, apertura: inputs[1].value, cierre: inputs[2].value };
+    const timeInput = row.querySelector('input[type="time"]');
+    const slotsInput = row.querySelector('input[type="number"]:not([id])');
+    const fechaInput = row.querySelector('input[type="date"]');
+    return { 
+      fecha: fechaInput?.value || '', 
+      apertura: timeInput?.value || '09:00', 
+      slots: parseInt(slotsInput?.value) || 8
+    };
   }).filter(d => d.fecha);
   if (dias.length === 0) { showToast('⚠️ Ingresá al menos una fecha'); return; }
 
@@ -803,9 +801,9 @@ calcular();
     if (t.totalParejas && t.formato !== 'zonas_llave') document.getElementById('parejas').value = t.totalParejas;
 
     // Tiempos
-    if (t.duracion !== undefined)  document.getElementById('duracion').value  = t.duracion;
-    if (t.intervalo !== undefined) document.getElementById('intervalo').value = t.intervalo;
-    if (t.intervaloMediodia !== undefined && t.intervaloMediodia > 0) {
+    if (t.duracion)  document.getElementById('duracion').value  = t.duracion;
+    if (t.intervalo) document.getElementById('intervalo').value = t.intervalo;
+    if (t.intervaloMediodia) {
       document.getElementById('mediodia').value = t.intervaloMediodia;
       const field = document.getElementById('horaMedodiaField');
       if (field && t.intervaloMediodia > 0) { field.style.opacity='1'; field.style.pointerEvents='auto'; }
@@ -827,7 +825,7 @@ calcular();
           </div>
           <div class="dia-row-horarios">
             <div class="dia-horario"><label>Apertura</label><input type="time" value="${dia.apertura||'09:00'}" onchange="calcular()"></div>
-            <div class="dia-horario"><label>Cierre</label><input type="time" value="${dia.cierre||'22:00'}" onchange="calcular()"></div>
+            <div class="dia-horario"><label>Cant. slots</label><input type="number" value="${dia.slots||8}" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
           </div>`;
         lista.appendChild(row);
       });
