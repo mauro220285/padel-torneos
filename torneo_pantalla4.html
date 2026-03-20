@@ -171,21 +171,16 @@ const db  = getFirestore(app);
 function generarSlots(config) {
   const slots = [];
   config.dias.forEach(dia => {
-    const [ah,am] = dia.apertura.split(':').map(Number);
-    const [ch,cm] = dia.cierre.split(':').map(Number);
-    const [mh,mm] = (config.horaCorteMediodia||'13:00').split(':').map(Number);
-    const corteMins = mh*60+mm;
-    const slotMins  = config.duracion + config.intervalo;
-    let actual = ah*60+am;
-    const fin  = ch*60+cm;
-    while (actual + config.duracion <= fin) {
-      const hh = String(Math.floor(actual/60)).padStart(2,'0');
-      const mn = String(actual%60).padStart(2,'0');
-      for (let c=1; c<=config.canchasDisponibles; c++)
-        slots.push({ dia: dia.fecha, hora:`${hh}:${mn}`, cancha:`CANCHA ${c}`, ocupado:false });
+    const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
+    const slotMins = config.duracion + config.intervalo;
+    const n = parseInt(dia.slots) || 8;
+    let actual = ah * 60 + am;
+    for (let s = 0; s < n; s++) {
+      const hh = String(Math.floor(actual / 60) % 24).padStart(2, '0');
+      const mn = String(actual % 60).padStart(2, '0');
+      for (let c = 1; c <= config.canchasDisponibles; c++)
+        slots.push({ dia: dia.fecha, hora: `${hh}:${mn}`, cancha: `CANCHA ${c}`, ocupado: false });
       actual += slotMins;
-      if (config.intervaloMediodia > 0 && actual < corteMins && actual + config.duracion > corteMins)
-        actual = corteMins + config.intervaloMediodia;
     }
   });
   return slots;
@@ -198,6 +193,23 @@ function generarRoundRobin(parejas, zonaId) {
     for (let j = i+1; j < parejas.length; j++)
       partidos.push({ fase:'zona', zonaId, pareja1Id:parejas[i].id, pareja2Id:parejas[j].id, estado:'pendiente', resultado:null });
   return partidos;
+}
+
+function parejaDisponible(pareja, slot) {
+  const restr = pareja?.restricciones?.[slot.dia];
+  if (!restr) return true;
+  if (restr === 'bloqueado') return false;
+  if (Array.isArray(restr)) {
+    const [sh, sm] = slot.hora.split(':').map(Number);
+    const inicioMin = sh * 60 + sm;
+    const finMin    = inicioMin + torneoConfig.duracion;
+    return !restr.some(h => {
+      const [hh, mm] = h.split(':').map(Number);
+      const hMin = hh * 60 + mm;
+      return hMin >= inicioMin && hMin < finMin;
+    });
+  }
+  return true;
 }
 
 function asignarHorarios(partidos, slots, parejaMap) {
@@ -216,9 +228,9 @@ function asignarHorarios(partidos, slots, parejaMap) {
       if (ocupCancha[cc]) continue;
       if (ocupPareja[partido.pareja1Id]?.has(clave)) continue;
       if (ocupPareja[partido.pareja2Id]?.has(clave)) continue;
-      const r1 = p1?.restricciones?.[slot.dia]?.includes(slot.hora);
-      const r2 = p2?.restricciones?.[slot.dia]?.includes(slot.hora);
-      if (r1 || r2) { if (!slotElegido) { slotElegido = slot; conflicto = true; } continue; }
+      const disp1 = parejaDisponible(p1, slot);
+      const disp2 = parejaDisponible(p2, slot);
+      if (!disp1 || !disp2) { if (!slotElegido) { slotElegido = slot; conflicto = true; } continue; }
       slotElegido = slot; conflicto = false; break;
     }
 
@@ -298,9 +310,24 @@ function generarFixture(parejas) {
   const slots = generarSlots(torneoConfig);
   let partidos = [];
 
-  // Siempre hay una sola zona con todos (round robin completo)
-  zonasData = [{ id:'zona_A', nombre:'A', parejas: parejas.map(p => p.id) }];
-  partidos  = generarRoundRobin(parejas, 'zona_A');
+  if (formato === 'zonas_llave' && torneoConfig.zonasConfig?.length > 0) {
+    // Distribuir parejas en zonas según zonasConfig (orden serpentina)
+    zonasData = [];
+    let idx = 0;
+    const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    torneoConfig.zonasConfig.forEach((zc, zi) => {
+      const letra = letras[zi] || `Z${zi}`;
+      const zonaId = `zona_${letra}`;
+      const parejasZona = parejas.slice(idx, idx + zc.parejas);
+      idx += zc.parejas;
+      zonasData.push({ id: zonaId, nombre: letra, parejas: parejasZona.map(p => p.id), clasifican: zc.clasifican });
+      partidos.push(...generarRoundRobin(parejasZona, zonaId));
+    });
+  } else {
+    // Round robin zona única
+    zonasData = [{ id:'zona_A', nombre:'A', parejas: parejas.map(p => p.id) }];
+    partidos  = generarRoundRobin(parejas, 'zona_A');
+  }
 
   fixture = asignarHorarios(partidos, slots, parejaMap);
   fixture.forEach((p,i) => { p.id = `partido_${String(i+1).padStart(3,'0')}`; p.orden = i+1; });
@@ -481,11 +508,12 @@ window.confirmarFixture = async function() {
       return setDoc(doc(db,'torneos',torneoId,'partidos',id), {...p, orden:i+1, id});
     }));
 
-    // 2. GUARDAR ZONAS (bug fix crítico)
+    // 2. GUARDAR ZONAS
     await Promise.all(zonasData.map(z =>
       setDoc(doc(db,'torneos',torneoId,'zonas', z.id), {
-        nombre:  z.nombre,
-        parejas: z.parejas
+        nombre:     z.nombre,
+        parejas:    z.parejas,
+        clasifican: z.clasifican || 2
       })
     ));
 
