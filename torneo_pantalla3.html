@@ -629,8 +629,8 @@ if (storedTorneoId) {
         CONFIG.formato        = t.formato || 'zonas';
         CONFIG.totalParejas   = t.totalParejas || 8;
         CONFIG.canchasDisponibles = t.canchasDisponibles || 2;
-        CONFIG.duracion       = t.duracion || 75;
-        CONFIG.intervalo      = t.intervalo || 15;
+        CONFIG.duracion       = t.duracion !== undefined ? t.duracion : 75;
+        CONFIG.intervalo      = t.intervalo !== undefined ? t.intervalo : 15;
         CONFIG.dias           = t.dias || CONFIG.dias;
         CONFIG.dias.forEach(dia => {
           // Generar label desde fecha si no existe
