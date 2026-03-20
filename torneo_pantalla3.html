@@ -465,13 +465,7 @@ window.setEstadoDia = function(btn, parejaId, di, estado) {
 };
 
 
-  const tabsWrap  = document.getElementById(`tabs-${parejaId}`);
-  const panelsWrap = document.getElementById(`panels-${parejaId}`);
-  tabsWrap.querySelectorAll('.dia-tab').forEach(t => t.classList.remove('activa'));
-  panelsWrap.querySelectorAll('.dia-panel').forEach(p => p.classList.remove('visible'));
-  btn.classList.add('activa');
-  panelsWrap.querySelector(`.dia-panel[data-di="${di}"]`).classList.add('visible');
-};
+
 
 // ── TOGGLE CHIP HORARIO ──
 window.toggleChip = function(chip, parejaId, di, hora) {
