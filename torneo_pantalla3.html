@@ -282,9 +282,18 @@ function calcularHorariosDia(apertura, slots, duracion, intervalo) {
 function calcularHorariosCorregido(dia, duracion, intervalo) {
   return calcularHorariosDia(dia.apertura, dia.slots || 8, duracion, intervalo);
 }
-CONFIG.dias.forEach(dia => {
-  dia.horarios = calcularHorariosCorregido(dia, CONFIG.duracion, CONFIG.intervalo);
-});
+function recalcularHorariosTodos() {
+  CONFIG.dias.forEach(dia => {
+    if (!dia.label && dia.fecha) {
+      dia.label = new Date(dia.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'2-digit', month:'2-digit' }).toUpperCase();
+    }
+    dia.horarios = calcularHorariosCorregido(dia, CONFIG.duracion, CONFIG.intervalo);
+  });
+}
+// Solo precalcular si no hay torneoId (modo sin Firebase)
+if (!sessionStorage.getItem('torneoId')) {
+  recalcularHorariosTodos();
+}
 
 let parejas = [];
 let parejasTotal = CONFIG.totalParejas;
@@ -463,8 +472,6 @@ window.setEstadoDia = function(btn, parejaId, di, estado) {
     panel.querySelectorAll('.hora-chip').forEach(c => c.classList.add('bloqueado'));
   }
 };
-
-
 
 
 // ── TOGGLE CHIP HORARIO ──
@@ -674,6 +681,7 @@ if (storedTorneoId) {
           dia.horarios = calcularHorariosCorregido(dia, CONFIG.duracion, CONFIG.intervalo);
         });
         CONFIG.zonasConfig = t.zonasConfig || null;
+        recalcularHorariosTodos();
         parejasTotal = CONFIG.totalParejas;
         document.getElementById('total').textContent = parejasTotal;
         document.querySelector('.page-title p').textContent =
