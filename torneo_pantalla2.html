@@ -307,7 +307,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
       </div>
       <div class="dia-row-horarios">
         <div class="dia-horario"><label>Apertura</label><input type="time" value="09:00" onchange="calcular()"></div>
-        <div class="dia-horario"><label>Cant. slots</label><input type="number" value="8" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
+        <div class="dia-horario"><label>Cant. slots<br><span style="font-size:8px;color:var(--muted);letter-spacing:1px;">(duración + intervalo)</span></label><input type="number" value="8" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
       </div>
     </div>
   </div>
@@ -354,18 +354,18 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   <div class="calculo-box">
     <div class="calculo-title">⚡ Cálculo automático</div>
     <div class="calculo-row">
-      <span class="calculo-key">Total de partidos estimados</span>
+      <span class="calculo-key">Canchas disponibles</span>
+      <span class="calculo-val" id="calc-canchas">—</span>
+    </div>
+    <div class="calculo-row">
+      <span class="calculo-key">Partidos del torneo</span>
       <span class="calculo-val" id="calc-partidos">—</span>
     </div>
     <div class="calculo-row">
-      <span class="calculo-key">Minutos disponibles (total)</span>
-      <span class="calculo-val" id="calc-minutos">—</span>
+      <span class="calculo-key">Slots totales disponibles</span>
+      <span class="calculo-val" id="calc-slots">—</span>
     </div>
     <div class="calculo-divider"></div>
-    <div class="calculo-row">
-      <span class="calculo-key">Minutos necesarios</span>
-      <span class="calculo-val" id="calc-necesarios">—</span>
-    </div>
     <div class="calculo-row">
       <span class="calculo-key">Estado</span>
       <span class="calculo-val" id="calc-estado">—</span>
@@ -585,7 +585,7 @@ window.agregarDia = function() {
     </div>
     <div class="dia-row-horarios">
       <div class="dia-horario"><label>Apertura</label><input type="time" value="09:00" onchange="calcular()"></div>
-      <div class="dia-horario"><label>Cant. slots</label><input type="number" value="8" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
+      <div class="dia-horario"><label>Cant. slots<br><span style="font-size:8px;color:var(--muted);letter-spacing:1px;">(duración + intervalo)</span></label><input type="number" value="8" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
     </div>`;
   lista.appendChild(row);
   calcular();
@@ -605,7 +605,7 @@ window.calcular = function() {
   const canchas   = parseInt(document.getElementById('canchas').value);
   const duracion  = parseInt(document.getElementById('duracion').value);
   const intervalo = parseInt(document.getElementById('intervalo').value);
-  const mediodia  = parseInt(document.getElementById('mediodia').value);
+  const slotMin   = duracion + intervalo;
 
   // Partidos según formato
   let partidos = 0;
@@ -616,40 +616,38 @@ window.calcular = function() {
     const clasificados = parseInt(document.getElementById('clasificados')?.value) || 4;
     partidos = rrPartidos + (clasificados - 1);
   } else if (formatoActivo === 'zonas_llave') {
-    // Partidos de zonas: por cada zona n parejas → n*(n-1)/2 partidos
     const zonas = getZonasConfig();
     const partidosZonas = zonas.reduce((s, z) => s + (z.parejas * (z.parejas - 1)) / 2, 0);
     const totalClasif = zonas.reduce((s, z) => s + z.clasifican, 0);
-    const partidosElim = Math.max(0, totalClasif - 1);
-    partidos = partidosZonas + partidosElim;
+    partidos = partidosZonas + Math.max(0, totalClasif - 1);
   } else {
     partidos = rrPartidos;
   }
 
-  let minutosTotal = 0;
+  // Slots totales disponibles
+  let slotsTotal = 0;
   document.querySelectorAll('#diasLista .dia-row').forEach(dia => {
     const slotsInput = dia.querySelector('input[type="number"]:not([id])');
-    const slots = parseInt(slotsInput?.value) || 0;
-    minutosTotal += slots * canchas * slotMin;
+    slotsTotal += (parseInt(slotsInput?.value) || 0) * canchas;
   });
 
-  const slotMin = duracion + intervalo;
-  const minutosNecesarios = partidos * slotMin;
+  // Slots necesarios (partidos en paralelo por cancha)
+  const slotsNecesarios = Math.ceil(partidos / canchas);
 
-  document.getElementById('calc-partidos').textContent  = partidos;
-  document.getElementById('calc-minutos').textContent   = minutosTotal > 0 ? minutosTotal + ' min' : '—';
-  document.getElementById('calc-necesarios').textContent = minutosNecesarios + ' min';
+  document.getElementById('calc-canchas').textContent  = canchas;
+  document.getElementById('calc-partidos').textContent = partidos || '—';
+  document.getElementById('calc-slots').textContent    = slotsTotal > 0 ? slotsTotal : '—';
 
   const estadoEl = document.getElementById('calc-estado');
-  if (minutosTotal === 0) {
-    estadoEl.textContent = 'Ingresá fechas y horarios';
+  if (slotsTotal === 0) {
+    estadoEl.textContent = 'Ingresá fechas y cantidad de slots';
     estadoEl.className = 'calculo-val';
-  } else if (minutosTotal >= minutosNecesarios) {
-    estadoEl.textContent = '✓ ALCANZA';
+  } else if (slotsTotal >= slotsNecesarios) {
+    estadoEl.textContent = `✅ OK — ${slotsTotal} slots / ${slotsNecesarios} necesarios`;
     estadoEl.className = 'calculo-val ok';
   } else {
-    const falta = minutosNecesarios - minutosTotal;
-    estadoEl.textContent = `⚠ FALTAN ~${falta} MIN`;
+    const faltan = slotsNecesarios - slotsTotal;
+    estadoEl.textContent = `⚠️ FALTAN ${faltan} SLOTS — agregá más slots o reducí parejas`;
     estadoEl.className = 'calculo-val warn';
   }
 };
@@ -825,7 +823,7 @@ calcular();
           </div>
           <div class="dia-row-horarios">
             <div class="dia-horario"><label>Apertura</label><input type="time" value="${dia.apertura||'09:00'}" onchange="calcular()"></div>
-            <div class="dia-horario"><label>Cant. slots</label><input type="number" value="${dia.slots||8}" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
+            <div class="dia-horario"><label>Cant. slots<br><span style="font-size:8px;color:var(--muted);letter-spacing:1px;">(duración + intervalo)</span></label><input type="number" value="${dia.slots||8}" min="1" max="50" style="background:none;border:none;color:var(--text);font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;outline:none;width:100%;padding:0;" onchange="calcular()"></div>
           </div>`;
         lista.appendChild(row);
       });
