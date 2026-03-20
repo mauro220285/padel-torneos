@@ -191,7 +191,7 @@ body {
 <body>
 
 <div class="app-header">
-  <button class="header-back" onclick="history.back()">← VOLVER</button>
+  <button class="header-back" onclick="window.location.href='torneo_pantalla2.html'">← VOLVER</button>
   <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
 </div>
 
@@ -235,7 +235,7 @@ body {
 <div class="divider"></div>
 
 <div class="nav-row">
-  <button class="btn-back" onclick="history.back()">← VOLVER</button>
+  <button class="btn-back" onclick="window.location.href='torneo_pantalla2.html'">← VOLVER</button>
   <button class="btn-next" onclick="guardarYSeguir()">SIGUIENTE → REVISIÓN</button>
 </div>
 
@@ -325,9 +325,10 @@ function crearParejaHTML(n, pareja) {
   const restr = document.createElement('div');
   restr.className = 'restricciones-wrap';
 
-  const diasTabs = CONFIG.dias.map((dia, di) => `
-    <button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${dia.label}</button>
-  `).join('');
+  const diasTabs = CONFIG.dias.map((dia, di) => {
+    const lbl = dia.label || (dia.fecha ? new Date(dia.fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'short', day:'2-digit', month:'2-digit' }).toUpperCase() : `DÍA ${di+1}`);
+    return `<button class="dia-tab ${di === 0 ? 'activa' : ''}" onclick="selTabDia(this,'${pareja.id}',${di})">${lbl}</button>`;
+  }).join('');
 
   const diasPanels = CONFIG.dias.map((dia, di) => `
     <div class="dia-panel ${di === 0 ? 'visible' : ''}" data-di="${di}">

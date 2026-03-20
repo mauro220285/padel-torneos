@@ -803,9 +803,9 @@ calcular();
     if (t.totalParejas && t.formato !== 'zonas_llave') document.getElementById('parejas').value = t.totalParejas;
 
     // Tiempos
-    if (t.duracion)  document.getElementById('duracion').value  = t.duracion;
-    if (t.intervalo) document.getElementById('intervalo').value = t.intervalo;
-    if (t.intervaloMediodia) {
+    if (t.duracion !== undefined)  document.getElementById('duracion').value  = t.duracion;
+    if (t.intervalo !== undefined) document.getElementById('intervalo').value = t.intervalo;
+    if (t.intervaloMediodia !== undefined && t.intervaloMediodia > 0) {
       document.getElementById('mediodia').value = t.intervaloMediodia;
       const field = document.getElementById('horaMedodiaField');
       if (field && t.intervaloMediodia > 0) { field.style.opacity='1'; field.style.pointerEvents='auto'; }
