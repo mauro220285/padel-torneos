@@ -708,48 +708,50 @@ if (storedTorneoId) {
 
       if (!parejasSnap.empty) {
         // Cargar parejas existentes
-        parejasSnap.docs.forEach((d, i) => {
-          const data = d.data();
-          const id = d.id;
+        const parejasData = parejasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        parejasData.forEach((data, i) => {
+          const id = data.id;
           parejas.push({ id });
           const n = parejas.length;
           const card = crearParejaHTML(n, { id });
           document.getElementById('parejasList').appendChild(card);
           if (i > 0) card.classList.remove('open');
+        });
 
-          // Rellenar datos
-          setTimeout(() => {
-            const j1 = document.getElementById(`j1-nombre-${id}`);
-            const j2 = document.getElementById(`j2-nombre-${id}`);
-            const j1c = document.getElementById(`j1-cat-${id}`);
-            const j2c = document.getElementById(`j2-cat-${id}`);
-            if (j1) j1.value = data.j1Nombre || '';
-            if (j2) j2.value = data.j2Nombre || '';
-            if (j1c) j1c.value = data.j1Categoria || '';
-            if (j2c) j2c.value = data.j2Categoria || '';
+        // Rellenar datos después de que el DOM esté listo
+        await new Promise(r => setTimeout(r, 200));
 
-            // Restaurar restricciones
-            if (data.restricciones) {
-              CONFIG.dias.forEach((dia, di) => {
-                const restr = data.restricciones[dia.fecha];
-                if (!restr) return;
-                const block = document.getElementById(`dia-block-${id}-${di}`);
-                if (!block) return;
-                if (restr === 'bloqueado') {
-                  const btn = block.querySelector('.estado-bloqueado');
-                  if (btn) setEstadoDia(btn, id, di, 'bloqueado');
-                } else if (Array.isArray(restr) && restr.length > 0) {
-                  const btn = block.querySelector('.estado-parcial');
-                  if (btn) setEstadoDia(btn, id, di, 'parcial');
-                  restr.forEach(h => {
-                    const chip = [...block.querySelectorAll('.hora-chip')].find(c => c.textContent.trim() === h);
-                    if (chip) chip.classList.add('bloqueado');
-                  });
-                }
-              });
-            }
-            actualizarContador();
-          }, 100);
+        parejasData.forEach((data) => {
+          const id = data.id;
+          const j1 = document.getElementById(`j1-nombre-${id}`);
+          const j2 = document.getElementById(`j2-nombre-${id}`);
+          const j1c = document.getElementById(`j1-cat-${id}`);
+          const j2c = document.getElementById(`j2-cat-${id}`);
+          if (j1) j1.value = data.j1Nombre || '';
+          if (j2) j2.value = data.j2Nombre || '';
+          if (j1c) j1c.value = data.j1Categoria || '';
+          if (j2c) j2c.value = data.j2Categoria || '';
+
+          // Restaurar restricciones
+          if (data.restricciones) {
+            CONFIG.dias.forEach((dia, di) => {
+              const restr = data.restricciones[dia.fecha];
+              if (!restr) return;
+              const block = document.getElementById(`dia-block-${id}-${di}`);
+              if (!block) return;
+              if (restr === 'bloqueado') {
+                const btn = block.querySelector('.estado-bloqueado');
+                if (btn) setEstadoDia(btn, id, di, 'bloqueado');
+              } else if (Array.isArray(restr) && restr.length > 0) {
+                const btn = block.querySelector('.estado-parcial');
+                if (btn) setEstadoDia(btn, id, di, 'parcial');
+                restr.forEach(h => {
+                  const chip = [...block.querySelectorAll('.hora-chip')].find(c => c.textContent.trim() === h);
+                  if (chip) chip.classList.add('bloqueado');
+                });
+              }
+            });
+          }
         });
         actualizarContador();
         distribuirZonas();
