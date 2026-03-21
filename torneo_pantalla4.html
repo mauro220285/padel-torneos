@@ -295,6 +295,7 @@ async function cargarYGenerar() {
 
   const pSnap = await getDocs(collection(db,'torneos',torneoId,'parejas'));
   const parejas = pSnap.docs.map(d => ({id:d.id,...d.data()})).sort((a,b) => (a.seed||0)-(b.seed||0));
+  console.log('Parejas cargadas:', parejas.length, 'Formato:', torneoConfig.formato, 'ZonasConfig:', JSON.stringify(torneoConfig.zonasConfig));
 
   // Ver si ya hay fixture confirmado
   const metaSnap = await getDoc(doc(db,'torneos',torneoId,'fixture','meta'));
