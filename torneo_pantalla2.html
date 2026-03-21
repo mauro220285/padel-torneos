@@ -813,6 +813,16 @@ calcular();
       const lista = document.getElementById('diasLista');
       lista.innerHTML = '';
       t.dias.forEach((dia, i) => {
+          // Si el torneo viejo tiene cierre en vez de slots, calcular slots aproximados
+          if (!dia.slots && dia.cierre && dia.apertura) {
+            const [ah, am] = dia.apertura.split(':').map(Number);
+            const [ch, cm] = dia.cierre.split(':').map(Number);
+            let cierreMin = ch * 60 + cm;
+            if (cierreMin <= ah * 60 + am) cierreMin = 1440;
+            const duracion = t.duracion || 75;
+            const intervalo = t.intervalo || 0;
+            dia.slots = Math.floor((cierreMin - (ah * 60 + am)) / (duracion + intervalo));
+          }
         const row = document.createElement('div');
         row.className = 'dia-row';
         row.innerHTML = `
