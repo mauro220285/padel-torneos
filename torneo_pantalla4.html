@@ -293,8 +293,8 @@ async function cargarYGenerar() {
   };
   document.getElementById('res-formato').textContent = formatoLabel[torneoConfig.formato] || torneoConfig.formato?.toUpperCase() || '—';
 
-  const pSnap = await getDocs(query(collection(db,'torneos',torneoId,'parejas'), orderBy('seed')));
-  const parejas = pSnap.docs.map(d => ({id:d.id,...d.data()}));
+  const pSnap = await getDocs(collection(db,'torneos',torneoId,'parejas'));
+  const parejas = pSnap.docs.map(d => ({id:d.id,...d.data()})).sort((a,b) => (a.seed||0)-(b.seed||0));
 
   // Ver si ya hay fixture confirmado
   const metaSnap = await getDoc(doc(db,'torneos',torneoId,'fixture','meta'));
