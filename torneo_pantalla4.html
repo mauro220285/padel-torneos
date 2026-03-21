@@ -177,13 +177,24 @@ function generarSlots(config) {
   const slots = [];
   config.dias.forEach(dia => {
     const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
-    const slotMins = config.duracion + config.intervalo;
-    const n = parseInt(dia.slots) || 8;
+    const slotMins = (config.duracion || 60) + (config.intervalo || 0);
+    let n;
+    if (dia.slots) {
+      n = parseInt(dia.slots);
+    } else if (dia.cierre) {
+      // Compatibilidad con torneos viejos que tienen cierre
+      const [ch, cm] = dia.cierre.split(':').map(Number);
+      let cierreMin = ch * 60 + cm;
+      if (cierreMin <= ah * 60 + am) cierreMin = 1440;
+      n = Math.floor((cierreMin - (ah * 60 + am)) / slotMins);
+    } else {
+      n = 8;
+    }
     let actual = ah * 60 + am;
     for (let s = 0; s < n; s++) {
       const hh = String(Math.floor(actual / 60) % 24).padStart(2, '0');
       const mn = String(actual % 60).padStart(2, '0');
-      for (let c = 1; c <= config.canchasDisponibles; c++)
+      for (let c = 1; c <= (config.canchasDisponibles || 1); c++)
         slots.push({ dia: dia.fecha, hora: `${hh}:${mn}`, cancha: `CANCHA ${c}`, ocupado: false });
       actual += slotMins;
     }
@@ -315,19 +326,34 @@ function generarFixture(parejas) {
   const slots = generarSlots(torneoConfig);
   let partidos = [];
 
-  if (formato === 'zonas_llave' && torneoConfig.zonasConfig?.length > 0) {
-    // Distribuir parejas en zonas según zonasConfig (orden serpentina)
-    zonasData = [];
-    let idx = 0;
-    const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    torneoConfig.zonasConfig.forEach((zc, zi) => {
-      const letra = letras[zi] || `Z${zi}`;
-      const zonaId = `zona_${letra}`;
-      const parejasZona = parejas.slice(idx, idx + zc.parejas);
-      idx += zc.parejas;
-      zonasData.push({ id: zonaId, nombre: letra, parejas: parejasZona.map(p => p.id), clasifican: zc.clasifican });
-      partidos.push(...generarRoundRobin(parejasZona, zonaId));
-    });
+  if (formato === 'zonas_llave') {
+    const zonasConfig = torneoConfig.zonasConfig;
+    if (zonasConfig?.length > 0) {
+      // Distribuir según zonasConfig
+      zonasData = [];
+      let idx = 0;
+      const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      zonasConfig.forEach((zc, zi) => {
+        const letra = letras[zi] || `Z${zi}`;
+        const zonaId = `zona_${letra}`;
+        const parejasZona = parejas.slice(idx, idx + zc.parejas);
+        idx += zc.parejas;
+        zonasData.push({ id: zonaId, nombre: letra, parejas: parejasZona.map(p => p.id), clasifican: zc.clasifican });
+        partidos.push(...generarRoundRobin(parejasZona, zonaId));
+      });
+    } else {
+      // Sin zonasConfig — distribuir en grupos de 4 (o 3)
+      const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const porZona = 4;
+      zonasData = [];
+      for (let zi = 0; zi * porZona < parejas.length; zi++) {
+        const letra = letras[zi] || `Z${zi}`;
+        const zonaId = `zona_${letra}`;
+        const parejasZona = parejas.slice(zi * porZona, (zi + 1) * porZona);
+        zonasData.push({ id: zonaId, nombre: letra, parejas: parejasZona.map(p => p.id), clasifican: 2 });
+        partidos.push(...generarRoundRobin(parejasZona, zonaId));
+      }
+    }
   } else {
     // Round robin zona única
     zonasData = [{ id:'zona_A', nombre:'A', parejas: parejas.map(p => p.id) }];
