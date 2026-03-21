@@ -136,6 +136,11 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   <button class="btn-back" onclick="window.location.href='torneo_pantalla3.html'">← VOLVER</button>
   <button class="btn-next" onclick="confirmarFixture()">✓ CONFIRMAR FIXTURE</button>
 </div>
+<div style="width:100%;max-width:500px;padding:8px 20px 0;">
+  <button onclick="resetearFixture()" style="width:100%;background:none;border:1px dashed var(--rojo);border-radius:10px;padding:10px;color:var(--rojo);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;">
+    🔄 RESETEAR FIXTURE (mantiene las parejas)
+  </button>
+</div>
 
 <!-- MODAL MOVER -->
 <div class="modal-overlay" id="modalOverlay">
@@ -151,7 +156,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc,
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc,
          collection, query, orderBy, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -490,6 +495,37 @@ window.moverPartido = function(hora, cancha) {
   const p = fixture.find(x => (x.id||x.orden)===(partidoSeleccionado.id||partidoSeleccionado.orden));
   if (p) { p.hora=hora; p.cancha=cancha; p.conflicto=false; }
   cerrarModal(); renderFixture(); showToast('✓ Partido movido');
+};
+
+// ── RESETEAR FIXTURE ─────────────────────────────────────
+window.resetearFixture = async function() {
+  if (!confirm('¿Resetear el fixture? Las parejas y sus restricciones se mantienen. Solo se borran los partidos y zonas generados.')) return;
+
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) return;
+
+  showToast('Reseteando...');
+  try {
+    // Borrar partidos existentes
+    const partidosSnap = await getDocs(collection(db, 'torneos', torneoId, 'partidos'));
+    await Promise.all(partidosSnap.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'partidos', d.id))));
+
+    // Borrar zonas existentes
+    const zonasSnap = await getDocs(collection(db, 'torneos', torneoId, 'zonas'));
+    await Promise.all(zonasSnap.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'zonas', d.id))));
+
+    // Borrar meta del fixture
+    await deleteDoc(doc(db, 'torneos', torneoId, 'fixture', 'meta')).catch(() => {});
+
+    // Volver el torneo a borrador
+    await updateDoc(doc(db, 'torneos', torneoId), { estado: 'borrador', actualizadoEn: serverTimestamp() });
+
+    showToast('✓ Fixture reseteado');
+    setTimeout(() => location.reload(), 1200);
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al resetear');
+  }
 };
 
 // ── CONFIRMAR ────────────────────────────────────────────
