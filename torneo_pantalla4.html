@@ -329,6 +329,7 @@ function generarFixture(parejas) {
 
   if (formato === 'zonas_llave') {
     const zonasConfig = torneoConfig.zonasConfig;
+    console.log('zonasConfig length:', zonasConfig?.length, 'parejas.length:', parejas.length);
     if (zonasConfig?.length > 0) {
       // Distribuir según zonasConfig
       zonasData = [];
@@ -362,6 +363,7 @@ function generarFixture(parejas) {
   }
 
   fixture = asignarHorarios(partidos, slots, parejaMap);
+  console.log('Partidos generados:', partidos.length, 'Slots:', slots.length, 'Fixture:', fixture.length);
   fixture.forEach((p,i) => { p.id = `partido_${String(i+1).padStart(3,'0')}`; p.orden = i+1; });
 
   // Si es round_robin_llave, agregar placeholders de eliminatoria AL FINAL
