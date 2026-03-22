@@ -407,7 +407,7 @@ function asignarHorarios(partidos, slots, pMap) {
     asignacion = intentarAsignar(partido, DESCANSO_IDEAL);
     if (!asignacion) asignacion = intentarAsignar(partido, DESCANSO_MIN);
     
-    // Si no hay slot con descanso, buscar cualquier slot disponible
+    // Si no hay slot con descanso, buscar cualquier slot disponible respetando restricciones
     if (!asignacion) {
       for (const slot of slotsLibres) {
         if (slot.ocupado) continue;
@@ -419,8 +419,9 @@ function asignarHorarios(partidos, slots, pMap) {
       }
     }
 
-    // Último recurso: slot con conflicto de restricción
+    // Último recurso: slot con conflicto — solo si no hay NINGÚN slot disponible
     if (!asignacion) {
+      console.warn('Sin slot disponible para:', nombrePareja(partido.pareja1Id), 'vs', nombrePareja(partido.pareja2Id));
       for (const slot of slotsLibres) {
         if (slot.ocupado) continue;
         const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
