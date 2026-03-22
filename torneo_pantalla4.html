@@ -508,6 +508,10 @@ function generarFixture(parejas) {
   parejaMap = {};
   parejas.forEach(p => { parejaMap[p.id] = p; });
   const slots = generarSlots(torneoConfig);
+  const dias = torneoConfig.dias || [];
+  const ultimoDia = dias.length > 1 ? dias[dias.length - 1].fecha : null;
+  const slotsZonas = ultimoDia ? slots.filter(s => s.dia !== ultimoDia) : slots;
+  const slotsLlave = ultimoDia ? slots.filter(s => s.dia === ultimoDia) : slots;
   let partidos = [];
 
   if (formato === 'zonas_llave') {
