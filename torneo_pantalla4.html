@@ -241,15 +241,26 @@ function nombrePareja(id) {
   return id; // fallback al ID si no hay nombre
 }
 
-// Round Robin: genera todos los partidos entre un array de parejas
+// Round Robin: genera todos los partidos entre un array de parejas (objetos o IDs)
 function generarRoundRobin(parejas, zonaId) {
   const partidos = [];
   for (let i = 0; i < parejas.length; i++)
-    for (let j = i+1; j < parejas.length; j++)
-      partidos.push({ fase:'zona', zonaId, pareja1Id:parejas[i].id, pareja2Id:parejas[j].id, estado:'pendiente', resultado:null });
+    for (let j = i+1; j < parejas.length; j++) {
+      const id1 = parejas[i].id || parejas[i];
+      const id2 = parejas[j].id || parejas[j];
+      partidos.push({ fase:'zona', zonaId, pareja1Id: id1, pareja2Id: id2, estado:'pendiente', resultado:null });
+    }
   return partidos;
 }
 
+// ── MOTOR DE FIXTURE INTELIGENTE ─────────────────────────
+
+// Calcula slots disponibles de una pareja
+function slotsDisponiblesPareja(pareja, slots) {
+  return slots.filter(s => parejaDisponible(pareja, s)).length;
+}
+
+// Verifica si una pareja puede jugar en un slot
 function parejaDisponible(pareja, slot) {
   const restr = pareja?.restricciones?.[slot.dia];
   if (!restr) return true;
@@ -257,7 +268,7 @@ function parejaDisponible(pareja, slot) {
   if (Array.isArray(restr)) {
     const [sh, sm] = slot.hora.split(':').map(Number);
     const inicioMin = sh * 60 + sm;
-    const finMin    = inicioMin + torneoConfig.duracion;
+    const finMin    = inicioMin + (torneoConfig.duracion || 60);
     return !restr.some(h => {
       const [hh, mm] = h.split(':').map(Number);
       const hMin = hh * 60 + mm;
@@ -267,37 +278,174 @@ function parejaDisponible(pareja, slot) {
   return true;
 }
 
-function asignarHorarios(partidos, slots, parejaMap) {
+// Calcula similitud de restricciones entre dos parejas (más alto = más compatibles)
+function similitudRestricciones(p1, p2, slots) {
+  let comunes = 0;
+  slots.forEach(s => {
+    const d1 = parejaDisponible(p1, s);
+    const d2 = parejaDisponible(p2, s);
+    if (d1 === d2) comunes++;
+  });
+  return comunes;
+}
+
+// Distribuye parejas en zonas priorizando compatibilidad horaria
+function distribuirEnZonas(parejas, zonasConfig, slots) {
+  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  
+  // Ordenar parejas de MAYOR a MENOR restricción (las más restringidas primero)
+  const parejasOrdenadas = [...parejas].sort((a, b) => {
+    const slotsA = slotsDisponiblesPareja(a, slots);
+    const slotsB = slotsDisponiblesPareja(b, slots);
+    return slotsA - slotsB; // menos slots disponibles = más restringida = va primero
+  });
+
+  // Inicializar zonas vacías
+  const zonas = zonasConfig.map((zc, zi) => ({
+    id: `zona_${letras[zi] || 'Z'+zi}`,
+    nombre: letras[zi] || 'Z'+zi,
+    parejas: [],
+    capacidad: zc.parejas,
+    clasifican: zc.clasifican
+  }));
+
+  // Asignar cada pareja a la zona más compatible que tenga espacio
+  parejasOrdenadas.forEach(pareja => {
+    let mejorZona = null;
+    let mejorScore = -1;
+
+    zonas.forEach(zona => {
+      if (zona.parejas.length >= zona.capacidad) return;
+      
+      if (zona.parejas.length === 0) {
+        // Zona vacía — preferir zonas con más espacio
+        const score = zona.capacidad;
+        if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
+        return;
+      }
+
+      // Calcular compatibilidad promedio con parejas ya en esta zona
+      let totalSim = 0;
+      zona.parejas.forEach(p => {
+        totalSim += similitudRestricciones(pareja, p, slots);
+      });
+      const score = totalSim / zona.parejas.length;
+      if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
+    });
+
+    if (mejorZona) mejorZona.parejas.push(pareja);
+  });
+
+  return zonas;
+}
+
+// Asigna horarios respetando descanso mínimo entre partidos
+function asignarHorarios(partidos, slots, pMap) {
   const resultado = [];
   const slotsLibres = slots.map(s => ({...s}));
-  const ocupPareja = {}, ocupCancha = {};
+  const ocupCancha = {};
+  // Guarda los slots usados por cada pareja para calcular descanso
+  const ultimoSlotPareja = {}; // parejaId -> { dia, horaMin }
+  const slotMins = (torneoConfig.duracion || 60) + (torneoConfig.intervalo || 0);
+  const DESCANSO_IDEAL = 3; // slots de descanso ideal (3 * slotMins)
+  const DESCANSO_MIN   = 1; // slots de descanso mínimo
 
-  partidos.forEach(partido => {
-    const p1 = parejaMap[partido.pareja1Id], p2 = parejaMap[partido.pareja2Id];
-    let slotElegido = null, conflicto = false;
+  // Ordenar partidos: primero los que involucran parejas más restringidas
+  const partidosOrdenados = [...partidos].sort((a, b) => {
+    const p1a = pMap[a.pareja1Id], p1b = pMap[b.pareja1Id];
+    const p2a = pMap[a.pareja2Id], p2b = pMap[b.pareja2Id];
+    const slotsA = slotsDisponiblesPareja(p1a, slots) + slotsDisponiblesPareja(p2a, slots);
+    const slotsB = slotsDisponiblesPareja(p1b, slots) + slotsDisponiblesPareja(p2b, slots);
+    return slotsA - slotsB; // los más restringidos primero
+  });
 
+  function horaAMin(hora) {
+    const [h, m] = hora.split(':').map(Number);
+    return h * 60 + m;
+  }
+
+  function descansoSuficiente(parejaId, slot, minSlots) {
+    const ultimo = ultimoSlotPareja[parejaId];
+    if (!ultimo) return true;
+    if (ultimo.dia !== slot.dia) return true; // días distintos = siempre OK
+    const diff = (horaAMin(slot.hora) - ultimo.horaMin) / slotMins;
+    return diff >= minSlots;
+  }
+
+  function intentarAsignar(partido, descansoRequerido) {
+    const p1 = pMap[partido.pareja1Id], p2 = pMap[partido.pareja2Id];
+    
     for (const slot of slotsLibres) {
       if (slot.ocupado) continue;
       const clave = `${slot.dia}|${slot.hora}`;
-      const cc    = `${clave}|${slot.cancha}`;
+      const cc = `${clave}|${slot.cancha}`;
       if (ocupCancha[cc]) continue;
-      if (ocupPareja[partido.pareja1Id]?.has(clave)) continue;
-      if (ocupPareja[partido.pareja2Id]?.has(clave)) continue;
+      // Verificar que ninguna pareja ya juega en ese día+hora
+      const claveBase = `${slot.dia}|${slot.hora}`;
+      if (Object.keys(ultimoSlotPareja).some(pid => 
+        (pid === partido.pareja1Id || pid === partido.pareja2Id) && 
+        ultimoSlotPareja[pid]?.clave === claveBase)) continue;
+      
+      if (!descansoSuficiente(partido.pareja1Id, slot, descansoRequerido)) continue;
+      if (!descansoSuficiente(partido.pareja2Id, slot, descansoRequerido)) continue;
+      
       const disp1 = parejaDisponible(p1, slot);
       const disp2 = parejaDisponible(p2, slot);
-      if (!disp1 || !disp2) { if (!slotElegido) { slotElegido = slot; conflicto = true; } continue; }
-      slotElegido = slot; conflicto = false; break;
+      if (!disp1 || !disp2) continue;
+      
+      return { slot, conflicto: false };
+    }
+    return null;
+  }
+
+  partidosOrdenados.forEach(partido => {
+    const p1 = pMap[partido.pareja1Id], p2 = pMap[partido.pareja2Id];
+    let asignacion = null;
+    let conflicto = false;
+
+    // Intentar con descanso ideal primero, luego mínimo, luego sin restricción
+    asignacion = intentarAsignar(partido, DESCANSO_IDEAL);
+    if (!asignacion) asignacion = intentarAsignar(partido, DESCANSO_MIN);
+    
+    // Si no hay slot con descanso, buscar cualquier slot disponible
+    if (!asignacion) {
+      for (const slot of slotsLibres) {
+        if (slot.ocupado) continue;
+        const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
+        if (ocupCancha[cc]) continue;
+        const disp1 = parejaDisponible(p1, slot);
+        const disp2 = parejaDisponible(p2, slot);
+        if (disp1 && disp2) { asignacion = { slot, conflicto: false }; break; }
+      }
     }
 
-    if (slotElegido) {
-      slotElegido.ocupado = true;
-      const clave = `${slotElegido.dia}|${slotElegido.hora}`;
-      ocupCancha[`${clave}|${slotElegido.cancha}`] = true;
-      if (!ocupPareja[partido.pareja1Id]) ocupPareja[partido.pareja1Id] = new Set();
-      if (!ocupPareja[partido.pareja2Id]) ocupPareja[partido.pareja2Id] = new Set();
-      ocupPareja[partido.pareja1Id].add(clave);
-      ocupPareja[partido.pareja2Id].add(clave);
-      resultado.push({...partido, dia:slotElegido.dia, hora:slotElegido.hora, cancha:slotElegido.cancha, conflicto});
+    // Último recurso: slot con conflicto de restricción
+    if (!asignacion) {
+      for (const slot of slotsLibres) {
+        if (slot.ocupado) continue;
+        const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
+        if (ocupCancha[cc]) continue;
+        asignacion = { slot, conflicto: true };
+        break;
+      }
+    }
+
+    if (asignacion) {
+      const { slot } = asignacion;
+      slot.ocupado = true;
+      const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
+      ocupCancha[cc] = true;
+      const horaMin = horaAMin(slot.hora);
+      ultimoSlotPareja[partido.pareja1Id] = { dia: slot.dia, horaMin, clave: `${slot.dia}|${slot.hora}` };
+      ultimoSlotPareja[partido.pareja2Id] = { dia: slot.dia, horaMin, clave: `${slot.dia}|${slot.hora}` };
+      resultado.push({...partido, dia: slot.dia, hora: slot.hora, cancha: slot.cancha, conflicto: asignacion.conflicto });
+    } else {
+      resultado.push({...partido, dia: null, hora: null, cancha: null, conflicto: true});
+    }
+  });
+
+  // Reordenar resultado por orden original de partidos
+  return partidos.map(p => resultado.find(r => r.pareja1Id === p.pareja1Id && r.pareja2Id === p.pareja2Id) || {...p, conflicto:true});
     } else {
       resultado.push({...partido, dia:null, hora:null, cancha:null, conflicto:true});
     }
@@ -371,30 +519,22 @@ function generarFixture(parejas) {
     const zonasConfig = torneoConfig.zonasConfig;
     console.log('zonasConfig length:', zonasConfig?.length, 'parejas.length:', parejas.length);
     if (zonasConfig?.length > 0) {
-      // Distribuir según zonasConfig
-      zonasData = [];
-      let idx = 0;
-      const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      zonasConfig.forEach((zc, zi) => {
-        const letra = letras[zi] || `Z${zi}`;
-        const zonaId = `zona_${letra}`;
-        const parejasZona = parejas.slice(idx, idx + zc.parejas);
-        idx += zc.parejas;
-        zonasData.push({ id: zonaId, nombre: letra, parejas: parejasZona.map(p => p.id), clasifican: zc.clasifican });
-        partidos.push(...generarRoundRobin(parejasZona, zonaId));
+      // Distribuir según compatibilidad horaria
+      const zonas = distribuirEnZonas(parejas, zonasConfig, slotsZonas);
+      zonasData = zonas.map(z => ({...z, parejas: z.parejas.map(p => p.id || p)}));
+      zonas.forEach(zona => {
+        partidos.push(...generarRoundRobin(zona.parejas, zona.id));
       });
     } else {
-      // Sin zonasConfig — distribuir en grupos de 4 (o 3)
-      const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      // Sin zonasConfig — distribuir en grupos de 4 por compatibilidad
       const porZona = 4;
-      zonasData = [];
-      for (let zi = 0; zi * porZona < parejas.length; zi++) {
-        const letra = letras[zi] || `Z${zi}`;
-        const zonaId = `zona_${letra}`;
-        const parejasZona = parejas.slice(zi * porZona, (zi + 1) * porZona);
-        zonasData.push({ id: zonaId, nombre: letra, parejas: parejasZona.map(p => p.id), clasifican: 2 });
-        partidos.push(...generarRoundRobin(parejasZona, zonaId));
-      }
+      const nZonas = Math.ceil(parejas.length / porZona);
+      const zonasConfigAuto = Array.from({length: nZonas}, () => ({ parejas: porZona, clasifican: 2 }));
+      const zonas = distribuirEnZonas(parejas, zonasConfigAuto, slotsZonas);
+      zonasData = zonas;
+      zonas.forEach(zona => {
+        partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+      });
     }
   } else {
     // Round robin zona única
