@@ -145,7 +145,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 <!-- MODAL MOVER -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-sheet">
-    <div class="modal-title">MOVER PARTIDO</div>
+    <div class="modal-title" id="modal-title">INTERCAMBIAR HORARIO</div>
     <div class="modal-sub" id="modalSub">Seleccioná el nuevo horario y cancha</div>
     <div class="modal-opciones" id="modalOpciones"></div>
     <button class="modal-close" onclick="cerrarModal()">CANCELAR</button>
@@ -724,31 +724,71 @@ window.renderFixture = function() {
 window.abrirModal = function(id) {
   partidoSeleccionado = fixture.find(p => (p.id||p.orden)==id || String(p.id||p.orden)===String(id));
   if (!partidoSeleccionado) return;
-  document.getElementById('modalSub').textContent = `${partidoSeleccionado.pareja1Id||'?'} vs ${partidoSeleccionado.pareja2Id||'?'}`;
+
+  const nombre1 = nombrePareja(partidoSeleccionado.pareja1Id);
+  const nombre2 = nombrePareja(partidoSeleccionado.pareja2Id);
+  document.getElementById('modalSub').textContent = `${nombre1} vs ${nombre2} · ${partidoSeleccionado.hora||'--:--'}`;
+  document.getElementById('modal-title').textContent = 'INTERCAMBIAR HORARIO';
+
   const opciones = document.getElementById('modalOpciones');
-  opciones.innerHTML = '';
-  HORAS.forEach(hora => {
-    CANCHAS.forEach(cancha => {
-      const ocupado = fixture.some(p =>
-        p.dia===DIAS[diaActivo]?.fecha && p.hora===hora && p.cancha===cancha &&
-        (p.id||p.orden) !== (partidoSeleccionado.id||partidoSeleccionado.orden)
-      );
-      const esActual = hora===partidoSeleccionado.hora && cancha===partidoSeleccionado.cancha;
-      const div = document.createElement('div');
-      div.className = 'modal-opcion' + (ocupado?' ocupado':'');
-      div.innerHTML = `
-        <div class="modal-opcion-hora">${hora}</div>
-        <div class="modal-opcion-cancha">${cancha}</div>
-        <div class="modal-opcion-estado ${ocupado?'ocupado-badge':'libre-badge'}">${esActual?'← ACTUAL':ocupado?'OCUPADO':'LIBRE'}</div>`;
-      if (!ocupado && !esActual) div.onclick = () => moverPartido(hora, cancha);
-      opciones.appendChild(div);
-    });
+  opciones.innerHTML = '<div style="font-family:Oswald,sans-serif;font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">SELECCIONÁ EL PARTIDO CON EL QUE QUERÉS INTERCAMBIAR</div>';
+
+  // Mostrar todos los partidos del día actual para intercambiar
+  const partidosDia = fixture.filter(p =>
+    p.dia === DIAS[diaActivo]?.fecha &&
+    !p.esLlave &&
+    (p.id||p.orden) !== (partidoSeleccionado.id||partidoSeleccionado.orden)
+  ).sort((a,b) => (a.hora||'').localeCompare(b.hora||''));
+
+  if (partidosDia.length === 0) {
+    opciones.innerHTML += '<div style="color:var(--muted);font-size:13px;padding:12px;">No hay otros partidos este día para intercambiar.</div>';
+  }
+
+  partidosDia.forEach(p => {
+    const n1 = nombrePareja(p.pareja1Id);
+    const n2 = nombrePareja(p.pareja2Id);
+    const div = document.createElement('div');
+    div.className = 'modal-opcion';
+
+    // Verificar si el intercambio sería válido (restricciones)
+    const p1sel = parejaMap[partidoSeleccionado.pareja1Id];
+    const p2sel = parejaMap[partidoSeleccionado.pareja2Id];
+    const p1otro = parejaMap[p.pareja1Id];
+    const p2otro = parejaMap[p.pareja2Id];
+    const slotOtro = { dia: p.dia, hora: p.hora };
+    const slotSel  = { dia: partidoSeleccionado.dia, hora: partidoSeleccionado.hora };
+    const okSel  = parejaDisponible(p1sel, slotOtro) && parejaDisponible(p2sel, slotOtro);
+    const okOtro = parejaDisponible(p1otro, slotSel) && parejaDisponible(p2otro, slotSel);
+    const conflicto = !okSel || !okOtro;
+
+    div.innerHTML = `
+      <div class="modal-opcion-hora">${p.hora||'--'}</div>
+      <div style="flex:1;font-family:'Oswald',sans-serif;font-size:12px;color:#fff;letter-spacing:1px;">${n1} vs ${n2}</div>
+      <div class="modal-opcion-estado" style="color:${conflicto?'var(--rojo)':'var(--verde)'}">${conflicto?'⚠ CONFLICTO':'✓ OK'}</div>`;
+    div.onclick = () => intercambiarHorario(p.id||p.orden, conflicto);
+    opciones.appendChild(div);
   });
+
   document.getElementById('modalOverlay').classList.add('visible');
 };
 
 window.cerrarModal = function() { document.getElementById('modalOverlay').classList.remove('visible'); };
 
+window.intercambiarHorario = function(idOtro, tieneConflicto) {
+  if (tieneConflicto && !confirm('Este intercambio genera un conflicto de restricción horaria. ¿Confirmar igual?')) return;
+  const pSel   = fixture.find(x => (x.id||x.orden) === (partidoSeleccionado.id||partidoSeleccionado.orden));
+  const pOtro  = fixture.find(x => (x.id||x.orden) == idOtro || String(x.id||x.orden) === String(idOtro));
+  if (!pSel || !pOtro) return;
+  // Intercambiar día, hora y cancha
+  const tmpDia    = pSel.dia;    const tmpHora   = pSel.hora;   const tmpCancha = pSel.cancha;
+  pSel.dia    = pOtro.dia;   pSel.hora   = pOtro.hora;  pSel.cancha = pOtro.cancha;
+  pOtro.dia   = tmpDia;      pOtro.hora  = tmpHora;     pOtro.cancha = tmpCancha;
+  pSel.conflicto  = tieneConflicto;
+  pOtro.conflicto = tieneConflicto;
+  cerrarModal(); renderFixture(); showToast('✓ Horarios intercambiados');
+};
+
+// Mantener moverPartido por compatibilidad
 window.moverPartido = function(hora, cancha) {
   if (!partidoSeleccionado) return;
   const p = fixture.find(x => (x.id||x.orden)===(partidoSeleccionado.id||partidoSeleccionado.orden));
