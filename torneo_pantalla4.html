@@ -103,11 +103,11 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 </div>
 
 <div class="steps">
-  <div class="step done"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
-  <div class="step done"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
-  <div class="step done"><div class="step-num">✓</div><div class="step-label">Parejas</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla1.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla2.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla3.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Parejas</div></div>
   <div class="step active"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
-  <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
 <div class="page-title">
@@ -182,7 +182,6 @@ function generarSlots(config) {
     if (dia.slots) {
       n = parseInt(dia.slots);
     } else if (dia.cierre) {
-      // Compatibilidad con torneos viejos que tienen cierre
       const [ch, cm] = dia.cierre.split(':').map(Number);
       let cierreMin = ch * 60 + cm;
       if (cierreMin <= ah * 60 + am) cierreMin = 1440;
@@ -200,6 +199,46 @@ function generarSlots(config) {
     }
   });
   return slots;
+}
+
+// Genera slots solo para los días indicados por índice
+function generarSlotsDias(config, indicesDias) {
+  const slots = [];
+  config.dias.forEach((dia, idx) => {
+    if (!indicesDias.includes(idx)) return;
+    const [ah, am] = (dia.apertura||'09:00').split(':').map(Number);
+    const slotMins = (config.duracion || 60) + (config.intervalo || 0);
+    let n;
+    if (dia.slots) {
+      n = parseInt(dia.slots);
+    } else if (dia.cierre) {
+      const [ch, cm] = dia.cierre.split(':').map(Number);
+      let cierreMin = ch * 60 + cm;
+      if (cierreMin <= ah * 60 + am) cierreMin = 1440;
+      n = Math.floor((cierreMin - (ah * 60 + am)) / slotMins);
+    } else {
+      n = 8;
+    }
+    let actual = ah * 60 + am;
+    for (let s = 0; s < n; s++) {
+      const hh = String(Math.floor(actual / 60) % 24).padStart(2, '0');
+      const mn = String(actual % 60).padStart(2, '0');
+      for (let c = 1; c <= (config.canchasDisponibles || 1); c++)
+        slots.push({ dia: dia.fecha, hora: `${hh}:${mn}`, cancha: `CANCHA ${c}`, ocupado: false });
+      actual += slotMins;
+    }
+  });
+  return slots;
+}
+
+// Devuelve el nombre de una pareja dado su ID o etiqueta
+function nombrePareja(id) {
+  if (!id) return '?';
+  const p = parejaMap[id];
+  if (p && (p.j1Nombre || p.j2Nombre)) {
+    return [p.j1Nombre, p.j2Nombre].filter(Boolean).join(' / ');
+  }
+  return id; // fallback al ID si no hay nombre
 }
 
 // Round Robin: genera todos los partidos entre un array de parejas
@@ -269,7 +308,8 @@ function asignarHorarios(partidos, slots, parejaMap) {
 // ── ESTADO ───────────────────────────────────────────────
 let DIAS = [], HORAS = [], CANCHAS = [];
 let fixture = [];
-let zonasData = [];   // [ { id, nombre, parejas:[] } ]
+let zonasData = [];
+let parejaMap = {};  // mapa global id→pareja
 let diaActivo = 0;
 let partidoSeleccionado = null;
 let torneoConfig = null;
@@ -322,7 +362,7 @@ async function cargarYGenerar() {
 
 function generarFixture(parejas) {
   const formato = torneoConfig.formato || 'round_robin';
-  const parejaMap = {};
+  parejaMap = {};
   parejas.forEach(p => { parejaMap[p.id] = p; });
   const slots = generarSlots(torneoConfig);
   let partidos = [];
@@ -362,9 +402,60 @@ function generarFixture(parejas) {
     partidos  = generarRoundRobin(parejas, 'zona_A');
   }
 
-  fixture = asignarHorarios(partidos, slots, parejaMap);
-  console.log('Partidos generados:', partidos.length, 'Slots:', slots.length, 'Fixture:', fixture.length);
+  // Para zonas_llave: separar slots por fase
+  // Fase de grupos → todos los días menos el último
+  // Fase de llave → solo el último día
+  const dias = torneoConfig.dias || [];
+  let slotsZonas = slots;
+  let slotsLlave = slots;
+
+  if (formato === 'zonas_llave' && dias.length > 1) {
+    const ultimoDia = dias[dias.length - 1].fecha;
+    slotsZonas = slots.filter(s => s.dia !== ultimoDia);
+    slotsLlave = slots.filter(s => s.dia === ultimoDia);
+  }
+
+  fixture = asignarHorarios(partidos, slotsZonas, parejaMap);
+  console.log('Partidos zona:', partidos.length, 'Slots zona:', slotsZonas.length, 'Fixture:', fixture.length);
   fixture.forEach((p,i) => { p.id = `partido_${String(i+1).padStart(3,'0')}`; p.orden = i+1; });
+
+  // Para zonas_llave agregar eliminatorios asignados al último día
+  if (formato === 'zonas_llave') {
+    const totalClasif = zonasData.reduce((s, z) => s + (z.clasifican || 2), 0);
+    const rondas = generarRondasEliminatoria(totalClasif);
+    let ordenBase = fixture.length;
+    // Asignar slots del último día a los eliminatorios
+    const slotsLlaveLibres = slotsLlave.map(s => ({...s}));
+    let slotIdx = 0;
+    rondas.forEach(ronda => {
+      ronda.partidos.forEach(p => {
+        ordenBase++;
+        // Asignar slot del último día si hay disponible
+        let slotAsig = null;
+        while (slotIdx < slotsLlaveLibres.length) {
+          const s = slotsLlaveLibres[slotIdx];
+          if (!s.ocupado) { s.ocupado = true; slotAsig = s; slotIdx++; break; }
+          slotIdx++;
+        }
+        fixture.push({
+          id:        `partido_${String(ordenBase).padStart(3,'0')}`,
+          fase:      ronda.fase,
+          zonaId:    null,
+          pareja1Id: p.p1Label,
+          pareja2Id: p.p2Label,
+          estado:    'pendiente',
+          resultado: null,
+          esLlave:   true,
+          llavePos:  p.pos,
+          dia:       slotAsig?.dia || null,
+          hora:      slotAsig?.hora || null,
+          cancha:    slotAsig?.cancha || null,
+          conflicto: false,
+          orden:     ordenBase
+        });
+      });
+    });
+  }
 
   // Si es round_robin_llave, agregar placeholders de eliminatoria AL FINAL
   if (formato === 'round_robin_llave') {
@@ -378,7 +469,7 @@ function generarFixture(parejas) {
           id:       `partido_${String(ordenBase).padStart(3,'0')}`,
           fase:     ronda.fase,
           zonaId:   null,
-          pareja1Id: p.p1Label, // ej: "1° Zona A"
+          pareja1Id: p.p1Label,
           pareja2Id: p.p2Label,
           estado:   'pendiente',
           resultado: null,
@@ -477,7 +568,7 @@ window.renderFixture = function() {
           <div class="partido-info">
             <div class="partido-zona">${zonaLabel}</div>
             <div class="partido-parejas" style="${p.esLlave?'color:var(--muted);font-style:italic;':''}">
-              ${p.pareja1Id||'?'} <span style="color:var(--muted)">vs</span> ${p.pareja2Id||'?'}
+              ${nombrePareja(p.pareja1Id)} <span style="color:var(--muted)">vs</span> ${nombrePareja(p.pareja2Id)}
             </div>
           </div>
           <div class="partido-acciones">
@@ -559,8 +650,24 @@ window.resetearFixture = async function() {
 
 // ── CONFIRMAR ────────────────────────────────────────────
 window.confirmarFixture = async function() {
+  // Validación 1: verificar slots suficientes
+  const totalPartidos = fixture.filter(p => !p.esLlave).length;
+  const totalSlots = generarSlots(torneoConfig).length;
+  if (totalPartidos === 0) {
+    showToast('⚠️ No hay partidos generados. Revisá la configuración en P2.');
+    return;
+  }
+
+  // Validación 2: verificar partidos sin horario asignado
+  const sinHorario = fixture.filter(p => !p.esLlave && !p.dia).length;
+  if (sinHorario > 0) {
+    const continuar = confirm(`⚠️ ${sinHorario} partido(s) no tienen horario asignado por falta de slots.\n\nPodés volver a P2 para agregar más slots, o confirmar igual.`);
+    if (!continuar) return;
+  }
+
+  // Validación 3: conflictos de horario
   const conflictos = fixture.filter(p => p.conflicto && !p.esLlave).length;
-  if (conflictos > 0 && !confirm(`Hay ${conflictos} conflicto(s) de horario. ¿Confirmar igual?`)) return;
+  if (conflictos > 0 && !confirm(`Hay ${conflictos} conflicto(s) de horario con restricciones de parejas. ¿Confirmar igual?`)) return;
 
   const torneoId = sessionStorage.getItem('torneoId');
   if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }

@@ -203,11 +203,11 @@ body {
 </div>
 
 <div class="steps">
-  <div class="step done"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
-  <div class="step done"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla1.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla2.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
   <div class="step active"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
-  <div class="step"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
-  <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
 <div class="page-title">
@@ -581,6 +581,41 @@ window.guardarYSeguir = async function() {
   const torneoId = sessionStorage.getItem('torneoId');
   if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
 
+  // Validar disponibilidad horaria de cada pareja
+  const slotMins = CONFIG.duracion + CONFIG.intervalo;
+  const parejasConProblemas = [];
+  parejas.forEach((p, i) => {
+    let slotsDisponibles = 0;
+    CONFIG.dias.forEach((dia, di) => {
+      const block = document.getElementById(`dia-block-${p.id}-${di}`);
+      const btnActivo = block?.querySelector('.dia-estado-btn.activo');
+      const estado = btnActivo?.classList.contains('estado-bloqueado') ? 'bloqueado'
+                   : btnActivo?.classList.contains('estado-parcial')   ? 'parcial'
+                   : 'libre';
+      if (estado === 'libre') {
+        slotsDisponibles += (dia.slots || dia.horarios?.length || 0);
+      } else if (estado === 'parcial') {
+        const bloqueados = block.querySelectorAll('.hora-chip.bloqueado').length;
+        slotsDisponibles += Math.max(0, (dia.slots || dia.horarios?.length || 0) - bloqueados);
+      }
+      // bloqueado = 0 slots ese día
+    });
+    // Cada pareja necesita jugar al menos (n-1) partidos en su zona
+    // Mínimo 2 partidos disponibles para poder participar
+    const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
+    const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
+    const nombre = (n1 && n2) ? `${n1} / ${n2}` : `Pareja ${i+1}`;
+    if (slotsDisponibles < 2) {
+      parejasConProblemas.push({ nombre, slotsDisponibles });
+    }
+  });
+
+  if (parejasConProblemas.length > 0) {
+    const lista = parejasConProblemas.map(p => `• ${p.nombre} (${p.slotsDisponibles} slot${p.slotsDisponibles === 1 ? '' : 's'})`).join('\n');
+    const continuar = confirm(`⚠️ Las siguientes parejas tienen disponibilidad muy limitada:\n\n${lista}\n\n¿Querés continuar igual o revisarlas antes?`);
+    if (!continuar) return;
+  }
+
   showToast('Guardando parejas...');
 
   // Recolectar datos de cada pareja desde los inputs
@@ -731,6 +766,11 @@ if (storedTorneoId) {
           if (j2) j2.value = data.j2Nombre || '';
           if (j1c) j1c.value = data.j1Categoria || '';
           if (j2c) j2c.value = data.j2Categoria || '';
+          // Actualizar header con nombre real
+          const resumen = document.getElementById(`resumen-${id}`);
+          if (resumen && (data.j1Nombre || data.j2Nombre)) {
+            resumen.textContent = [data.j1Nombre, data.j2Nombre].filter(Boolean).join(' / ');
+          }
 
           // Restaurar restricciones
           if (data.restricciones) {

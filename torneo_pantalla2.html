@@ -165,11 +165,11 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 </div>
 
 <div class="steps">
-  <div class="step done"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla1.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
   <div class="step active"><div class="step-num">2</div><div class="step-label">Torneo</div></div>
-  <div class="step"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
-  <div class="step"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
-  <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla3.html'" style="cursor:pointer"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
 <div class="page-title">
@@ -800,8 +800,8 @@ calcular();
 
     // Tiempos
     if (t.duracion)  document.getElementById('duracion').value  = t.duracion;
-    if (t.intervalo) document.getElementById('intervalo').value = t.intervalo;
-    if (t.intervaloMediodia) {
+    if (t.intervalo !== undefined) document.getElementById('intervalo').value = t.intervalo;
+    if (t.intervaloMediodia !== undefined) {
       document.getElementById('mediodia').value = t.intervaloMediodia;
       const field = document.getElementById('horaMedodiaField');
       if (field && t.intervaloMediodia > 0) { field.style.opacity='1'; field.style.pointerEvents='auto'; }
