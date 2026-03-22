@@ -278,26 +278,28 @@ function parejaDisponible(pareja, slot) {
   return true;
 }
 
-// Calcula similitud de restricciones entre dos parejas (más alto = más compatibles)
-function similitudRestricciones(p1, p2, slots) {
-  let comunes = 0;
-  slots.forEach(s => {
-    const d1 = parejaDisponible(p1, s);
-    const d2 = parejaDisponible(p2, s);
-    if (d1 === d2) comunes++;
-  });
-  return comunes;
+// Cuenta slots donde AMBAS parejas pueden jugar simultáneamente
+function slotsEnComun(p1, p2, slots) {
+  return slots.filter(s => parejaDisponible(p1, s) && parejaDisponible(p2, s)).length;
 }
 
-// Distribuye parejas en zonas priorizando compatibilidad horaria
+// Verifica si una zona tiene suficientes slots en común para todos sus partidos
+function zonaEsViable(zona, nuevaPareja, slots, minSlotsComun) {
+  for (const p of zona.parejas) {
+    const comun = slotsEnComun(p, nuevaPareja, slots);
+    if (comun < minSlotsComun) return false;
+  }
+  return true;
+}
+
+// Distribuye parejas en zonas garantizando que cada par tenga slots en común
 function distribuirEnZonas(parejas, zonasConfig, slots) {
   const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const MIN_SLOTS_COMUN = 2; // mínimo de slots en común para que dos parejas puedan estar en la misma zona
   
   // Ordenar parejas de MAYOR a MENOR restricción (las más restringidas primero)
   const parejasOrdenadas = [...parejas].sort((a, b) => {
-    const slotsA = slotsDisponiblesPareja(a, slots);
-    const slotsB = slotsDisponiblesPareja(b, slots);
-    return slotsA - slotsB; // menos slots disponibles = más restringida = va primero
+    return slotsDisponiblesPareja(a, slots) - slotsDisponiblesPareja(b, slots);
   });
 
   // Inicializar zonas vacías
@@ -309,7 +311,6 @@ function distribuirEnZonas(parejas, zonasConfig, slots) {
     clasifican: zc.clasifican
   }));
 
-  // Asignar cada pareja a la zona más compatible que tenga espacio
   parejasOrdenadas.forEach(pareja => {
     let mejorZona = null;
     let mejorScore = -1;
@@ -317,21 +318,32 @@ function distribuirEnZonas(parejas, zonasConfig, slots) {
     zonas.forEach(zona => {
       if (zona.parejas.length >= zona.capacidad) return;
       
+      // Verificar viabilidad — que haya slots suficientes con todas las parejas de la zona
+      if (zona.parejas.length > 0 && !zonaEsViable(zona, pareja, slots, MIN_SLOTS_COMUN)) return;
+
       if (zona.parejas.length === 0) {
-        // Zona vacía — preferir zonas con más espacio
-        const score = zona.capacidad;
+        // Zona vacía — score base
+        const score = 1;
         if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
         return;
       }
 
-      // Calcular compatibilidad promedio con parejas ya en esta zona
-      let totalSim = 0;
+      // Score = promedio de slots en común con cada pareja de la zona
+      let totalComun = 0;
       zona.parejas.forEach(p => {
-        totalSim += similitudRestricciones(pareja, p, slots);
+        totalComun += slotsEnComun(p, pareja, slots);
       });
-      const score = totalSim / zona.parejas.length;
+      const score = totalComun / zona.parejas.length;
       if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
     });
+
+    // Si no encontró zona viable, asignar a la zona con más espacio disponible (último recurso)
+    if (!mejorZona) {
+      console.warn('Sin zona viable para:', nombrePareja(pareja.id), '— asignando a zona con más espacio');
+      mejorZona = zonas
+        .filter(z => z.parejas.length < z.capacidad)
+        .sort((a, b) => b.capacidad - b.parejas.length - (a.capacidad - a.parejas.length))[0];
+    }
 
     if (mejorZona) mejorZona.parejas.push(pareja);
   });
