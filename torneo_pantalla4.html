@@ -541,18 +541,6 @@ function generarFixture(parejas) {
     partidos  = generarRoundRobin(parejas, 'zona_A');
   }
 
-  // Para zonas_llave: separar slots por fase
-  // Fase de grupos → todos los días menos el último
-  // Fase de llave → solo el último día
-  const dias = torneoConfig.dias || [];
-  let slotsZonas = slots;
-  let slotsLlave = slots;
-
-  if (formato === 'zonas_llave' && dias.length > 1) {
-    const ultimoDia = dias[dias.length - 1].fecha;
-    slotsZonas = slots.filter(s => s.dia !== ultimoDia);
-    slotsLlave = slots.filter(s => s.dia === ultimoDia);
-  }
 
   fixture = asignarHorarios(partidos, slotsZonas, parejaMap);
   console.log('Partidos zona:', partidos.length, 'Slots zona:', slotsZonas.length, 'Fixture:', fixture.length);
