@@ -521,6 +521,7 @@ async function cargarResultados() {
   const parejas = {};
   const pSnap = await getDocs(collection(db, 'torneos', torneoId, 'parejas'));
   pSnap.docs.forEach(d => { parejas[d.id] = d.data(); });
+  window._parejasCache = parejas; // cache global para renderPreviewLlave
 
   // Determinar posiciones desde los partidos eliminatorios finalizados
   const ps = partidos.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -689,6 +690,234 @@ async function renderZonas() {
   }).join('');
 }
 
+// ── CALCULAR CLASIFICADOS Y GENERAR LLAVE ────────────────
+// ── ESTADO TEMPORAL PARA AJUSTE DE LLAVE ────────────────
+let llaveTemp = null; // { primeros: [], segundos: [], previa: [], cuartos: [], semis: [], final: [] }
+
+async function calcularClasificadosYGenerarLlave() {
+  if (!torneoId) return;
+
+  const snap = await getDocs(query(collection(db,'torneos',torneoId,'partidos'), orderBy('orden')));
+  const ps = snap.docs.map(d => ({id:d.id,...d.data()}));
+  const partidosZona = ps.filter(p => p.fase === 'zona' && p.estado === 'finalizado');
+  const todosZona = ps.filter(p => p.fase === 'zona');
+
+  if (partidosZona.length < todosZona.length) {
+    showToast(`⚠️ Faltan ${todosZona.length - partidosZona.length} partido(s) de zona por jugar`);
+    return;
+  }
+
+  const zonasSnap = await getDocs(collection(db,'torneos',torneoId,'zonas'));
+  const zonas = {};
+  zonasSnap.docs.forEach(d => { zonas[d.id] = {...d.data(), id:d.id}; });
+
+  // Calcular tabla de cada zona
+  const tablas = {};
+  Object.keys(zonas).forEach(zid => {
+    tablas[zid] = {};
+    (zonas[zid].parejas || []).forEach(pid => {
+      tablas[zid][pid] = { pg:0, pp:0, sg:0, sp:0 };
+    });
+  });
+
+  partidosZona.forEach(p => {
+    if (!p.resultado) return;
+    const zid = p.zonaId;
+    if (!tablas[zid]) return;
+    const { ganadorId, perdedorId, sets } = p.resultado;
+    if (!ganadorId || !perdedorId) return;
+    if (tablas[zid][ganadorId])  tablas[zid][ganadorId].pg++;
+    if (tablas[zid][perdedorId]) tablas[zid][perdedorId].pp++;
+    if (sets && Array.isArray(sets)) {
+      sets.forEach(s => {
+        if (tablas[zid][ganadorId]) { tablas[zid][ganadorId].sg += s.p1||0; tablas[zid][ganadorId].sp += s.p2||0; }
+        if (tablas[zid][perdedorId]) { tablas[zid][perdedorId].sg += s.p2||0; tablas[zid][perdedorId].sp += s.p1||0; }
+      });
+    }
+  });
+
+  // Ordenar cada zona
+  const clasificados = {};
+  const zonasOrden = Object.keys(zonas).sort();
+  zonasOrden.forEach(zid => {
+    const tabla = tablas[zid];
+    clasificados[zid] = Object.keys(tabla).sort((a, b) => {
+      const ta = tabla[a], tb = tabla[b];
+      if (tb.pg !== ta.pg) return tb.pg - ta.pg;
+      return (tb.sg - tb.sp) - (ta.sg - ta.sp);
+    });
+  });
+
+  // Armar lista de primeros y segundos
+  const nZonas = zonasOrden.length;
+  const primeros = zonasOrden.map(zid => ({ parejaId: clasificados[zid][0], zona: zid }));
+  const segundos = zonasOrden.map(zid => ({ parejaId: clasificados[zid][1], zona: zid }));
+
+  // Rankear primeros por tabla (para cruzar mejor contra peor)
+  primeros.sort((a, b) => {
+    const ta = tablas[a.zona][a.parejaId], tb = tablas[b.zona][b.parejaId];
+    if (tb.pg !== ta.pg) return tb.pg - ta.pg;
+    return (tb.sg - tb.sp) - (ta.sg - ta.sp);
+  });
+  segundos.sort((a, b) => {
+    const ta = tablas[a.zona][a.parejaId], tb = tablas[b.zona][b.parejaId];
+    if (tb.pg !== ta.pg) return tb.pg - ta.pg;
+    return (tb.sg - tb.sp) - (ta.sg - ta.sp);
+  });
+
+  // Calcular total clasificados y potencia de 2 más cercana
+  const nClasificados = primeros.length + segundos.length;
+  let pot2 = 1;
+  while (pot2 * 2 <= nClasificados) pot2 *= 2;
+  const nPrevia = nClasificados - pot2; // partidos previos necesarios
+
+  // Los nPrevia*2 peores clasificados juegan previa
+  // Prioridad: peores segundos juegan previa primero
+  const segundosDirectos = segundos.slice(0, segundos.length - nPrevia);
+  const segundosPrevia   = segundos.slice(segundos.length - nPrevia);
+
+  // Armar cruces de previa (peor vs mejor de los que van a previa)
+  const previaPartidos = [];
+  for (let i = 0; i < nPrevia; i++) {
+    previaPartidos.push({
+      p1: segundosPrevia[i].parejaId,
+      p2: segundosPrevia[nPrevia - 1 - i].parejaId
+    });
+  }
+
+  // Armar cuartos: cruzar primeros con segundos directos y ganadores de previa
+  // Mejor primero vs peor segundo/ganador, etc. (serpentina)
+  const cuartosPartidos = [];
+  for (let i = 0; i < pot2 / 2; i++) {
+    const p1 = primeros[i]?.parejaId;
+    const p2 = i < segundosDirectos.length
+      ? segundosDirectos[i].parejaId
+      : `G_prev_${i - segundosDirectos.length + 1}`;
+    cuartosPartidos.push({ p1, p2 });
+  }
+
+  // Guardar estado temporal para mostrar preview con ajuste manual
+  llaveTemp = {
+    primeros, segundos, previaPartidos, cuartosPartidos,
+    tablas, clasificados, zonasOrden, nPrevia, pot2
+  };
+
+  renderPreviewLlave();
+}
+
+function renderPreviewLlave() {
+  const wrap = document.getElementById('llave-body');
+  if (!wrap || !llaveTemp) return;
+
+  const { previaPartidos, cuartosPartidos, nPrevia } = llaveTemp;
+
+  // Cargar nombres de parejas
+  const parejas = window._parejasCache || {};
+
+  function nombreById(id) {
+    if (!id) return '?';
+    if (id.startsWith('G_')) return id.replace('G_prev_','G. Previa ').replace('G_crt_','G. Cuartos ');
+    const p = parejas[id];
+    return p ? `${p.j1Nombre} / ${p.j2Nombre}` : id;
+  }
+
+  let html = '<div style="padding:16px;">';
+  html += '<div style="font-family:Oswald,sans-serif;font-size:11px;letter-spacing:2px;color:var(--amarillo);margin-bottom:12px;">PREVIEW — PODÉS INTERCAMBIAR POSICIONES ANTES DE CONFIRMAR</div>';
+
+  if (nPrevia > 0) {
+    html += '<div style="font-family:Bebas Neue,sans-serif;font-size:15px;letter-spacing:3px;color:var(--azul);margin-bottom:8px;">PREVIA</div>';
+    previaPartidos.forEach((p, i) => {
+      html += `<div class="llave-partido" style="margin-bottom:6px;">
+        <span class="llave-equipo" style="cursor:pointer;" onclick="seleccionarPosLlave('prev_${i}_p1')" id="llave-prev-${i}-p1">${nombreById(p.p1)}</span>
+        <span class="llave-vs">VS</span>
+        <span class="llave-equipo" style="text-align:right;cursor:pointer;" onclick="seleccionarPosLlave('prev_${i}_p2')" id="llave-prev-${i}-p2">${nombreById(p.p2)}</span>
+      </div>`;
+    });
+  }
+
+  html += '<div style="font-family:Bebas Neue,sans-serif;font-size:15px;letter-spacing:3px;color:var(--azul);margin:12px 0 8px;">CUARTOS DE FINAL</div>';
+  cuartosPartidos.forEach((p, i) => {
+    html += `<div class="llave-partido" style="margin-bottom:6px;">
+      <span class="llave-equipo" style="cursor:pointer;" onclick="seleccionarPosLlave('crt_${i}_p1')" id="llave-crt-${i}-p1">${nombreById(p.p1)}</span>
+      <span class="llave-vs">VS</span>
+      <span class="llave-equipo" style="text-align:right;cursor:pointer;" onclick="seleccionarPosLlave('crt_${i}_p2')" id="llave-crt-${i}-p2">${nombreById(p.p2)}</span>
+    </div>`;
+  });
+
+  html += `<div style="margin-top:16px;display:flex;gap:8px;">
+    <button onclick="confirmarLlave()" style="flex:1;padding:14px;background:var(--azul);border:none;border-radius:10px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;cursor:pointer;">✅ CONFIRMAR LLAVE</button>
+    <button onclick="calcularClasificadosYGenerarLlave()" style="padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;">↺ RECALCULAR</button>
+  </div>`;
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+let posSeleccionada = null;
+
+window.seleccionarPosLlave = function(posId) {
+  if (!posSeleccionada) {
+    posSeleccionada = posId;
+    const el = document.getElementById('llave-' + posId.replace(/_p[12]$/, '').replace(/_/g,'-') + '-' + posId.split('_').pop());
+    if (el) el.style.background = 'rgba(74,158,255,0.2)';
+    showToast('Seleccionado — tocá otra posición para intercambiar');
+  } else {
+    // Intercambiar
+    const [tipo1, idx1, slot1] = posSeleccionada.split('_');
+    const [tipo2, idx2, slot2] = posId.split('_');
+    const arr1 = tipo1 === 'prev' ? llaveTemp.previaPartidos : llaveTemp.cuartosPartidos;
+    const arr2 = tipo2 === 'prev' ? llaveTemp.previaPartidos : llaveTemp.cuartosPartidos;
+    const key1 = slot1 === 'p1' ? 'p1' : 'p2';
+    const key2 = slot2 === 'p1' ? 'p1' : 'p2';
+    const tmp = arr1[parseInt(idx1)][key1];
+    arr1[parseInt(idx1)][key1] = arr2[parseInt(idx2)][key2];
+    arr2[parseInt(idx2)][key2] = tmp;
+    posSeleccionada = null;
+    renderPreviewLlave();
+    showToast('✓ Posiciones intercambiadas');
+  }
+};
+
+window.confirmarLlave = async function() {
+  if (!llaveTemp || !torneoId) return;
+  const { previaPartidos, cuartosPartidos } = llaveTemp;
+  const snap = await getDocs(query(collection(db,'torneos',torneoId,'partidos'), orderBy('orden')));
+  const ps = snap.docs.map(d => ({id:d.id,...d.data()}));
+  let orden = ps.length + 1;
+  const nuevos = [];
+
+  previaPartidos.forEach((p, i) => {
+    nuevos.push({ id:`partido_prev_${i+1}`, fase:'previa', orden:orden++,
+      pareja1Id:p.p1, pareja2Id:p.p2, estado:'pendiente', resultado:null, esLlave:true,
+      dia:null, hora:null, cancha:null });
+  });
+
+  cuartosPartidos.forEach((p, i) => {
+    nuevos.push({ id:`partido_crt_${i+1}`, fase:'cuartos', orden:orden++,
+      pareja1Id:p.p1, pareja2Id:p.p2, estado:'pendiente', resultado:null, esLlave:true,
+      dia:null, hora:null, cancha:null });
+  });
+
+  // Semis
+  const nCuartos = cuartosPartidos.length;
+  for (let i = 0; i < nCuartos/2; i++) {
+    nuevos.push({ id:`partido_semi_${i+1}`, fase:'semis', orden:orden++,
+      pareja1Id:`G_crt_${i*2+1}`, pareja2Id:`G_crt_${i*2+2}`,
+      estado:'pendiente', resultado:null, esLlave:true,
+      dia:null, hora:null, cancha:null });
+  }
+
+  // Final
+  nuevos.push({ id:'partido_final', fase:'final', orden:orden++,
+    pareja1Id:'G_semi_1', pareja2Id:'G_semi_2',
+    estado:'pendiente', resultado:null, esLlave:true,
+    dia:null, hora:null, cancha:null });
+
+  await Promise.all(nuevos.map(p => setDoc(doc(db,'torneos',torneoId,'partidos',p.id), p)));
+  llaveTemp = null;
+  showToast('✅ Llave confirmada');
+  await renderLlaveInformes();
+};
+
 // ── LLAVE INFORMES ────────────────────────────────────────
 async function renderLlaveInformes() {
   const wrap = document.getElementById('llave-body');
@@ -702,13 +931,41 @@ async function renderLlaveInformes() {
   const ps = snap.docs.map(d=>({id:d.id,...d.data()}));
   const elim = ps.filter(p => p.fase !== 'zona');
 
-  if (elim.length === 0) {
-    wrap.innerHTML = '<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center;">Los cruces se generan al finalizar la fase de zonas</div>';
+  const zonaFinalizados = ps.filter(p => p.fase === 'zona' && p.estado === 'finalizado').length;
+  const totalZona = ps.filter(p => p.fase === 'zona').length;
+  const hayLlave = elim.some(p => p.fase === 'octavos' || p.fase === 'cuartos');
+
+  if (elim.length === 0 || !hayLlave) {
+    let html = '<div style="padding:16px;">';
+    if (zonaFinalizados === totalZona && totalZona > 0) {
+      html += `<div style="color:var(--verde);font-size:13px;margin-bottom:12px;">✅ Todos los partidos de zona finalizados</div>
+        <button onclick="calcularClasificadosYGenerarLlave()" style="width:100%;padding:14px;background:var(--azul);border:none;border-radius:10px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;cursor:pointer;">⚡ GENERAR LLAVE ELIMINATORIA</button>`;
+    } else {
+      html += `<div style="color:var(--muted);font-size:13px;">Los cruces se generan al finalizar todos los partidos de zona (${zonaFinalizados}/${totalZona})</div>`;
+    }
+    html += '</div>';
+    wrap.innerHTML = html;
     return;
   }
 
-  const rondas = ['cuartos','semis','final'];
-  const labels = { cuartos:'CUARTOS DE FINAL', semis:'SEMIFINAL', final:'🏆 FINAL' };
+  function nombreP(id) {
+    if (!id) return '?';
+    if (id.startsWith('G_')) {
+      const ref = id.replace('G_','');
+      const pRef = ps.find(p => p.id === 'partido_' + ref);
+      if (pRef?.resultado?.ganadorId) {
+        const g = parejas[pRef.resultado.ganadorId];
+        return g ? g.j1Nombre + ' / ' + g.j2Nombre : '?';
+      }
+      const labels2 = { oct_1:'G. Oct. 2°B/2°C', oct_2:'G. Oct. 2°D/2°A', crt_1:'G. Cto.1', crt_2:'G. Cto.2', crt_3:'G. Cto.3', crt_4:'G. Cto.4', semi_1:'G. Semi.1', semi_2:'G. Semi.2' };
+      return labels2[ref] || id;
+    }
+    const p = parejas[id];
+    return p ? p.j1Nombre + ' / ' + p.j2Nombre : id;
+  }
+
+  const rondas = ['octavos','cuartos','semis','final'];
+  const labels = { octavos:'OCTAVOS', cuartos:'CUARTOS DE FINAL', semis:'SEMIFINAL', final:'🏆 FINAL' };
 
   const html = '<div class="llave-wrap">' +
     rondas.map(fase => {
@@ -717,9 +974,8 @@ async function renderLlaveInformes() {
       return `<div class="llave-ronda">
         <div class="llave-ronda-nombre">${labels[fase]}</div>
         ${rps.map(p => {
-          const p1d = parejas[p.pareja1Id]; const p2d = parejas[p.pareja2Id];
-          const n1 = p1d?`${p1d.j1Nombre} / ${p1d.j2Nombre}`:(p.pareja1Id||'?');
-          const n2 = p2d?`${p2d.j1Nombre} / ${p2d.j2Nombre}`:(p.pareja2Id||'?');
+          const n1 = nombreP(p.pareja1Id);
+          const n2 = nombreP(p.pareja2Id);
           const g1 = p.resultado?.ganadorId === p.pareja1Id;
           const g2 = p.resultado?.ganadorId === p.pareja2Id;
           const sets = p.resultado?.sets
