@@ -430,7 +430,7 @@ body {
             <input type="date" id="ext-fecha">
           </div>
           <div id="ext-jugadores-lista"></div>
-          <button class="btn-add-ext" onclick="agregarJugadorExt()">+ AGREGAR JUGADOR</button>
+          <button class="btn-add-ext" onclick="agregarJugadorExt()">+ AGREGAR PAREJA</button>
           <button class="btn-share btn-share-wa" style="margin-top:8px;" onclick="guardarExterno()">💾 Guardar puntos externos</button>
         </div>
 
@@ -1185,13 +1185,33 @@ async function renderRanking() {
 // ── EXTERNOS MANUAL ──────────────────────────────────────
 window.agregarJugadorExt = function() {
   const lista = document.getElementById('ext-jugadores-lista');
+  const n = lista.children.length + 1;
   const row = document.createElement('div');
   row.className = 'ext-jugador-row';
   row.innerHTML = `
-    <input type="text" placeholder="Nombre del jugador...">
-    <input type="number" class="ext-jugador-pts" placeholder="0" min="0">
-    <button class="ext-jugador-del" onclick="this.closest('.ext-jugador-row').remove()">✕</button>`;
+    <div style="display:flex;gap:6px;margin-bottom:4px;">
+      <input type="text" placeholder="Jugador 1..." style="flex:1;">
+      <input type="text" placeholder="Jugador 2..." style="flex:1;">
+      <button class="ext-jugador-del" onclick="this.closest('.ext-jugador-row').remove();renumerarExt()" style="flex-shrink:0;">✕</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;color:var(--muted);">FASE ELIMINADA:</span>
+      <select class="ext-fase-sel" style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:'Oswald',sans-serif;font-size:12px;">
+        <option value="100">🥇 Campeón (100 pts)</option>
+        <option value="90">🥈 Finalista (90 pts)</option>
+        <option value="80">🥉 Semi — perdió con campeón (80 pts)</option>
+        <option value="75">Semi — perdió con subcampeón (75 pts)</option>
+        <option value="60">Cuartos de final (60 pts)</option>
+        <option value="50">Octavos de final (50 pts)</option>
+        <option value="40">Dieciseisavos (40 pts)</option>
+        <option value="35" selected>Fase de grupos (35 pts)</option>
+      </select>
+    </div>`;
   lista.appendChild(row);
+};
+
+window.renumerarExt = function() {
+  // no necesita renumerar, solo cleanup visual
 };
 
 window.guardarExterno = async function() {
@@ -1199,36 +1219,44 @@ window.guardarExterno = async function() {
   const cancha       = document.getElementById('ext-cancha')?.value?.trim() || '';
   const fecha        = document.getElementById('ext-fecha').value;
   if (!torneoNombre) { showToast('⚠️ Ingresá el nombre del torneo'); return; }
+  if (!fecha) { showToast('⚠️ Ingresá la fecha del torneo'); return; }
 
   const filas = document.querySelectorAll('#ext-jugadores-lista .ext-jugador-row');
+  if (filas.length === 0) { showToast('⚠️ Agregá al menos una pareja'); return; }
+
   let agregados = 0;
+  const anio = fecha.slice(0,4) || new Date().getFullYear().toString();
 
   for (const row of filas) {
-    const inputs  = row.querySelectorAll('input');
-    const jugador = inputs[0].value.trim();
-    const puntos  = parseInt(inputs[1].value) || 0;
-    if (!jugador || puntos <= 0) continue;
+    const inputs = row.querySelectorAll('input[type="text"]');
+    const j1 = inputs[0]?.value.trim();
+    const j2 = inputs[1]?.value.trim();
+    const pts = parseInt(row.querySelector('.ext-fase-sel')?.value) || 35;
+    if (!j1 || !j2) continue;
 
-    // Guardar en Firebase colección jugadores
-    const anio = fecha?.slice(0,4) || new Date().getFullYear().toString();
-    const id   = jugador.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
-    const ref  = doc(db, 'jugadores', id);
-    const snap = await getDoc(ref);
-    const data = snap.exists() ? snap.data() : { nombreDisplay: jugador, historial: [], puntosAnuales: {} };
-
-    data.historial.push({ torneoNombre, canchaExterna: cancha, fecha, puntos, externo: true });
-    data.puntosAnuales[anio] = (data.puntosAnuales[anio] || 0) + puntos;
-    await setDoc(ref, data);
-
-    externosGuardados.push({ jugador, torneoNombre, cancha, fecha, puntos });
+    for (const jugador of [j1, j2]) {
+      const id = jugador.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+      const ref = doc(db, 'jugadores', id);
+      const snap = await getDoc(ref);
+      const data = snap.exists() ? snap.data() : { nombreDisplay: jugador, historial: [], puntosAnuales: {} };
+      // Evitar duplicados del mismo torneo
+      const yaExiste = data.historial.some(h => h.torneoNombre === torneoNombre && h.fecha === fecha && h.externo);
+      if (!yaExiste) {
+        data.historial.push({ torneoNombre, canchaExterna: cancha, fecha, puntos: pts, externo: true, compañero: jugador === j1 ? j2 : j1 });
+        data.puntosAnuales[anio] = (data.puntosAnuales[anio] || 0) + pts;
+        await setDoc(ref, data);
+        externosGuardados.push({ jugador, torneoNombre, cancha, fecha, puntos: pts });
+      }
+    }
     agregados++;
   }
 
-  if (agregados === 0) { showToast('⚠️ Completá jugador y puntos'); return; }
+  if (agregados === 0) { showToast('⚠️ Completá los datos de las parejas'); return; }
   document.getElementById('ext-torneo').value = '';
   if (document.getElementById('ext-cancha')) document.getElementById('ext-cancha').value = '';
+  document.getElementById('ext-fecha').value = '';
   document.getElementById('ext-jugadores-lista').innerHTML = '';
-  showToast(`✓ ${agregados} jugador(es) guardado(s)`);
+  showToast(`✓ ${agregados} pareja(s) guardada(s)`);
   renderRanking();
 };
 
