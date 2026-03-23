@@ -638,8 +638,6 @@ function getPts(pos, ptsDirecto) {
   }
   return 35;
 }
-  return 0;
-}
 
 // ── SCORING ──────────────────────────────────────────────
 function renderScoring() {
@@ -1142,7 +1140,7 @@ async function renderRanking() {
   // Si no hay datos en Firebase aún, calcular desde RESULTADOS del torneo actual
   if (Object.keys(acumulado).length === 0 && RESULTADOS.length > 0) {
     RESULTADOS.forEach(r => {
-      const pts = getPts(r.pos);
+      const pts = r.pts !== undefined ? r.pts : getPts(r.pos);
       [r.j1, r.j2].forEach(j => {
         acumulado[j] = { pts: (acumulado[j]?.pts||0) + pts, torneos: 1 };
       });
@@ -1336,7 +1334,7 @@ window.cerrarTorneo = async function() {
   const anio = new Date().getFullYear().toString();
 
   for (const r of RESULTADOS) {
-    const pts = getPts(r.pos);
+    const pts = r.pts !== undefined ? r.pts : getPts(r.pos);
     for (const nombre of [r.j1, r.j2]) {
       const id = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
       const ref = doc(db, 'jugadores', id);
