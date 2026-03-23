@@ -523,57 +523,94 @@ async function cargarResultados() {
   pSnap.docs.forEach(d => { parejas[d.id] = d.data(); });
   window._parejasCache = parejas; // cache global para renderPreviewLlave
 
-  // Determinar posiciones desde los partidos eliminatorios finalizados
+  // Escala fija de puntos por fase
+  const PUNTOS_FASE = {
+    campeon:    100,
+    finalista:  90,
+    semi_camp:  80,  // perdió semifinal contra el campeón
+    semi_sub:   75,  // perdió semifinal contra el subcampeón
+    cuartos:    60,
+    octavos:    50,  // octavos o previa
+    dieciseis:  40,  // dieciseisavos
+    grupos:     35
+  };
+
   const ps = partidos.docs.map(d => ({ id: d.id, ...d.data() }));
-  const final    = ps.find(p => p.fase==='final'    && p.estado==='finalizado');
-  const semis    = ps.filter(p => p.fase==='semis'   && p.estado==='finalizado');
-  const cuartos  = ps.filter(p => p.fase==='cuartos' && p.estado==='finalizado');
+  const puntosAsignados = {}; // parejaId -> { pts, fase }
 
-  const posicionados = {};
-
-  if (final) {
-    posicionados[final.resultado.ganadorId]  = 1;
-    posicionados[final.resultado.perdedorId] = 2;
+  // Final
+  const finalP = ps.find(p => p.fase==='final' && p.estado==='finalizado');
+  if (finalP?.resultado) {
+    puntosAsignados[finalP.resultado.ganadorId]  = { pts: PUNTOS_FASE.campeon,   fase: 'Campeón' };
+    puntosAsignados[finalP.resultado.perdedorId] = { pts: PUNTOS_FASE.finalista,  fase: 'Finalista' };
   }
-  semis.forEach((p, i) => {
-    if (!posicionados[p.resultado.perdedorId])
-      posicionados[p.resultado.perdedorId] = 3;
-  });
-  cuartos.forEach(p => {
-    if (!posicionados[p.resultado.perdedorId])
-      posicionados[p.resultado.perdedorId] = 5;
+
+  // Semis — determinar cuál perdedor jugó contra el campeón
+  const semisP = ps.filter(p => p.fase==='semis' && p.estado==='finalizado');
+  const campeonId = finalP?.resultado?.ganadorId;
+  semisP.forEach(p => {
+    if (!p.resultado) return;
+    const perdedor = p.resultado.perdedorId;
+    if (!perdedor || puntosAsignados[perdedor]) return;
+    // Si el ganador de esta semi es el campeón, el perdedor es el semi_camp
+    const esSemiCamp = p.resultado.ganadorId === campeonId ||
+                       ps.find(f => f.fase==='final' && (f.pareja1Id===p.resultado.ganadorId || f.pareja2Id===p.resultado.ganadorId));
+    puntosAsignados[perdedor] = esSemiCamp
+      ? { pts: PUNTOS_FASE.semi_camp, fase: 'Semifinalista' }
+      : { pts: PUNTOS_FASE.semi_sub,  fase: 'Semifinalista' };
   });
 
-  // Eliminados en zona: todos los que no clasificaron
+  // Cuartos
+  ps.filter(p => p.fase==='cuartos' && p.estado==='finalizado').forEach(p => {
+    if (!p.resultado?.perdedorId || puntosAsignados[p.resultado.perdedorId]) return;
+    puntosAsignados[p.resultado.perdedorId] = { pts: PUNTOS_FASE.cuartos, fase: 'Cuartos' };
+  });
+
+  // Dieciseisavos
+  ps.filter(p => p.fase==='dieciseis' && p.estado==='finalizado').forEach(p => {
+    if (!p.resultado?.perdedorId || puntosAsignados[p.resultado.perdedorId]) return;
+    puntosAsignados[p.resultado.perdedorId] = { pts: PUNTOS_FASE.dieciseis, fase: 'Dieciseisavos' };
+  });
+
+  // Octavos / Previa
+  ps.filter(p => (p.fase==='previa' || p.fase==='octavos') && p.estado==='finalizado').forEach(p => {
+    if (!p.resultado?.perdedorId || puntosAsignados[p.resultado.perdedorId]) return;
+    puntosAsignados[p.resultado.perdedorId] = { pts: PUNTOS_FASE.octavos, fase: 'Octavos/Previa' };
+  });
+
+  // Eliminados en zona
   const zonas = await getDocs(collection(db, 'torneos', torneoId, 'zonas'));
   zonas.docs.forEach(d => {
-    const z = d.data();
-    // Las parejas de zona que no aparecen en eliminatorios
-    (z.parejas || []).forEach(pid => {
-      if (!posicionados[pid]) posicionados[pid] = 99;
+    (d.data().parejas || []).forEach(pid => {
+      if (!puntosAsignados[pid]) {
+        puntosAsignados[pid] = { pts: PUNTOS_FASE.grupos, fase: 'Grupos' };
+      }
     });
   });
 
-  // Construir array RESULTADOS ordenado por posición
-  Object.entries(posicionados)
-    .sort((a,b) => a[1]-b[1])
-    .forEach(([pid, pos]) => {
+  // Construir RESULTADOS ordenado por puntos
+  const ordenPts = [100,90,80,75,60,50,40,35];
+  Object.entries(puntosAsignados)
+    .sort((a,b) => b[1].pts - a[1].pts)
+    .forEach(([pid, info], i) => {
       const p = parejas[pid];
       if (!p) return;
       RESULTADOS.push({
-        pos, parejaId: pid,
+        pos: i+1, parejaId: pid,
         pareja: `${p.j1Nombre} / ${p.j2Nombre}`,
-        j1: p.j1Nombre, j2: p.j2Nombre
+        j1: p.j1Nombre, j2: p.j2Nombre,
+        pts: info.pts, fase: info.fase
       });
     });
 
-  // Si el torneo todavía no terminó, mostrar todas las parejas con pos tentativa
+  // Si no hay resultados todavía, mostrar todas las parejas
   if (RESULTADOS.length === 0) {
     Object.entries(parejas).forEach(([pid, p], i) => {
       RESULTADOS.push({
         pos: i+1, parejaId: pid,
         pareja: `${p.j1Nombre} / ${p.j2Nombre}`,
-        j1: p.j1Nombre, j2: p.j2Nombre
+        j1: p.j1Nombre, j2: p.j2Nombre,
+        pts: PUNTOS_FASE.grupos, fase: 'En curso'
       });
     });
   }
@@ -591,13 +628,16 @@ function getEtapas(n) {
   return etapas;
 }
 
-function getPts(pos) {
-  const etapas = getEtapas(TOTAL_PAREJAS);
-  for (let i = etapas.length-1; i >= 0; i--) {
-    if (pos >= etapas[i].pos) {
-      return scoring[etapas[i].pos] !== undefined ? scoring[etapas[i].pos] : etapas[i].default;
-    }
+function getPts(pos, ptsDirecto) {
+  // Si tiene puntos directos asignados por fase, usarlos
+  if (ptsDirecto !== undefined) return ptsDirecto;
+  // Fallback a escala por posición
+  const escala = {1:100, 2:90, 3:80, 4:75, 5:60, 9:50, 99:35};
+  for (const [p, pts] of Object.entries(escala).sort((a,b)=>b[0]-a[0])) {
+    if (pos >= parseInt(p)) return pts;
   }
+  return 35;
+}
   return 0;
 }
 
@@ -634,13 +674,15 @@ function renderPuntajesResultados() {
     return;
   }
   wrap.innerHTML = RESULTADOS.map(r => {
-    const pts = getPts(r.pos);
+    const pts = r.pts !== undefined ? r.pts : getPts(r.pos);
     const pc  = r.pos===1?'pos-1':r.pos===2?'pos-2':r.pos===3?'pos-3':'pos-otro';
+    const faseLabel = r.fase ? `<div style="font-size:10px;color:var(--muted);letter-spacing:1px;">${r.fase}</div>` : '';
     return `<div class="puntaje-row">
       <span class="puntaje-pos ${pc}">${r.pos===99?'—':r.pos+'°'}</span>
       <div class="puntaje-pareja">
         <div class="puntaje-nombre">${r.pareja}</div>
         <div class="puntaje-jugadores">${r.j1} · ${r.j2}</div>
+        ${faseLabel}
       </div>
       <div class="puntaje-pts">${pts} <span>c/u</span></div>
     </div>`;
