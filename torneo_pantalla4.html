@@ -253,6 +253,19 @@ function generarRoundRobin(parejas, zonaId) {
   return partidos;
 }
 
+// Zona de 4 con formato especial: A vs B y C vs D, luego ganadores entre sí y perdedores entre sí
+function generarZona4Especial(parejas, zonaId) {
+  const ids = parejas.map(p => p.id || p);
+  return [
+    // Ronda 1
+    { fase:'zona', zonaId, subfase:'r1', pareja1Id: ids[0], pareja2Id: ids[1], estado:'pendiente', resultado:null, orden_zona:1 },
+    { fase:'zona', zonaId, subfase:'r1', pareja1Id: ids[2], pareja2Id: ids[3], estado:'pendiente', resultado:null, orden_zona:2 },
+    // Ronda 2 — cruces según resultado de ronda 1 (placeholders)
+    { fase:'zona', zonaId, subfase:'r2', pareja1Id: `G_${zonaId}_r1_1`, pareja2Id: `G_${zonaId}_r1_2`, estado:'pendiente', resultado:null, orden_zona:3, esDefinicion: true, label:'1° y 2° del grupo' },
+    { fase:'zona', zonaId, subfase:'r2', pareja1Id: `P_${zonaId}_r1_1`, pareja2Id: `P_${zonaId}_r1_2`, estado:'pendiente', resultado:null, orden_zona:4, esDefinicion: true, label:'3° del grupo y eliminado' },
+  ];
+}
+
 // ── MOTOR DE FIXTURE INTELIGENTE ─────────────────────────
 
 // Calcula slots disponibles de una pareja
@@ -531,21 +544,28 @@ function generarFixture(parejas) {
     const zonasConfig = torneoConfig.zonasConfig;
     console.log('zonasConfig length:', zonasConfig?.length, 'parejas.length:', parejas.length);
     if (zonasConfig?.length > 0) {
-      // Distribuir según compatibilidad horaria
       const zonas = distribuirEnZonas(parejas, zonasConfig, slotsZonas);
       zonasData = zonas.map(z => ({...z, parejas: z.parejas.map(p => p.id || p)}));
       zonas.forEach(zona => {
-        partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+        // Zona de 4 usa formato especial
+        if (zona.parejas.length === 4) {
+          partidos.push(...generarZona4Especial(zona.parejas, zona.id));
+        } else {
+          partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+        }
       });
     } else {
-      // Sin zonasConfig — distribuir en grupos de 4 por compatibilidad
       const porZona = 4;
       const nZonas = Math.ceil(parejas.length / porZona);
       const zonasConfigAuto = Array.from({length: nZonas}, () => ({ parejas: porZona, clasifican: 2 }));
       const zonas = distribuirEnZonas(parejas, zonasConfigAuto, slotsZonas);
       zonasData = zonas;
       zonas.forEach(zona => {
-        partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+        if (zona.parejas.length === 4) {
+          partidos.push(...generarZona4Especial(zona.parejas, zona.id));
+        } else {
+          partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+        }
       });
     }
   } else {

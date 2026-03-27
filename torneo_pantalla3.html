@@ -739,11 +739,12 @@ if (storedTorneoId) {
       };
       const fbApp2 = getApps2().find(a=>a.name==='p3-app') || initApp2(fbConf2, 'p3-app');
       const fbDb2 = getFs2(fbApp2);
-      const parejasSnap = await getDocs(query(collection(fbDb2, 'torneos', storedTorneoId, 'parejas'), orderBy('seed')));
+      const parejasSnap = await getDocs(collection(fbDb2, 'torneos', storedTorneoId, 'parejas'));
 
       if (!parejasSnap.empty) {
-        // Cargar parejas existentes
-        const parejasData = parejasSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Cargar parejas existentes ordenadas por seed
+        const parejasData = parejasSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (a.seed || 0) - (b.seed || 0));
         parejasData.forEach((data, i) => {
           const id = data.id;
           parejas.push({ id });
