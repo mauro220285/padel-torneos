@@ -1136,10 +1136,12 @@ async function renderRanking() {
       const j = d.data();
       if (j.puntosAnuales?.[anio]) {
         const cat = j.categoria || j.historial?.find(h=>h.categoria)?.categoria || 'General';
+        const catTorneo = j.categoriaTorneo || j.historial?.find(h=>h.categoriaTorneo)?.categoriaTorneo || '';
         acumulado[j.nombreDisplay || d.id] = {
           pts: j.puntosAnuales[anio],
           torneos: j.historial?.filter(h=>h.fecha?.startsWith(anio)).length || 1,
-          categoria: cat
+          categoria: cat,
+          categoriaTorneo: catTorneo
         };
       }
     });
@@ -1159,22 +1161,26 @@ async function renderRanking() {
     });
   }
 
-  // Separar por categoría
-  const porCategoria = {};
+  // Ordenar categorías de torneo
+  const ORDEN_CAT_TORNEO = ['Octava','Séptima','Sexta','Quinta','Cuarta','Tercera','Segunda','Primera'];
+  const ORDEN_GENERO = ['Caballeros','Damas','General'];
+
+  // Agrupar por género y categoría de torneo
+  const porGenero = {};
   Object.entries(acumulado).forEach(([jugador, datos]) => {
-    const cat = datos.categoria || 'General';
-    if (!porCategoria[cat]) porCategoria[cat] = [];
-    porCategoria[cat].push([jugador, datos]);
+    const gen = datos.categoria || 'General';
+    const catT = datos.categoriaTorneo || 'Sin categoría';
+    if (!porGenero[gen]) porGenero[gen] = {};
+    if (!porGenero[gen][catT]) porGenero[gen][catT] = [];
+    porGenero[gen][catT].push([jugador, datos]);
   });
 
-  // Ordenar categorías: Caballeros, Damas, General, resto
-  const ordenCats = ['Caballeros','Damas','General'];
-  const cats = [...new Set([...ordenCats.filter(c => porCategoria[c]), ...Object.keys(porCategoria).filter(c => !ordenCats.includes(c))])];
+  const generos = ORDEN_GENERO.filter(g => porGenero[g]);
 
-  function renderTablaCategoria(nombre, datos) {
+  function renderTablaCategoria(catNombre, datos) {
     const sorted = datos.sort((a,b)=>b[1].pts-a[1].pts);
-    return `<div style="margin-bottom:20px;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:4px;color:var(--azul);padding:8px 0 4px;">${nombre.toUpperCase()}</div>
+    return `<div style="margin-bottom:16px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--azul);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px;">${catNombre.toUpperCase()}</div>
       <div class="tabla-row header-row">
         <span class="tabla-pos" style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;">#</span>
         <span class="tabla-jugador">Jugador</span>
@@ -1193,11 +1199,23 @@ async function renderRanking() {
     </div>`;
   }
 
+  function renderGenero(gen) {
+    const catsTorneo = porGenero[gen] || {};
+    const catsConDatos = ORDEN_CAT_TORNEO.filter(c => catsTorneo[c]);
+    const otrasKeys = Object.keys(catsTorneo).filter(c => !ORDEN_CAT_TORNEO.includes(c));
+    const todasCats = [...catsConDatos, ...otrasKeys];
+    return todasCats.map(cat => renderTablaCategoria(cat, catsTorneo[cat])).join('');
+  }
+
   wrap.innerHTML = `<div style="padding:12px 16px;">
     <div class="tabla-aviso">Acumulado ${anio} · Puntos por jugador individual</div>
-    ${cats.length === 0
+    ${generos.length === 0
       ? '<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center;">Sin datos de ranking aún</div>'
-      : cats.map(cat => renderTablaCategoria(cat, porCategoria[cat])).join('')
+      : generos.map(gen => `
+        <div style="margin-bottom:24px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;color:#fff;padding:10px 0 8px;">${gen.toUpperCase()}</div>
+          ${renderGenero(gen)}
+        </div>`).join('')
     }
   </div>
   <div class="btns-compartir">
@@ -1387,8 +1405,9 @@ window.leerCSV = function(input) {
         const fecha    = cols[3] || '';
         const puntos   = parseInt(cols[4]) || 0;
         const categoria = cols[5] || 'General';
+        const categoria_torneo = cols[6] || '';
         if (jugador && puntos > 0) {
-          csvDatos.push({ jugador, torneo, cancha, fecha, puntos, categoria });
+          csvDatos.push({ jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo });
           html += `<div class="csv-preview-row"><span class="csv-ok">✓</span><span style="flex:1">${jugador}</span><span style="font-size:11px;color:var(--muted);margin-right:8px;">${categoria}</span><span style="color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;">${puntos}</span></div>`;
         } else {
           html += `<div class="csv-preview-row"><span class="csv-err">✗</span><span style="flex:1;color:var(--muted)">Fila ${i+1}: inválida</span></div>`;
@@ -1414,8 +1433,10 @@ window.importarCSV = async function() {
     const snap = await getDoc(ref);
     const data = snap.exists() ? snap.data() : { nombreDisplay: r.jugador, historial: [], puntosAnuales: {} };
     const cat = r.categoria || 'General';
+    const catTorneo = r.categoria_torneo || '';
     if (!data.categoria) data.categoria = cat;
-    data.historial.push({ torneoNombre: r.torneo, canchaExterna: r.cancha, fecha: r.fecha, puntos: r.puntos, externo: true, categoria: cat });
+    if (catTorneo && !data.categoriaTorneo) data.categoriaTorneo = catTorneo;
+    data.historial.push({ torneoNombre: r.torneo, canchaExterna: r.cancha, fecha: r.fecha, puntos: r.puntos, externo: true, categoria: cat, categoriaTorneo: catTorneo });
     data.puntosAnuales[anio] = (data.puntosAnuales[anio]||0) + r.puntos;
     if (!data.puntosAnualesCat) data.puntosAnualesCat = {};
     if (!data.puntosAnualesCat[cat]) data.puntosAnualesCat[cat] = {};
