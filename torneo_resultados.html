@@ -35,6 +35,16 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 .header-right:hover { background:rgba(0,212,255,0.08); }
 
 
+.steps { display:flex; align-items:center; width:100%; max-width:500px; padding:20px 20px 4px; }
+.step { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; position:relative; }
+.step:not(:last-child)::after { content:''; position:absolute; top:14px; left:55%; right:-45%; height:1px; background:var(--border); }
+.step.done:not(:last-child)::after, .step.active:not(:last-child)::after { background:var(--azul); }
+.step-num { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:14px; border:1.5px solid var(--border); color:var(--muted); background:var(--bg2); z-index:1; }
+.step.active .step-num { background:var(--azul); border-color:var(--azul); color:#fff; box-shadow:0 0 14px rgba(74,158,255,0.5); }
+.step.done .step-num { background:#1a3a6e; border-color:var(--azul); color:var(--azul); }
+.step-label { font-family:'Oswald',sans-serif; font-size:9px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+.step.active .step-label, .step.done .step-label { color:var(--azul); }
+
 .page-title { width:100%; max-width:500px; padding:20px 20px 6px; }
 .page-title h2 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:4px; color:#fff; line-height:1; }
 .page-title p { font-size:13px; color:var(--label); letter-spacing:1px; margin-top:4px; }
@@ -142,6 +152,15 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   <a class="header-back" href="index.html">← INICIO</a>
   <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
   <a class="header-right" href="torneo_publico.html">👁️ PÚBLICA</a>
+</div>
+
+<div class="steps">
+  <div class="step done" onclick="window.location.href='torneo_pantalla1.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Cancha</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla2.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla3.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Parejas</div></div>
+  <div class="step done" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Revisión</div></div>
+  <div class="step active"><div class="step-num">R</div><div class="step-label">Resultados</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
 <div class="page-title">
