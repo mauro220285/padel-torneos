@@ -1555,9 +1555,19 @@ window.generarImagenFixture = async function() {
   const zonas = {};
   zonasSnap.docs.forEach(d => { zonas[d.id] = d.data(); });
 
+  function apellido(nombre) {
+    return nombre ? nombre.trim().split(' ').pop() : '?';
+  }
   function nombreP(id) {
     const p = parejas[id];
-    return p ? `${p.j1Nombre} / ${p.j2Nombre}` : id;
+    if (!p) return id;
+    const num = p.numFixture ? `P${p.numFixture}` : '';
+    const aps = `${apellido(p.j1Nombre)}/${apellido(p.j2Nombre)}`;
+    return num ? `${num} · ${aps}` : aps;
+  }
+  function numP(id) {
+    const p = parejas[id];
+    return p?.numFixture ? `P${p.numFixture}` : nombreP(id);
   }
 
   // Agrupar partidos por día
@@ -1650,7 +1660,7 @@ window.generarImagenFixture = async function() {
       ctx.fillText(p.hora || '--:--', 50, y + 24);
       ctx.fillStyle = '#e0e0f0';
       ctx.font = '18px Oswald, Arial';
-      const texto = `${nombreP(p.pareja1Id)}  vs  ${nombreP(p.pareja2Id)}`;
+      const texto = p.label || `${numP(p.pareja1Id)}  vs  ${numP(p.pareja2Id)}`;
       ctx.fillText(texto, 160, y + 24);
       ctx.fillStyle = '#666';
       ctx.font = '14px Oswald, Arial';
