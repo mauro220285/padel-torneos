@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Ranking — Padel Team</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:   #4a9eff;
+  --bg:     #0a0a0f;
+  --bg2:    #111118;
+  --bg3:    #18181f;
+  --border: #222230;
+  --text:   #e0e0f0;
+  --muted:  #555570;
+  --label:  #7a7a99;
+  --verde:  #4caf50;
+  --amarillo: #f0b429;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Oswald', sans-serif; min-height: 100vh; }
+
+.app-header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header-logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 4px; color: #fff; }
+.header-logo span { color: var(--azul); }
+.header-cancha { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+
+.anio-selector {
+  display: flex;
+  gap: 8px;
+  padding: 16px 20px 8px;
+  overflow-x: auto;
+}
+.anio-btn {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--muted);
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.anio-btn.activo { background: rgba(74,158,255,0.1); border-color: var(--azul); color: var(--azul); }
+
+.cat-tabs {
+  display: flex;
+  padding: 8px 20px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.cat-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg2);
+  color: var(--muted);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.cat-tab.activo { background: rgba(74,158,255,0.1); color: var(--azul); }
+
+.ranking-wrap { padding: 12px 0; }
+
+.ranking-header {
+  display: flex;
+  padding: 6px 20px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.ranking-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  transition: background 0.15s;
+}
+.ranking-row:last-child { border-bottom: none; }
+.ranking-row:active { background: var(--bg2); }
+
+.r-pos {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  width: 32px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.r-pos.p1 { color: #ffd700; }
+.r-pos.p2 { color: #c0c0c0; }
+.r-pos.p3 { color: #cd7f32; }
+.r-pos.otro { color: var(--muted); }
+
+.r-info { flex: 1; min-width: 0; }
+.r-nombre { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-torneos { font-size: 11px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+
+.r-pts {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 26px;
+  color: var(--azul);
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
+.r-pts span { font-family: 'Oswald', sans-serif; font-size: 10px; color: var(--muted); }
+
+.loading { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; letter-spacing: 2px; }
+.empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
+
+.share-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  padding: 12px 20px;
+  display: flex;
+  gap: 8px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+.btn-share {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: 2px;
+  cursor: pointer;
+}
+.btn-wa { background: rgba(37,211,102,0.1); border: 1px solid #25d366; color: #25d366; }
+.btn-copy { background: rgba(74,158,255,0.1); border: 1px solid var(--azul); color: var(--azul); }
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30,30,50,0.95);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 100;
+}
+.toast.show { opacity: 1; }
+
+.page-content { padding-bottom: 80px; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <div>
+    <div class="header-logo">PADEL <span>TEAM</span> · RANKING</div>
+    <div class="header-cancha" id="headerCancha">Cargando...</div>
+  </div>
+</div>
+
+<div class="page-content">
+  <div class="anio-selector" id="anioSelector"></div>
+
+  <div class="cat-tabs">
+    <button class="cat-tab activo" id="tab-caballeros" onclick="selCat('Caballeros')">⚡ CABALLEROS</button>
+    <button class="cat-tab" id="tab-damas" onclick="selCat('Damas')">⚡ DAMAS</button>
+  </div>
+
+  <div class="ranking-wrap">
+    <div class="ranking-header">
+      <span style="width:32px;margin-right:12px;">#</span>
+      <span style="flex:1">Jugador</span>
+      <span>Pts</span>
+    </div>
+    <div id="rankingList"><div class="loading">Cargando ranking...</div></div>
+  </div>
+</div>
+
+<div class="share-bar">
+  <button class="btn-share btn-wa" onclick="compartirWA()">💬 Compartir WA</button>
+  <button class="btn-share btn-copy" onclick="copiarLink()">🔗 Copiar link</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, getDocs, collection }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain: "padel-team-76749.firebaseapp.com",
+  projectId: "padel-team-76749",
+  storageBucket: "padel-team-76749.firebasestorage.app",
+  messagingSenderId: "449257104174",
+  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let todosJugadores = [];
+let anioActivo = new Date().getFullYear().toString();
+let catActiva = 'Caballeros';
+let nombreCancha = 'PADEL TEAM';
+
+async function cargar() {
+  // Config cancha
+  try {
+    const cSnap = await getDoc(doc(db, 'config', 'cancha'));
+    if (cSnap.exists()) {
+      nombreCancha = cSnap.data().nombre || 'PADEL TEAM';
+      const color = cSnap.data().colorPrincipal;
+      if (color) document.documentElement.style.setProperty('--azul', color);
+      document.getElementById('headerCancha').textContent = nombreCancha;
+      document.title = `Ranking · ${nombreCancha}`;
+    }
+  } catch(e) {}
+
+  // Jugadores
+  const snap = await getDocs(collection(db, 'jugadores'));
+  todosJugadores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  // Detectar años disponibles
+  const anios = new Set();
+  todosJugadores.forEach(j => {
+    Object.keys(j.puntosAnuales || {}).forEach(a => anios.add(a));
+  });
+  const aniosOrden = [...anios].sort().reverse();
+  if (aniosOrden.length === 0) aniosOrden.push(anioActivo);
+
+  // Render selector de año
+  const sel = document.getElementById('anioSelector');
+  sel.innerHTML = aniosOrden.map(a =>
+    `<button class="anio-btn ${a===anioActivo?'activo':''}" onclick="selAnio('${a}',this)">${a}</button>`
+  ).join('');
+
+  renderRanking();
+}
+
+function renderRanking() {
+  const list = document.getElementById('rankingList');
+  const jugadoresFiltrados = todosJugadores
+    .filter(j => {
+      const cat = j.categoria || j.historial?.find(h=>h.categoria)?.categoria || 'General';
+      return cat === catActiva || (catActiva === 'General' && cat === 'General');
+    })
+    .filter(j => j.puntosAnuales?.[anioActivo] > 0)
+    .map(j => ({
+      nombre: j.nombreDisplay || j.id,
+      pts: j.puntosAnuales?.[anioActivo] || 0,
+      torneos: j.historial?.filter(h => h.fecha?.startsWith(anioActivo)).length || 0
+    }))
+    .sort((a, b) => b.pts - a.pts);
+
+  if (jugadoresFiltrados.length === 0) {
+    list.innerHTML = '<div class="empty">Sin datos de ranking para esta categoría</div>';
+    return;
+  }
+
+  list.innerHTML = jugadoresFiltrados.map((j, i) => {
+    const pos = i + 1;
+    const pc = pos===1?'p1':pos===2?'p2':pos===3?'p3':'otro';
+    return `<div class="ranking-row">
+      <div class="r-pos ${pc}">${pos}</div>
+      <div class="r-info">
+        <div class="r-nombre">${j.nombre}</div>
+        <div class="r-torneos">${j.torneos} torneo${j.torneos !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="r-pts">${j.pts} <span>pts</span></div>
+    </div>`;
+  }).join('');
+}
+
+window.selAnio = function(anio, btn) {
+  anioActivo = anio;
+  document.querySelectorAll('.anio-btn').forEach(b => b.classList.remove('activo'));
+  btn.classList.add('activo');
+  renderRanking();
+};
+
+window.selCat = function(cat) {
+  catActiva = cat;
+  document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('activo'));
+  document.getElementById('tab-' + cat.toLowerCase())?.classList.add('activo');
+  renderRanking();
+};
+
+window.compartirWA = function() {
+  const url = encodeURIComponent(window.location.href);
+  const txt = encodeURIComponent(`🎾 Ranking ${catActiva} ${anioActivo} - ${nombreCancha}\n${window.location.href}`);
+  window.open(`https://wa.me/?text=${txt}`, '_blank');
+};
+
+window.copiarLink = function() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    showToast('✓ Link copiado');
+  });
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+cargar();
+</script>
+</body>
+</html>
