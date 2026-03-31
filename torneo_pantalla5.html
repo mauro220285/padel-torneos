@@ -1392,7 +1392,7 @@ window.leerCSV = function(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
-    const lines = e.target.result.split('\n').filter(l=>l.trim());
+    const lines = e.target.result.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());
     csvDatos = [];
     let html = '';
     lines.forEach((line, i) => {
@@ -1408,7 +1408,7 @@ window.leerCSV = function(input) {
         const categoria_torneo = cols[6] || '';
         if (jugador && puntos > 0) {
           csvDatos.push({ jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo });
-          html += `<div class="csv-preview-row"><span class="csv-ok">✓</span><span style="flex:1">${jugador}</span><span style="font-size:11px;color:var(--muted);margin-right:8px;">${categoria}</span><span style="color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;">${puntos}</span></div>`;
+          html += `<div class="csv-preview-row"><span class="csv-ok">✓</span><span style="flex:1">${jugador}</span><span style="font-size:11px;color:var(--muted);margin-right:8px;">${categoria}${categoria_torneo ? ' · '+categoria_torneo : ''}</span><span style="color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;">${puntos}</span></div>`;
         } else {
           html += `<div class="csv-preview-row"><span class="csv-err">✗</span><span style="flex:1;color:var(--muted)">Fila ${i+1}: inválida</span></div>`;
         }
@@ -1435,7 +1435,7 @@ window.importarCSV = async function() {
     const cat = r.categoria || 'General';
     const catTorneo = r.categoria_torneo || '';
     if (!data.categoria) data.categoria = cat;
-    if (catTorneo && !data.categoriaTorneo) data.categoriaTorneo = catTorneo;
+    if (catTorneo) data.categoriaTorneo = catTorneo;
     data.historial.push({ torneoNombre: r.torneo, canchaExterna: r.cancha, fecha: r.fecha, puntos: r.puntos, externo: true, categoria: cat, categoriaTorneo: catTorneo });
     data.puntosAnuales[anio] = (data.puntosAnuales[anio]||0) + r.puntos;
     if (!data.puntosAnualesCat) data.puntosAnualesCat = {};
