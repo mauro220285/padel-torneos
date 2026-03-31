@@ -264,9 +264,11 @@ async function init() {
 
 // ── TABLA DE POSICIONES ──────────────────────────────────
 function calcularTabla(zonaId) {
+  const esVirtual = id => /^[GP]_zona_/.test(id);
   const ids = [...new Set(
     partidos.filter(p => p.fase==='zona' && p.zonaId===`zona_${zonaId}`)
       .flatMap(p => [p.pareja1Id, p.pareja2Id])
+      .filter(id => !esVirtual(id))
   )];
   const tabla = {};
   ids.forEach(id => { tabla[id] = {PJ:0,PG:0,PP:0,setsG:0,setsP:0,gamesG:0,gamesP:0,pts:0}; });
