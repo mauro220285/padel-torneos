@@ -234,11 +234,28 @@ function generarSlotsDias(config, indicesDias) {
 // Devuelve el nombre de una pareja dado su ID o etiqueta
 function nombrePareja(id) {
   if (!id) return '?';
+  // Placeholders de zona 4
+  if (id.startsWith('G_') || id.startsWith('P_')) return id;
   const p = parejaMap[id];
   if (p && (p.j1Nombre || p.j2Nombre)) {
-    return [p.j1Nombre, p.j2Nombre].filter(Boolean).join(' / ');
+    const num = p.numFixture ? `P${p.numFixture} ` : '';
+    // Mostrar solo apellidos (primera palabra de cada nombre)
+    const ap1 = p.j1Nombre ? p.j1Nombre.split(' ')[0] : '';
+    const ap2 = p.j2Nombre ? p.j2Nombre.split(' ')[0] : '';
+    return `${num}${[ap1, ap2].filter(Boolean).join('/')}`;
   }
-  return id; // fallback al ID si no hay nombre
+  return id;
+}
+
+function nombreParejaCompleto(id) {
+  if (!id) return '?';
+  if (id.startsWith('G_') || id.startsWith('P_')) return id;
+  const p = parejaMap[id];
+  if (p && (p.j1Nombre || p.j2Nombre)) {
+    const num = p.numFixture ? `P${p.numFixture} · ` : '';
+    return `${num}${[p.j1Nombre, p.j2Nombre].filter(Boolean).join(' / ')}`;
+  }
+  return id;
 }
 
 // Round Robin: genera todos los partidos entre un array de parejas (objetos o IDs)
@@ -256,13 +273,16 @@ function generarRoundRobin(parejas, zonaId) {
 // Zona de 4 con formato especial: A vs B y C vs D, luego ganadores entre sí y perdedores entre sí
 function generarZona4Especial(parejas, zonaId) {
   const ids = parejas.map(p => p.id || p);
+  // Obtener números globales si están disponibles
+  const num = ids.map(id => parejaMap[id]?.numFixture || null);
+  const n = (i) => num[i] ? `P${num[i]}` : `P${i+1}`;
   return [
     // Ronda 1
     { fase:'zona', zonaId, subfase:'r1', pareja1Id: ids[0], pareja2Id: ids[1], estado:'pendiente', resultado:null, orden_zona:1 },
     { fase:'zona', zonaId, subfase:'r1', pareja1Id: ids[2], pareja2Id: ids[3], estado:'pendiente', resultado:null, orden_zona:2 },
-    // Ronda 2 — cruces según resultado de ronda 1 (placeholders)
-    { fase:'zona', zonaId, subfase:'r2', pareja1Id: `G_${zonaId}_r1_1`, pareja2Id: `G_${zonaId}_r1_2`, estado:'pendiente', resultado:null, orden_zona:3, esDefinicion: true, label:'1° y 2° del grupo' },
-    { fase:'zona', zonaId, subfase:'r2', pareja1Id: `P_${zonaId}_r1_1`, pareja2Id: `P_${zonaId}_r1_2`, estado:'pendiente', resultado:null, orden_zona:4, esDefinicion: true, label:'3° del grupo y eliminado' },
+    // Ronda 2 — cruces según resultado de ronda 1
+    { fase:'zona', zonaId, subfase:'r2', pareja1Id: `G_${zonaId}_r1_1`, pareja2Id: `G_${zonaId}_r1_2`, estado:'pendiente', resultado:null, orden_zona:3, esDefinicion: true, label:`GAN ${n(0)}v${n(1)} vs GAN ${n(2)}v${n(3)}` },
+    { fase:'zona', zonaId, subfase:'r2', pareja1Id: `P_${zonaId}_r1_1`, pareja2Id: `P_${zonaId}_r1_2`, estado:'pendiente', resultado:null, orden_zona:4, esDefinicion: true, label:`PER ${n(0)}v${n(1)} vs PER ${n(2)}v${n(3)}` },
   ];
 }
 
@@ -727,7 +747,8 @@ window.renderFixture = function() {
           <div class="partido-info">
             <div class="partido-zona">${zonaLabel}</div>
             <div class="partido-parejas" style="${p.esLlave?'color:var(--muted);font-style:italic;':''}">
-              ${nombrePareja(p.pareja1Id)} <span style="color:var(--muted)">vs</span> ${nombrePareja(p.pareja2Id)}
+              ${p.label ? `<span style="color:var(--amarillo);font-size:12px;letter-spacing:1px;">${p.label}</span>` 
+                : `${nombrePareja(p.pareja1Id)} <span style="color:var(--muted)">vs</span> ${nombrePareja(p.pareja2Id)}`}
             </div>
           </div>
           <div class="partido-acciones">
@@ -873,6 +894,19 @@ window.confirmarFixture = async function() {
 
   showToast('Guardando fixture...');
   try {
+    // 0. Asignar números globales a parejas según orden de zonas
+    let numGlobal = 1;
+    const numPorPareja = {}; // parejaId -> número global
+    zonasData.forEach(z => {
+      (z.parejas || []).forEach(pid => {
+        numPorPareja[pid] = numGlobal++;
+      });
+    });
+
+    // Guardar número en cada pareja
+    await Promise.all(Object.entries(numPorPareja).map(([pid, num]) =>
+      updateDoc(doc(db,'torneos',torneoId,'parejas',pid), { numFixture: num })
+    ));
     // 1. Guardar partidos de zona
     await Promise.all(fixture.map((p,i) => {
       const id = `partido_${String(i+1).padStart(3,'0')}`;
