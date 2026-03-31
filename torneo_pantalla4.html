@@ -530,6 +530,9 @@ async function cargarYGenerar() {
   // Ver si ya hay fixture confirmado
   const metaSnap = await getDoc(doc(db,'torneos',torneoId,'fixture','meta'));
   if (metaSnap.exists() && metaSnap.data().confirmado) {
+    // Poblar parejaMap para que nombrePareja() funcione
+    parejaMap = {};
+    parejas.forEach(p => { parejaMap[p.id] = p; });
     const pSnap2 = await getDocs(query(collection(db,'torneos',torneoId,'partidos'),orderBy('orden')));
     fixture = pSnap2.docs.map(d => ({id:d.id,...d.data()}));
   } else {
