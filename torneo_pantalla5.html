@@ -409,10 +409,11 @@ body {
     <div class="informe-body">
       <div style="padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
 
-        <!-- Tabs manual / CSV -->
+        <!-- Tabs manual / CSV / Eliminar -->
         <div class="ext-tabs">
           <button class="ext-tab activa" onclick="selExtTab(this,'manual')">✏️ Manual</button>
           <button class="ext-tab" onclick="selExtTab(this,'csv')">📄 CSV</button>
+          <button class="ext-tab" onclick="selExtTab(this,'eliminar');cargarTorneosExternos()">🗑️ Eliminar</button>
         </div>
 
         <!-- MANUAL -->
@@ -445,6 +446,11 @@ body {
           <div id="csv-preview"></div>
           <button class="btn-share btn-share-wa" style="margin-top:8px;display:none;" id="btn-importar" onclick="importarCSV()">💾 Importar puntos</button>
           <div class="csv-nota">💡 También podés mandarme una foto del Excel o PDF y te genero el CSV listo para subir acá.</div>
+        </div>
+
+        <!-- ELIMINAR -->
+        <div class="ext-panel" id="ext-eliminar">
+          <div id="torneos-externos-lista"><div style="color:var(--muted);font-size:13px;padding:8px 0;">Cargando torneos...</div></div>
         </div>
 
       </div>
@@ -1129,9 +1135,11 @@ async function renderRanking() {
     jSnap.docs.forEach(d => {
       const j = d.data();
       if (j.puntosAnuales?.[anio]) {
+        const cat = j.categoria || j.historial?.find(h=>h.categoria)?.categoria || 'General';
         acumulado[j.nombreDisplay || d.id] = {
           pts: j.puntosAnuales[anio],
-          torneos: j.historial?.filter(h=>h.fecha?.startsWith(anio)).length || 1
+          torneos: j.historial?.filter(h=>h.fecha?.startsWith(anio)).length || 1,
+          categoria: cat
         };
       }
     });
@@ -1151,19 +1159,29 @@ async function renderRanking() {
     });
   }
 
-  const sorted = Object.entries(acumulado).sort((a,b)=>b[1].pts-a[1].pts);
+  // Separar por categoría
+  const porCategoria = {};
+  Object.entries(acumulado).forEach(([jugador, datos]) => {
+    const cat = datos.categoria || 'General';
+    if (!porCategoria[cat]) porCategoria[cat] = [];
+    porCategoria[cat].push([jugador, datos]);
+  });
 
-  wrap.innerHTML = `<div style="padding:12px 16px;">
-    <div class="tabla-aviso">Acumulado ${anio} · Puntos por jugador individual</div>
-    <div class="tabla-row header-row">
-      <span class="tabla-pos" style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;">#</span>
-      <span class="tabla-jugador">Jugador</span>
-      <span class="tabla-torneos" title="Torneos jugados">T</span>
-      <span class="tabla-pts-total">Pts</span>
-    </div>
-    ${sorted.length === 0
-      ? '<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center;">Sin datos de ranking aún</div>'
-      : sorted.map(([j,d],i) => {
+  // Ordenar categorías: Caballeros, Damas, General, resto
+  const ordenCats = ['Caballeros','Damas','General'];
+  const cats = [...new Set([...ordenCats.filter(c => porCategoria[c]), ...Object.keys(porCategoria).filter(c => !ordenCats.includes(c))])];
+
+  function renderTablaCategoria(nombre, datos) {
+    const sorted = datos.sort((a,b)=>b[1].pts-a[1].pts);
+    return `<div style="margin-bottom:20px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:4px;color:var(--azul);padding:8px 0 4px;">${nombre.toUpperCase()}</div>
+      <div class="tabla-row header-row">
+        <span class="tabla-pos" style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;">#</span>
+        <span class="tabla-jugador">Jugador</span>
+        <span class="tabla-torneos" title="Torneos jugados">T</span>
+        <span class="tabla-pts-total">Pts</span>
+      </div>
+      ${sorted.map(([j,d],i) => {
         const pos=i+1, pc=pos===1?'pos-1':pos===2?'pos-2':pos===3?'pos-3':'pos-otro';
         return `<div class="tabla-row">
           <span class="tabla-pos ${pc}">${pos}</span>
@@ -1171,7 +1189,15 @@ async function renderRanking() {
           <span class="tabla-torneos">${d.torneos}</span>
           <span class="tabla-pts-total">${d.pts}</span>
         </div>`;
-      }).join('')
+      }).join('')}
+    </div>`;
+  }
+
+  wrap.innerHTML = `<div style="padding:12px 16px;">
+    <div class="tabla-aviso">Acumulado ${anio} · Puntos por jugador individual</div>
+    ${cats.length === 0
+      ? '<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center;">Sin datos de ranking aún</div>'
+      : cats.map(cat => renderTablaCategoria(cat, porCategoria[cat])).join('')
     }
   </div>
   <div class="btns-compartir">
@@ -1258,6 +1284,76 @@ window.guardarExterno = async function() {
   renderRanking();
 };
 
+// ── ELIMINAR TORNEO EXTERNO ──────────────────────────────
+window.cargarTorneosExternos = async function() {
+  const wrap = document.getElementById('torneos-externos-lista');
+  wrap.innerHTML = '<div style="color:var(--muted);font-size:13px;">Cargando...</div>';
+
+  const snap = await getDocs(collection(db, 'jugadores'));
+  const torneos = {};
+
+  snap.docs.forEach(d => {
+    const j = d.data();
+    (j.historial || []).filter(h => h.externo).forEach(h => {
+      const key = `${h.torneoNombre}||${h.fecha}`;
+      if (!torneos[key]) torneos[key] = { nombre: h.torneoNombre, fecha: h.fecha, cancha: h.canchaExterna, jugadores: 0 };
+      torneos[key].jugadores++;
+    });
+  });
+
+  const lista = Object.entries(torneos);
+  if (lista.length === 0) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No hay torneos externos cargados</div>';
+    return;
+  }
+
+  wrap.innerHTML = lista.sort((a,b) => b[1].fecha?.localeCompare(a[1].fecha)).map(([key, t]) => `
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="font-family:'Oswald',sans-serif;font-size:14px;color:#fff;letter-spacing:1px;">${t.nombre}</div>
+      <div style="font-size:11px;color:var(--muted);margin:4px 0;">${t.cancha || ''} · ${t.fecha || ''} · ${t.jugadores} jugadores</div>
+      <button onclick="eliminarTorneoExterno('${key.replace(/'/g,"\\'")}')" 
+        style="margin-top:8px;padding:8px 16px;background:rgba(230,57,70,0.1);border:1px solid #e63946;border-radius:6px;color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;">
+        🗑️ ELIMINAR ESTE TORNEO
+      </button>
+    </div>`).join('');
+};
+
+window.eliminarTorneoExterno = async function(key) {
+  const [torneoNombre, fecha] = key.split('||');
+  if (!confirm(`¿Eliminar todos los puntos de "${torneoNombre}" (${fecha})?\nEsto no se puede deshacer.`)) return;
+
+  showToast('Eliminando...');
+  const snap = await getDocs(collection(db, 'jugadores'));
+  const anio = fecha?.slice(0,4) || '';
+
+  for (const d of snap.docs) {
+    const j = d.data();
+    const historialFiltrado = (j.historial || []).filter(h => !(h.externo && h.torneoNombre === torneoNombre && h.fecha === fecha));
+    
+    if (historialFiltrado.length === (j.historial || []).length) continue; // no cambió nada
+
+    // Recalcular puntos anuales
+    const puntosAnuales = {};
+    historialFiltrado.forEach(h => {
+      const a = h.fecha?.slice(0,4) || '';
+      if (a) puntosAnuales[a] = (puntosAnuales[a] || 0) + (h.puntos || 0);
+    });
+
+    // Sumar puntos del torneo propio si los hay
+    const ptsTorneoPropio = (j.puntosAnuales?.[anio] || 0) - 
+      (j.historial || []).filter(h => h.externo && h.torneoNombre === torneoNombre && h.fecha === fecha)
+        .reduce((s, h) => s + (h.puntos || 0), 0);
+    
+    if (ptsTorneoPropio > 0 && anio) puntosAnuales[anio] = (puntosAnuales[anio] || 0);
+
+    await setDoc(doc(db, 'jugadores', d.id), { ...j, historial: historialFiltrado, puntosAnuales });
+  }
+
+  showToast('✅ Torneo eliminado correctamente');
+  await cargarTorneosExternos();
+  await renderRanking();
+};
+
 // ── CARGAR EXTERNOS ──────────────────────────────────────
 async function cargarExternos() {
   externosGuardados = [];
@@ -1285,11 +1381,15 @@ window.leerCSV = function(input) {
       if (i===0 && line.toLowerCase().includes('jugador')) return;
       const cols = line.split(',').map(c=>c.trim());
       if (cols.length >= 4) {
-        const [jugador, torneo, cancha, fecha, puntos] = cols.length>=5 ? cols : [cols[0],cols[1],'',cols[2],cols[3]];
-        const pts = parseInt(puntos||cols[3]);
-        if (jugador && !isNaN(pts)) {
-          csvDatos.push({ jugador, torneo, cancha, fecha, puntos: pts });
-          html += `<div class="csv-preview-row"><span class="csv-ok">✓</span><span style="flex:1">${jugador}</span><span style="color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;">${pts}</span></div>`;
+        const jugador  = cols[0];
+        const torneo   = cols[1] || '';
+        const cancha   = cols[2] || '';
+        const fecha    = cols[3] || '';
+        const puntos   = parseInt(cols[4]) || 0;
+        const categoria = cols[5] || 'General';
+        if (jugador && puntos > 0) {
+          csvDatos.push({ jugador, torneo, cancha, fecha, puntos, categoria });
+          html += `<div class="csv-preview-row"><span class="csv-ok">✓</span><span style="flex:1">${jugador}</span><span style="font-size:11px;color:var(--muted);margin-right:8px;">${categoria}</span><span style="color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;">${puntos}</span></div>`;
         } else {
           html += `<div class="csv-preview-row"><span class="csv-err">✗</span><span style="flex:1;color:var(--muted)">Fila ${i+1}: inválida</span></div>`;
         }
@@ -1313,8 +1413,13 @@ window.importarCSV = async function() {
     const ref  = doc(db, 'jugadores', id);
     const snap = await getDoc(ref);
     const data = snap.exists() ? snap.data() : { nombreDisplay: r.jugador, historial: [], puntosAnuales: {} };
-    data.historial.push({ torneoNombre: r.torneo, canchaExterna: r.cancha, fecha: r.fecha, puntos: r.puntos, externo: true });
+    const cat = r.categoria || 'General';
+    if (!data.categoria) data.categoria = cat;
+    data.historial.push({ torneoNombre: r.torneo, canchaExterna: r.cancha, fecha: r.fecha, puntos: r.puntos, externo: true, categoria: cat });
     data.puntosAnuales[anio] = (data.puntosAnuales[anio]||0) + r.puntos;
+    if (!data.puntosAnualesCat) data.puntosAnualesCat = {};
+    if (!data.puntosAnualesCat[cat]) data.puntosAnualesCat[cat] = {};
+    data.puntosAnualesCat[cat][anio] = (data.puntosAnualesCat[cat][anio]||0) + r.puntos;
     await setDoc(ref, data);
   }
   csvDatos = [];
