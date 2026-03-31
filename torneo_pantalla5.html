@@ -1179,23 +1179,29 @@ async function renderRanking() {
 
   function renderTablaCategoria(catNombre, datos) {
     const sorted = datos.sort((a,b)=>b[1].pts-a[1].pts);
-    return `<div style="margin-bottom:16px;">
-      <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--azul);padding:6px 0 4px;border-bottom:1px solid var(--border);margin-bottom:6px;">${catNombre.toUpperCase()}</div>
-      <div class="tabla-row header-row">
-        <span class="tabla-pos" style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;">#</span>
-        <span class="tabla-jugador">Jugador</span>
-        <span class="tabla-torneos" title="Torneos jugados">T</span>
-        <span class="tabla-pts-total">Pts</span>
+    const slugId = 'cat-' + catNombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-');
+    return `<div style="margin-bottom:8px;">
+      <div onclick="toggleCatRanking('${slugId}')" style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--azul);padding:10px 0 8px;border-bottom:1px solid var(--border);margin-bottom:0;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+        <span>${catNombre.toUpperCase()}</span>
+        <span id="${slugId}-chevron" style="font-size:12px;transition:transform 0.2s;">▼</span>
       </div>
-      ${sorted.map(([j,d],i) => {
-        const pos=i+1, pc=pos===1?'pos-1':pos===2?'pos-2':pos===3?'pos-3':'pos-otro';
-        return `<div class="tabla-row">
-          <span class="tabla-pos ${pc}">${pos}</span>
-          <span class="tabla-jugador">${j}</span>
-          <span class="tabla-torneos">${d.torneos}</span>
-          <span class="tabla-pts-total">${d.pts}</span>
-        </div>`;
-      }).join('')}
+      <div id="${slugId}" style="overflow:hidden;transition:max-height 0.3s ease;">
+        <div class="tabla-row header-row" style="margin-top:4px;">
+          <span class="tabla-pos" style="font-size:10px;color:var(--muted);font-family:'Oswald',sans-serif;">#</span>
+          <span class="tabla-jugador">Jugador</span>
+          <span class="tabla-torneos" title="Torneos jugados">T</span>
+          <span class="tabla-pts-total">Pts</span>
+        </div>
+        ${sorted.map(([j,d],i) => {
+          const pos=i+1, pc=pos===1?'pos-1':pos===2?'pos-2':pos===3?'pos-3':'pos-otro';
+          return `<div class="tabla-row">
+            <span class="tabla-pos ${pc}">${pos}</span>
+            <span class="tabla-jugador">${j}</span>
+            <span class="tabla-torneos">${d.torneos}</span>
+            <span class="tabla-pts-total">${d.pts}</span>
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
   }
 
@@ -1496,6 +1502,19 @@ window.selProgTab = function(btn, idx) {
   btn.classList.add('activa');
   document.querySelector(`.programa-panel[data-prog="${idx}"]`)?.classList.add('visible');
 };
+window.toggleCatRanking = function(id) {
+  const el = document.getElementById(id);
+  const chevron = document.getElementById(id + '-chevron');
+  if (!el) return;
+  if (el.style.maxHeight && el.style.maxHeight !== '0px') {
+    el.style.maxHeight = '0px';
+    if (chevron) chevron.style.transform = 'rotate(-90deg)';
+  } else {
+    el.style.maxHeight = el.scrollHeight + 'px';
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  }
+};
+
 function showToast(msg) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
