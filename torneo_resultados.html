@@ -380,12 +380,33 @@ function renderContenido() {
   }
 }
 
+function resolverNombrePareja(id) {
+  if (PAREJAS[id]) return PAREJAS[id];
+  // ID virtual de zona de 4 (G_zona_X_r1_N o P_zona_X_r1_N)
+  const m = id?.match(/^([GP])_(zona_[^_]+)_r1_(\d+)$/);
+  if (m) {
+    const tipo = m[1]==='G' ? 'GAN' : 'PER';
+    // Buscar el partido de r1 correspondiente
+    const r1Num = parseInt(m[3]);
+    const r1 = partidos.filter(p => p.fase==='zona' && p.zonaId===m[2] && p.subfase==='r1')
+                       .sort((a,b) => (a.orden_zona||0)-(b.orden_zona||0));
+    const ref = r1[r1Num-1];
+    if (ref) {
+      const n1 = PAREJAS[ref.pareja1Id]?.split('/')[0]?.trim().split(' ').pop() || ref.pareja1Id;
+      const n2 = PAREJAS[ref.pareja2Id]?.split('/')[0]?.trim().split(' ').pop() || ref.pareja2Id;
+      return `${tipo} ${n1}/${n2}`;
+    }
+    return `${tipo} P${r1Num}`;
+  }
+  return id || '?';
+}
+
 function renderPartidoCard(p) {
   const estadoClass = p.estado==='finalizado' ? 'finalizado' : p.estado==='en_juego' ? 'en_juego' : '';
   const badgeClass  = p.estado==='finalizado' ? 'badge-fin'  : p.estado==='en_juego' ? 'badge-juego' : 'badge-pend-style';
   const badgeText   = p.estado==='finalizado' ? '✓ Finalizado' : p.estado==='en_juego' ? 'En juego' : 'Pendiente';
-  const p1Name = PAREJAS[p.pareja1Id]||p.pareja1Id||'?';
-  const p2Name = PAREJAS[p.pareja2Id]||p.pareja2Id||'?';
+  const p1Name = resolverNombrePareja(p.pareja1Id);
+  const p2Name = resolverNombrePareja(p.pareja2Id);
 
   let faseLabel = '';
   if (p.fase==='zona') {
@@ -417,7 +438,7 @@ function renderPartidoCard(p) {
       <div class="pc-hora">${p.hora||'--:--'}</div>
       <div class="pc-info">
         <div class="pc-fase-label">${faseLabel}</div>
-        <div class="pc-parejas">${p1Name} <span style="color:var(--muted)">vs</span> ${p2Name}</div>
+        <div class="pc-parejas">${p.label || `${p1Name} <span style="color:var(--muted)">vs</span> ${p2Name}`}</div>
       </div>
       <div class="pc-estado"><span class="estado-badge ${badgeClass}">${badgeText}</span></div>
     </div>
@@ -431,8 +452,8 @@ window.selFase = function(id) { faseActiva=id; renderTabs(); renderContenido(); 
 window.abrirModal = function(id) {
   partidoEditando = partidos.find(p => p.id===id);
   if (!partidoEditando) return;
-  const p1Name = PAREJAS[partidoEditando.pareja1Id]||partidoEditando.pareja1Id||'?';
-  const p2Name = PAREJAS[partidoEditando.pareja2Id]||partidoEditando.pareja2Id||'?';
+  const p1Name = resolverNombrePareja(partidoEditando.pareja1Id);
+  const p2Name = resolverNombrePareja(partidoEditando.pareja2Id);
   document.getElementById('modal-p1').textContent = p1Name;
   document.getElementById('modal-p2').textContent = p2Name;
 
