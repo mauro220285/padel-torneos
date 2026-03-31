@@ -1540,7 +1540,8 @@ function descargarCanvas(canvas, nombre) {
 window.generarImagenFixture = async function() {
   showToast('Generando imagen...');
   const cancha = await cargarConfigCancha();
-  const color  = cancha.colorPrincipal || '#4a9eff';
+  const color  = cancha.colorPrincipal || '#1a6abf';
+  const color2 = cancha.colorSecundario || '#00d4ff';
 
   // Leer datos
   const parejas = {};
@@ -1554,128 +1555,250 @@ window.generarImagenFixture = async function() {
   const zonasSnap = await getDocs(collection(db,'torneos',torneoId,'zonas'));
   const zonas = {};
   zonasSnap.docs.forEach(d => { zonas[d.id] = d.data(); });
+  const zonasOrdenadas = Object.entries(zonas).sort(([a],[b]) => a.localeCompare(b));
 
-  function apellido(nombre) {
-    return nombre ? nombre.trim().split(' ').pop() : '?';
+  // Helpers de nombre
+  function inicial(nombre) {
+    const p = nombre?.trim().split(' ');
+    return p?.length ? p[0][0].toUpperCase() + '.' : '';
   }
-  function nombreP(id) {
+  function apellido(nombre) {
+    const p = nombre?.trim().split(' ');
+    return p?.length > 1 ? p[p.length-1] : (p?.[0] || '?');
+  }
+  function nombreMostrar(id) {
     const p = parejas[id];
     if (!p) return id;
-    const num = p.numFixture ? `P${p.numFixture}` : '';
-    const aps = `${apellido(p.j1Nombre)}/${apellido(p.j2Nombre)}`;
-    return num ? `${num} · ${aps}` : aps;
+    return `${inicial(p.j1Nombre)} ${apellido(p.j1Nombre)} / ${inicial(p.j2Nombre)} ${apellido(p.j2Nombre)}`;
   }
   function numP(id) {
     const p = parejas[id];
-    return p?.numFixture ? `P${p.numFixture}` : nombreP(id);
+    return p?.numFixture ? `(${p.numFixture})` : '(?)';
   }
 
-  // Agrupar partidos por día
   const dias = [...new Set(partidosZona.map(p => p.dia))].sort();
+  const nZonas = zonasOrdenadas.length;
+  const maxParejasPorZona = Math.max(...zonasOrdenadas.map(([,z]) => (z.parejas||[]).length));
 
-  // Calcular altura necesaria
+  // Layout
   const W = 1080;
-  const lineH = 36;
-  const headerH = 140;
-  const zonaH = Object.keys(zonas).length * (lineH * 5 + 20) + 60;
+  const headerH = 200;
+  const footerH = 60;
+  const pad = 30;
+  const colGap = 16;
+  const cols = Math.min(nZonas, 3);
+  const colW = Math.floor((W - pad*2 - colGap*(cols-1)) / cols);
+  const zonaLineH = 38;
+  const zonaTitleH = 48;
+  const zonaCardH = zonaTitleH + maxParejasPorZona * zonaLineH + 16;
+  const zonaRows = Math.ceil(nZonas / cols);
+  const zonasH = zonaRows * zonaCardH + (zonaRows-1)*colGap + 80;
+
+  const fixLineH = 48;
+  const fixTitleH = 44;
   const fixtureH = dias.reduce((acc, dia) => {
-    return acc + 50 + partidosZona.filter(p => p.dia === dia).length * lineH;
+    return acc + fixTitleH + partidosZona.filter(p => p.dia===dia).length * fixLineH + 16;
   }, 60);
-  const H = headerH + zonaH + fixtureH + 60;
+
+  const H = headerH + zonasH + fixtureH + footerH + 20;
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Fondo
-  ctx.fillStyle = '#0a0a0f';
+  // ── FONDO DEGRADADO CLARO ──
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0,   '#e8f4fd');
+  bgGrad.addColorStop(0.4, '#ffffff');
+  bgGrad.addColorStop(1,   '#d0eaf8');
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Header
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, W, headerH);
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 52px Bebas Neue, Arial';
-  ctx.letterSpacing = '6px';
-  ctx.fillText(cancha.nombre.toUpperCase(), 40, 70);
-  ctx.font = '26px Oswald, Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillText(torneoData?.nombre?.toUpperCase() || 'TORNEO', 40, 110);
-  ctx.font = '22px Oswald, Arial';
-  ctx.fillText('ZONAS Y FIXTURE', W - 280, 110);
-
-  let y = headerH + 40;
-
-  // Zonas
-  ctx.fillStyle = color;
-  ctx.font = 'bold 28px Bebas Neue, Arial';
-  ctx.fillText('FASE DE GRUPOS', 40, y);
-  y += 30;
-
-  Object.entries(zonas).sort(([a],[b]) => a.localeCompare(b)).forEach(([zid, z]) => {
-    const letra = zid.replace('zona_','');
-    ctx.fillStyle = '#222230';
+  // Líneas decorativas de cancha (fondo)
+  ctx.strokeStyle = 'rgba(100,170,230,0.12)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 8; i++) {
     ctx.beginPath();
-    ctx.roundRect(30, y, W - 60, (z.parejas||[]).length * lineH + 44, 10);
+    ctx.moveTo(0, 80 + i * 140);
+    ctx.lineTo(W, 80 + i * 140);
+    ctx.stroke();
+  }
+  ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+
+  // ── HEADER ──
+  const hGrad = ctx.createLinearGradient(0, 0, W, headerH);
+  hGrad.addColorStop(0, color);
+  hGrad.addColorStop(1, color2);
+  ctx.fillStyle = hGrad;
+  ctx.fillRect(0, 0, W, headerH);
+
+  // Franja inferior header
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(0, headerH - 8, W, 8);
+
+  // Logo si existe
+  let textStartX = 40;
+  if (cancha.logo) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const logoSize = 140;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pad + logoSize/2, headerH/2, logoSize/2, 0, Math.PI*2);
+        ctx.clip();
+        ctx.drawImage(img, pad, (headerH-logoSize)/2, logoSize, logoSize);
+        ctx.restore();
+        resolve();
+      };
+      img.onerror = resolve;
+      img.src = cancha.logo;
+    });
+    textStartX = pad + 155;
+  }
+
+  // Texto header
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 54px Bebas Neue, Impact, Arial';
+  ctx.fillText((cancha.nombre || 'PADEL TEAM').toUpperCase(), textStartX, 80);
+  ctx.font = 'bold 32px Oswald, Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.fillText((torneoData?.nombre || 'TORNEO').toUpperCase(), textStartX, 124);
+
+  // Fecha en header (derecha)
+  if (dias.length > 0) {
+    const fechaLabel = dias.map(d =>
+      new Date(d+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'}).replace('/','/'))
+      .join(' · ');
+    ctx.font = '22px Oswald, Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.textAlign = 'right';
+    ctx.fillText(fechaLabel, W - pad, 80);
+    ctx.font = 'bold 20px Oswald, Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText('ZONAS Y FIXTURE', W - pad, 110);
+    ctx.textAlign = 'left';
+  }
+
+  let y = headerH + 30;
+
+  // ── TÍTULO FASE DE GRUPOS ──
+  ctx.font = 'bold 32px Bebas Neue, Arial';
+  ctx.fillStyle = color;
+  ctx.fillText('DISTRIBUCIÓN DE ZONAS', pad, y + 24);
+  y += 50;
+
+  // ── ZONAS EN COLUMNAS ──
+  zonasOrdenadas.forEach(([zid, z], idx) => {
+    const col = idx % cols;
+    const row = Math.floor(idx / cols);
+    const cx = pad + col * (colW + colGap);
+    const cy = y + row * (zonaCardH + colGap);
+    const letra = zid.replace('zona_','');
+
+    // Card fondo
+    ctx.fillStyle = '#1a2a3a';
+    ctx.beginPath();
+    ctx.roundRect(cx, cy, colW, zonaCardH, 12);
     ctx.fill();
 
-    ctx.fillStyle = color;
-    ctx.font = 'bold 22px Bebas Neue, Arial';
-    ctx.fillText(`ZONA ${letra}`, 50, y + 28);
-    y += 38;
+    // Header zona
+    const zhGrad = ctx.createLinearGradient(cx, cy, cx+colW, cy);
+    zhGrad.addColorStop(0, color);
+    zhGrad.addColorStop(1, color2);
+    ctx.fillStyle = zhGrad;
+    ctx.beginPath();
+    ctx.roundRect(cx, cy, colW, zonaTitleH, [12,12,0,0]);
+    ctx.fill();
 
-    (z.parejas||[]).forEach(pid => {
-      ctx.fillStyle = '#e0e0f0';
-      ctx.font = '20px Oswald, Arial';
-      ctx.fillText('· ' + nombreP(pid), 60, y + 22);
-      y += lineH;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 26px Bebas Neue, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`ZONA ${letra}`, cx + colW/2, cy + 32);
+    ctx.textAlign = 'left';
+
+    // Parejas
+    (z.parejas||[]).forEach((pid, i) => {
+      const py = cy + zonaTitleH + i * zonaLineH + 10;
+      const num = parejas[pid]?.numFixture || (i+1);
+      // Número
+      ctx.fillStyle = color2;
+      ctx.font = 'bold 20px Bebas Neue, Arial';
+      ctx.fillText(`${num}.`, cx + 14, py + 22);
+      // Nombre
+      ctx.fillStyle = '#e8f0f8';
+      ctx.font = '18px Oswald, Arial';
+      ctx.fillText(nombreMostrar(pid), cx + 42, py + 22);
+    });
+  });
+
+  y += zonaRows * (zonaCardH + colGap) + 20;
+
+  // ── TÍTULO FIXTURE ──
+  ctx.font = 'bold 32px Bebas Neue, Arial';
+  ctx.fillStyle = color;
+  ctx.fillText('🏆 FIXTURE DEL TORNEO', pad, y + 24);
+  y += 50;
+
+  // ── PARTIDOS POR DÍA ──
+  dias.forEach(dia => {
+    const label = new Date(dia+'T12:00:00').toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long'}).toUpperCase();
+
+    // Header día
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(pad, y, W - pad*2, fixTitleH - 4, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 22px Bebas Neue, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, W/2, y + 28);
+    ctx.textAlign = 'left';
+    y += fixTitleH + 4;
+
+    const partsDia = partidosZona.filter(p => p.dia===dia).sort((a,b)=>(a.hora||'').localeCompare(b.hora||''));
+    partsDia.forEach((p, i) => {
+      const rowBg = i % 2 === 0 ? 'rgba(26,42,58,0.85)' : 'rgba(20,34,50,0.85)';
+      ctx.fillStyle = rowBg;
+      ctx.fillRect(pad, y, W - pad*2, fixLineH - 2);
+
+      // Hora
+      ctx.fillStyle = color2;
+      ctx.font = 'bold 26px Bebas Neue, Arial';
+      ctx.fillText((p.hora||'--:--') + 'hs', pad + 14, y + 32);
+
+      // Texto partido
+      const txt = p.label
+        ? p.label
+        : `${numP(p.pareja1Id)}  vs  ${numP(p.pareja2Id)}`;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 22px Oswald, Arial';
+      ctx.fillText(txt, pad + 160, y + 32);
+
+      // Zona (derecha)
+      ctx.fillStyle = 'rgba(180,200,220,0.7)';
+      ctx.font = '16px Oswald, Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(p.zonaId?.replace('zona_','Zona ') || '', W - pad - 10, y + 32);
+      ctx.textAlign = 'left';
+
+      y += fixLineH;
     });
     y += 16;
   });
 
-  y += 20;
-
-  // Fixture por día
-  ctx.fillStyle = color;
-  ctx.font = 'bold 28px Bebas Neue, Arial';
-  ctx.fillText('FIXTURE', 40, y);
-  y += 30;
-
-  dias.forEach(dia => {
-    const label = new Date(dia + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'long', day:'2-digit', month:'long' }).toUpperCase();
-    ctx.fillStyle = '#222230';
-    ctx.fillRect(30, y, W - 60, 36);
-    ctx.fillStyle = color;
-    ctx.font = 'bold 20px Bebas Neue, Arial';
-    ctx.fillText(label, 50, y + 24);
-    y += 42;
-
-    const partsDia = partidosZona.filter(p => p.dia === dia).sort((a,b) => (a.hora||'').localeCompare(b.hora||''));
-    partsDia.forEach(p => {
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
-      ctx.fillRect(30, y, W - 60, lineH - 2);
-      ctx.fillStyle = color;
-      ctx.font = 'bold 22px Bebas Neue, Arial';
-      ctx.fillText(p.hora || '--:--', 50, y + 24);
-      ctx.fillStyle = '#e0e0f0';
-      ctx.font = '18px Oswald, Arial';
-      const texto = p.label || `${numP(p.pareja1Id)}  vs  ${numP(p.pareja2Id)}`;
-      ctx.fillText(texto, 160, y + 24);
-      ctx.fillStyle = '#666';
-      ctx.font = '14px Oswald, Arial';
-      ctx.fillText(p.zonaId?.replace('zona_','Zona ') || '', W - 120, y + 24);
-      y += lineH;
-    });
-    y += 10;
-  });
-
-  // Footer
-  ctx.fillStyle = color;
-  ctx.fillRect(0, H - 40, W, 40);
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = '18px Oswald, Arial';
-  ctx.fillText('PADEL TEAM · torneos', 40, H - 12);
+  // ── FOOTER ──
+  const fGrad = ctx.createLinearGradient(0, H-footerH, W, H);
+  fGrad.addColorStop(0, color);
+  fGrad.addColorStop(1, color2);
+  ctx.fillStyle = fGrad;
+  ctx.fillRect(0, H - footerH, W, footerH);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = 'bold 20px Oswald, Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText((cancha.nombre || 'PADEL TEAM').toUpperCase() + ' · TORNEOS', W/2, H - 18);
+  ctx.textAlign = 'left';
 
   descargarCanvas(canvas, 'fixture_zonas.png');
   showToast('✅ Imagen descargada');

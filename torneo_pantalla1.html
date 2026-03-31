@@ -570,12 +570,14 @@ const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
 // ── LOGO PREVIEW ──
+let logoBase64 = null;
 document.getElementById('logoInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
-    document.getElementById('logoImg').src = ev.target.result;
+    logoBase64 = ev.target.result;
+    document.getElementById('logoImg').src = logoBase64;
     document.getElementById('logoImg').style.display = 'block';
     document.getElementById('logoPlaceholder').style.display = 'none';
   };
@@ -638,6 +640,7 @@ window.guardarYSeguir = async function() {
     redes,
     updatedAt: new Date().toISOString()
   };
+  if (logoBase64) config.logo = logoBase64;
 
   try {
     await setDoc(doc(db, 'config', 'cancha'), config);
@@ -657,6 +660,12 @@ async function cargarConfig() {
     const snap = await getDoc(doc(db, 'config', 'cancha'));
     if (!snap.exists()) return;
     const c = snap.data();
+    if (c.logo) {
+      logoBase64 = c.logo;
+      document.getElementById('logoImg').src = c.logo;
+      document.getElementById('logoImg').style.display = 'block';
+      document.getElementById('logoPlaceholder').style.display = 'none';
+    }
     if (c.nombre) document.getElementById('nombreCancha').value = c.nombre;
     if (c.colorPrincipal)  document.getElementById('colorPrincipal').value  = c.colorPrincipal;
     if (c.colorSecundario) document.getElementById('colorSecundario').value = c.colorSecundario;
