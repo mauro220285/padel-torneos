@@ -267,37 +267,72 @@ async function cargar() {
 
 function renderRanking() {
   const list = document.getElementById('rankingList');
-  const jugadoresFiltrados = todosJugadores
+  const ORDEN_CAT_TORNEO = ['Octava','Séptima','Sexta','Quinta','Cuarta','Tercera','Segunda','Primera'];
+
+  const porCatTorneo = {};
+  todosJugadores
     .filter(j => {
       const cat = j.categoria || j.historial?.find(h=>h.categoria)?.categoria || 'General';
-      return cat === catActiva || (catActiva === 'General' && cat === 'General');
+      return cat === catActiva;
     })
     .filter(j => j.puntosAnuales?.[anioActivo] > 0)
-    .map(j => ({
-      nombre: j.nombreDisplay || j.id,
-      pts: j.puntosAnuales?.[anioActivo] || 0,
-      torneos: j.historial?.filter(h => h.fecha?.startsWith(anioActivo)).length || 0
-    }))
-    .sort((a, b) => b.pts - a.pts);
+    .forEach(j => {
+      const catT = j.categoriaTorneo || j.historial?.find(h=>h.categoriaTorneo)?.categoriaTorneo || 'Sin categoría';
+      if (!porCatTorneo[catT]) porCatTorneo[catT] = [];
+      porCatTorneo[catT].push({
+        nombre: j.nombreDisplay || j.id,
+        pts: j.puntosAnuales?.[anioActivo] || 0,
+        torneos: j.historial?.filter(h => h.fecha?.startsWith(anioActivo)).length || 0
+      });
+    });
 
-  if (jugadoresFiltrados.length === 0) {
+  const catsConDatos = ORDEN_CAT_TORNEO.filter(c => porCatTorneo[c]);
+  const otrasKeys = Object.keys(porCatTorneo).filter(c => !ORDEN_CAT_TORNEO.includes(c));
+  const todasCats = [...catsConDatos, ...otrasKeys];
+
+  if (todasCats.length === 0) {
     list.innerHTML = '<div class="empty">Sin datos de ranking para esta categoría</div>';
     return;
   }
 
-  list.innerHTML = jugadoresFiltrados.map((j, i) => {
-    const pos = i + 1;
-    const pc = pos===1?'p1':pos===2?'p2':pos===3?'p3':'otro';
-    return `<div class="ranking-row">
-      <div class="r-pos ${pc}">${pos}</div>
-      <div class="r-info">
-        <div class="r-nombre">${j.nombre}</div>
-        <div class="r-torneos">${j.torneos} torneo${j.torneos !== 1 ? 's' : ''}</div>
+  list.innerHTML = todasCats.map(cat => {
+    const jugadores = porCatTorneo[cat].sort((a,b) => b.pts - a.pts);
+    const slugId = 'pub-' + (catActiva+'-'+cat).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-');
+    return `<div style="margin-bottom:8px;">
+      <div onclick="toggleCatPub('${slugId}')" style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:var(--azul);padding:10px 20px 8px;border-bottom:1px solid #222230;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#111118;">
+        <span>${cat.toUpperCase()}</span>
+        <span id="${slugId}-ch" style="font-size:12px;transition:transform 0.2s;">▼</span>
       </div>
-      <div class="r-pts">${j.pts} <span>pts</span></div>
+      <div id="${slugId}" style="overflow:hidden;transition:max-height 0.3s ease;">
+        ${jugadores.map((j, i) => {
+          const pos = i + 1;
+          const pc = pos===1?'p1':pos===2?'p2':pos===3?'p3':'otro';
+          return `<div class="ranking-row">
+            <div class="r-pos ${pc}">${pos}</div>
+            <div class="r-info">
+              <div class="r-nombre">${j.nombre}</div>
+              <div class="r-torneos">${j.torneos} torneo${j.torneos !== 1 ? 's' : ''}</div>
+            </div>
+            <div class="r-pts">${j.pts} <span>pts</span></div>
+          </div>`;
+        }).join('')}
+      </div>
     </div>`;
   }).join('');
 }
+
+window.toggleCatPub = function(id) {
+  const el = document.getElementById(id);
+  const ch = document.getElementById(id + '-ch');
+  if (!el) return;
+  if (el.style.maxHeight && el.style.maxHeight !== '0px') {
+    el.style.maxHeight = '0px';
+    if (ch) ch.style.transform = 'rotate(-90deg)';
+  } else {
+    el.style.maxHeight = el.scrollHeight + 'px';
+    if (ch) ch.style.transform = 'rotate(0deg)';
+  }
+};
 
 window.selAnio = function(anio, btn) {
   anioActivo = anio;
