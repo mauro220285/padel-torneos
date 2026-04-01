@@ -283,6 +283,20 @@ async function init() {
 }
 
 // ── TABLA DE POSICIONES ──────────────────────────────────
+// Resuelve un ID virtual (G_zona_C_r1_1) al ID real de la pareja
+function resolverIdReal(id) {
+  const m = id?.match(/^([GP])_(zona_[^_]+)_r1_(\d+)$/);
+  if (!m) return id;
+  const tipo   = m[1];
+  const zonaId = m[2];
+  const r1Num  = parseInt(m[3]);
+  const r1 = partidos.filter(p => p.fase==='zona' && p.zonaId===zonaId && p.subfase==='r1')
+                     .sort((a,b) => (a.orden_zona||0)-(b.orden_zona||0));
+  const ref = r1[r1Num - 1];
+  if (!ref?.resultado?.ganadorId) return id;
+  return tipo === 'G' ? ref.resultado.ganadorId : ref.resultado.perdedorId;
+}
+
 function calcularTabla(zonaId) {
   const esVirtual = id => /^[GP]_zona_/.test(id);
   const ids = [...new Set(
@@ -296,12 +310,20 @@ function calcularTabla(zonaId) {
   partidos
     .filter(p => p.fase==='zona' && p.zonaId===`zona_${zonaId}` && p.estado==='finalizado' && p.resultado)
     .forEach(p => {
-      const r=p.resultado, t1=tabla[p.pareja1Id], t2=tabla[p.pareja2Id];
+      const r = p.resultado;
+      // Para partidos de r2 los IDs en pareja1Id/2Id son virtuales,
+      // pero ganadorId/perdedorId ya tienen el ID real (si se guardó con el fix)
+      // o hay que resolverlos
+      const realP1 = esVirtual(p.pareja1Id) ? resolverIdReal(p.pareja1Id) : p.pareja1Id;
+      const realP2 = esVirtual(p.pareja2Id) ? resolverIdReal(p.pareja2Id) : p.pareja2Id;
+      const t1 = tabla[realP1];
+      const t2 = tabla[realP2];
       if (!t1||!t2) return;
       t1.PJ++; t2.PJ++;
       t1.setsG+=r.setsP1||0; t1.setsP+=r.setsP2||0; t2.setsG+=r.setsP2||0; t2.setsP+=r.setsP1||0;
       t1.gamesG+=r.gamesP1||0; t1.gamesP+=r.gamesP2||0; t2.gamesG+=r.gamesP2||0; t2.gamesP+=r.gamesP1||0;
-      if (r.ganadorId===p.pareja1Id) { t1.PG++; t1.pts+=2; t2.PP++; }
+      const ganadorReal = r.ganadorId === p.pareja1Id ? realP1 : (r.ganadorId === p.pareja2Id ? realP2 : r.ganadorId);
+      if (ganadorReal===realP1) { t1.PG++; t1.pts+=2; t2.PP++; }
       else { t2.PG++; t2.pts+=2; t1.PP++; }
     });
 
@@ -579,10 +601,18 @@ window.marcarEnJuego = async function() {
 window.guardarResultado = async function() {
   if (!partidoEditando||document.getElementById('btnGuardar').disabled) return;
   const sets = setsActuales.filter(s=>s.p1!==''&&s.p2!=='').map(s=>({p1:Number(s.p1),p2:Number(s.p2)}));
+
+  // Resolver IDs virtuales a IDs reales
+  const realP1 = resolverIdReal(partidoEditando.pareja1Id);
+  const realP2 = resolverIdReal(partidoEditando.pareja2Id);
+  const ganadorVirtual = window._ganadorId;
+  const ganadorReal = ganadorVirtual === partidoEditando.pareja1Id ? realP1 : realP2;
+  const perdedorReal = ganadorReal === realP1 ? realP2 : realP1;
+
   const resultado = {
     sets,
-    ganadorId:  window._ganadorId,
-    perdedorId: window._ganadorId===partidoEditando.pareja1Id ? partidoEditando.pareja2Id : partidoEditando.pareja1Id,
+    ganadorId:  ganadorReal,
+    perdedorId: perdedorReal,
     setsP1:window._s1, setsP2:window._s2, gamesP1:window._g1, gamesP2:window._g2
   };
   try {

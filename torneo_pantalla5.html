@@ -364,6 +364,39 @@ body {
     </div>
   </div>
 
+  <!-- IMAGEN DE CAMPEONES -->
+  <div class="informe-card" id="card-campeones">
+    <div class="informe-header" onclick="toggleCard('campeones')">
+      <span class="informe-icon">🥇</span>
+      <div>
+        <div class="informe-titulo">IMAGEN DE CAMPEONES</div>
+        <div class="informe-desc">Flyer para compartir en redes sociales</div>
+      </div>
+      <span class="informe-chevron">▼</span>
+    </div>
+    <div class="informe-body" style="padding:16px;">
+      <div style="margin-bottom:12px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">FOTO DE LOS CAMPEONES</div>
+        <div id="fotoPreviewWrap" style="width:100%;height:160px;background:var(--bg2);border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;" onclick="document.getElementById('fotoInput').click()">
+          <img id="fotoPreviewImg" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
+          <span id="fotoPreviewPlaceholder" style="font-size:13px;color:var(--muted);letter-spacing:1px;">📷 TAP PARA SUBIR FOTO</span>
+        </div>
+        <input type="file" id="fotoInput" accept="image/*" style="display:none;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">🥇 CAMPEONES</div>
+        <input type="text" id="campeon1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
+        <input type="text" id="campeon2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">🥈 FINALISTAS</div>
+        <input type="text" id="finalista1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
+        <input type="text" id="finalista2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
+      </div>
+      <button class="btn-share btn-share-img" onclick="generarImagenCampeones()" style="font-size:16px;padding:14px;">📸 GENERAR IMAGEN</button>
+    </div>
+  </div>
+
   <!-- 6. TABLA DE PUNTAJES POR POSICIÓN -->
   <div class="informe-card" id="card-scoring">
     <div class="informe-header" onclick="toggleCard('scoring')">
@@ -1909,6 +1942,254 @@ window.generarImagenLlave = async function() {
 window.showToast=showToast;
 window.renderRanking=renderRanking;
 window.renderPuntajesResultados=renderPuntajesResultados;
+
+// ── FOTO PREVIEW CAMPEONES ──
+let fotoCampeonesBase64 = null;
+document.addEventListener('DOMContentLoaded', () => {});
+const fotoInputEl = document.getElementById('fotoInput');
+if (fotoInputEl) {
+  fotoInputEl.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      fotoCampeonesBase64 = ev.target.result;
+      document.getElementById('fotoPreviewImg').src = fotoCampeonesBase64;
+      document.getElementById('fotoPreviewImg').style.display = 'block';
+      document.getElementById('fotoPreviewPlaceholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── GENERAR IMAGEN CAMPEONES ──
+window.generarImagenCampeones = async function() {
+  const campeon1  = document.getElementById('campeon1').value.trim();
+  const campeon2  = document.getElementById('campeon2').value.trim();
+  const final1    = document.getElementById('finalista1').value.trim();
+  const final2    = document.getElementById('finalista2').value.trim();
+
+  if (!campeon1 || !campeon2) { showToast('⚠️ Ingresá los nombres de los campeones'); return; }
+
+  showToast('Generando imagen...');
+
+  const cancha   = await cargarConfigCancha();
+  const color    = cancha.colorPrincipal  || '#1a6abf';
+  const color2   = cancha.colorSecundario || '#00d4ff';
+  const nombreTorneo = torneoData?.nombre || 'TORNEO';
+
+  const W = 1080;
+  const H = 1350; // formato cuadrado casi
+  const canvas = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── FONDO OSCURO ──
+  ctx.fillStyle = '#080c14';
+  ctx.fillRect(0, 0, W, H);
+
+  // ── FOTO DE FONDO (blur/oscurecida) ──
+  if (fotoCampeonesBase64) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        // Escalar para cubrir todo el canvas
+        const scale = Math.max(W / img.width, H / img.height);
+        const sw = img.width * scale;
+        const sh = img.height * scale;
+        ctx.drawImage(img, (W - sw) / 2, (H - sh) / 2, sw, sh);
+        ctx.restore();
+        resolve();
+      };
+      img.onerror = resolve;
+      img.src = fotoCampeonesBase64;
+    });
+  }
+
+  // Degradado superior para logo
+  const topGrad = ctx.createLinearGradient(0, 0, 0, 220);
+  topGrad.addColorStop(0, 'rgba(8,12,20,0.95)');
+  topGrad.addColorStop(1, 'rgba(8,12,20,0)');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0, 0, W, 220);
+
+  // ── LOGO ──
+  let logoY = 40;
+  if (cancha.logo) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const logoSize = 130;
+        ctx.save();
+        // Glow
+        ctx.shadowColor = color2;
+        ctx.shadowBlur = 30;
+        ctx.beginPath();
+        ctx.arc(W/2, logoY + logoSize/2, logoSize/2, 0, Math.PI*2);
+        ctx.clip();
+        ctx.drawImage(img, W/2 - logoSize/2, logoY, logoSize, logoSize);
+        ctx.restore();
+        resolve();
+      };
+      img.onerror = resolve;
+      img.src = cancha.logo;
+    });
+    logoY += 140;
+  } else {
+    // Sin logo: texto cancha
+    ctx.font = 'bold 36px Bebas Neue, Arial';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText((cancha.nombre || 'PADEL TEAM').toUpperCase(), W/2, logoY + 40);
+    logoY += 60;
+  }
+
+  // ── FOTO PRINCIPAL ──
+  const fotoY = logoY + 10;
+  const fotoH = 520;
+  if (fotoCampeonesBase64) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        // Borde azul
+        ctx.strokeStyle = color2;
+        ctx.lineWidth = 5;
+        ctx.strokeRect(40, fotoY, W - 80, fotoH);
+
+        // Foto recortada centrada
+        const scale = Math.max((W - 80) / img.width, fotoH / img.height);
+        const sw = img.width * scale;
+        const sh = img.height * scale;
+        const sx = (W - 80 - sw) / 2 + 40;
+        const sy = fotoY + (fotoH - sh) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(42, fotoY + 2, W - 84, fotoH - 4);
+        ctx.clip();
+        ctx.drawImage(img, sx, sy, sw, sh);
+        ctx.restore();
+        resolve();
+      };
+      img.onerror = resolve;
+      img.src = fotoCampeonesBase64;
+    });
+  } else {
+    ctx.fillStyle = '#1a2a3a';
+    ctx.fillRect(40, fotoY, W - 80, fotoH);
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '80px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('📷', W/2, fotoY + fotoH/2 + 30);
+  }
+
+  // Degradado sobre foto inferior
+  const fadeGrad = ctx.createLinearGradient(0, fotoY + fotoH - 120, 0, fotoY + fotoH + 20);
+  fadeGrad.addColorStop(0, 'rgba(8,12,20,0)');
+  fadeGrad.addColorStop(1, 'rgba(8,12,20,1)');
+  ctx.fillStyle = fadeGrad;
+  ctx.fillRect(0, fotoY + fotoH - 120, W, 140);
+
+  let y = fotoY + fotoH + 20;
+
+  // ── NOMBRE DEL TORNEO ──
+  ctx.textAlign = 'center';
+  ctx.fillStyle = color2;
+  ctx.font = '22px Oswald, Arial';
+  ctx.fillText(`· ${nombreTorneo.toUpperCase()} ·`, W/2, y);
+  y += 50;
+
+  // ── FELICITACIONES ──
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 72px Bebas Neue, Arial';
+  ctx.fillText('¡Felicitaciones', W/2, y);
+  y += 70;
+  ctx.fillText('Campeones!', W/2, y);
+  y += 50;
+
+  // ── CAJAS CAMPEONES vs FINALISTAS ──
+  const boxY = y;
+  const boxH = 120;
+  const boxW = (W - 80 - 60) / 2;
+
+  // Caja campeones (dorado)
+  ctx.fillStyle = 'rgba(212,170,0,0.15)';
+  ctx.beginPath();
+  ctx.roundRect(40, boxY, boxW, boxH, 10);
+  ctx.fill();
+  ctx.strokeStyle = '#D4AA00';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(40, boxY, boxW, boxH, 10);
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#D4AA00';
+  ctx.font = '13px Oswald, Arial';
+  ctx.fillText('🥇  CAMPEONES', 56, boxY + 26);
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 28px Bebas Neue, Arial';
+  ctx.fillText(campeon1, 56, boxY + 60);
+  ctx.fillText(campeon2, 56, boxY + 88);
+
+  // Trofeo central
+  ctx.textAlign = 'center';
+  ctx.font = '36px Arial';
+  ctx.fillText('🏆', W/2, boxY + 52);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '14px Oswald, Arial';
+  ctx.fillText('VS', W/2, boxY + 80);
+
+  // Caja finalistas (azul)
+  const box2X = 40 + boxW + 60;
+  ctx.fillStyle = 'rgba(74,158,255,0.1)';
+  ctx.beginPath();
+  ctx.roundRect(box2X, boxY, boxW, boxH, 10);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(74,158,255,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(box2X, boxY, boxW, boxH, 10);
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(74,158,255,0.8)';
+  ctx.font = '13px Oswald, Arial';
+  ctx.fillText('🥈  FINALISTAS', box2X + 16, boxY + 26);
+  ctx.fillStyle = '#e0e0f0';
+  ctx.font = 'bold 28px Bebas Neue, Arial';
+  ctx.fillText(final1 || '—', box2X + 16, boxY + 60);
+  ctx.fillText(final2 || '—', box2X + 16, boxY + 88);
+
+  y = boxY + boxH + 40;
+
+  // ── TEXTO DE CIERRE ──
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = '22px Oswald, Arial';
+  ctx.fillText('Gracias a todas las parejas y al público', W/2, y);
+  y += 30;
+  ctx.fillText('que fueron parte de este torneo.', W/2, y);
+  y += 38;
+  ctx.fillStyle = color2;
+  ctx.font = 'bold 24px Oswald, Arial';
+  ctx.fillText('¡Todo esto es posible gracias a ustedes!', W/2, y);
+  y += 36;
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '20px Oswald, Arial';
+  ctx.fillText('Nos vemos en el próximo... 🎾', W/2, y);
+  y += 40;
+  ctx.fillStyle = color2;
+  ctx.font = 'bold 22px Bebas Neue, Arial';
+  ctx.fillText(`— ${cancha.nombre || 'Team Pádel'} —`, W/2, y);
+
+  ctx.textAlign = 'left';
+
+  descargarCanvas(canvas, 'campeones.png');
+  showToast('✅ Imagen descargada');
+};
 
 init();
 </script>
