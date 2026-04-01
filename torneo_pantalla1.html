@@ -409,8 +409,15 @@ body {
 
 <!-- STEPS -->
 <div class="steps">
-  <div class="step active">
-    <div class="step-num">1</div>
+  <div class="step active"><div class="step-num">⚙</div><div class="step-label">Cancha</div></div>
+  <div class="step" onclick="window.location.href='index.html'" style="cursor:pointer"><div class="step-num">🏠</div><div class="step-label">Inicio</div></div>
+  <div class="step"><div class="step-num">2</div><div class="step-label">Torneo</div></div>
+  <div class="step"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
+  <div class="step"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
+  <div class="step"><div class="step-num">R</div><div class="step-label">Resultados</div></div>
+  <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+</div>
+
     <div class="step-label">Cancha</div>
   </div>
   <div class="step">
@@ -552,8 +559,9 @@ body {
 <div class="divider"></div>
 
 <!-- BOTÓN SIGUIENTE -->
-<div style="width:100%;max-width:500px;padding:0 20px;">
+<div style="width:100%;max-width:500px;padding:0 20px;display:flex;flex-direction:column;gap:10px;">
   <button class="btn-siguiente" onclick="guardarYSeguir()">SIGUIENTE → CREAR TORNEO</button>
+  <button class="btn-siguiente" onclick="guardarYVolver()" style="background:transparent;border:1px solid var(--azul);color:var(--azul);box-shadow:none;">GUARDAR Y VOLVER AL INICIO</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -633,10 +641,10 @@ window.eliminarTel = function(btn) {
   });
 };
 
-// ── GUARDAR Y SEGUIR ──
-window.guardarYSeguir = async function() {
+// ── GUARDAR CONFIG ──
+async function guardarConfig() {
   const nombre = document.getElementById('nombreCancha').value.trim();
-  if (!nombre) { showToast('⚠️ Ingresá el nombre de la cancha'); return; }
+  if (!nombre) { showToast('⚠️ Ingresá el nombre de la cancha'); return false; }
 
   const tels = [...document.querySelectorAll('#telefonos .tel-row')].map(row => ({
     numero: row.querySelector('input').value,
@@ -658,12 +666,30 @@ window.guardarYSeguir = async function() {
   };
   if (logoBase64) config.logo = logoBase64;
 
+  await setDoc(doc(db, 'config', 'cancha'), config);
+  return true;
+}
+
+// ── GUARDAR Y SEGUIR ──
+window.guardarYSeguir = async function() {
   try {
-    await setDoc(doc(db, 'config', 'cancha'), config);
+    const ok = await guardarConfig();
+    if (!ok) return;
     showToast('✓ Configuración guardada');
-    setTimeout(() => {
-      window.location.href = 'torneo_pantalla2.html';
-    }, 1200);
+    setTimeout(() => { window.location.href = 'torneo_pantalla2.html'; }, 1200);
+  } catch(e) {
+    console.error(e);
+    showToast('Error al guardar');
+  }
+};
+
+// ── GUARDAR Y VOLVER ──
+window.guardarYVolver = async function() {
+  try {
+    const ok = await guardarConfig();
+    if (!ok) return;
+    showToast('✓ Configuración guardada');
+    setTimeout(() => { window.location.href = 'index.html'; }, 1200);
   } catch(e) {
     console.error(e);
     showToast('Error al guardar');
