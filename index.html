@@ -148,8 +148,8 @@ body {
 </div>
 
 <div class="hero">
-  <div class="hero-icon">🎾</div>
-  <h1>BIENVENIDO</h1>
+  <div class="hero-icon" id="heroIcon">🎾</div>
+  <h1 id="heroNombre">BIENVENIDO</h1>
   <p>Seleccioná un torneo para continuar</p>
 </div>
 
@@ -224,6 +224,22 @@ const db  = getFirestore(app);
 
 let torneoSeleccionadoId   = null;
 let torneoSeleccionadoData = null;
+
+// ── CARGAR CONFIG CANCHA ──────────────────────────────────
+async function cargarConfigCancha() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'cancha'));
+    if (!snap.exists()) return;
+    const c = snap.data();
+    if (c.nombre) {
+      document.getElementById('heroNombre').textContent = c.nombre.toUpperCase();
+    }
+    if (c.logo) {
+      const heroIcon = document.getElementById('heroIcon');
+      heroIcon.innerHTML = `<img src="${c.logo}" style="width:80px;height:80px;object-fit:contain;border-radius:50%;">`;
+    }
+  } catch(e) { console.error(e); }
+}
 
 // ── CARGAR TORNEOS ──────────────────────────────────────
 async function cargarTorneos() {
@@ -347,6 +363,7 @@ function showToast(msg) {
 }
 
 cargarTorneos();
+cargarConfigCancha();
 </script>
 </body>
 </html>
