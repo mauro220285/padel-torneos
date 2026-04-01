@@ -418,30 +418,6 @@ body {
   <div class="step"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
-    <div class="step-label">Cancha</div>
-  </div>
-  <div class="step">
-    <div class="step-num">2</div>
-    <div class="step-label">Torneo</div>
-  </div>
-  <div class="step">
-    <div class="step-num">3</div>
-    <div class="step-label">Parejas</div>
-  </div>
-  <div class="step">
-    <div class="step-num">4</div>
-    <div class="step-label">Revisión</div>
-  </div>
-  <div class="step">
-    <div class="step-num">R</div>
-    <div class="step-label">Resultados</div>
-  </div>
-  <div class="step">
-    <div class="step-num">5</div>
-    <div class="step-label">Informes</div>
-  </div>
-</div>
-
 <!-- TITLE -->
 <div class="page-title">
   <h2>Configuración de la cancha</h2>
@@ -559,9 +535,9 @@ body {
 <div class="divider"></div>
 
 <!-- BOTÓN SIGUIENTE -->
-<div style="width:100%;max-width:500px;padding:0 20px;display:flex;flex-direction:column;gap:10px;">
+<div style="width:100%;max-width:500px;padding:0 20px;">
   <button class="btn-siguiente" onclick="guardarYSeguir()">SIGUIENTE → CREAR TORNEO</button>
-  <button class="btn-siguiente" onclick="guardarYVolver()" style="background:transparent;border:1px solid var(--azul);color:var(--azul);box-shadow:none;">GUARDAR Y VOLVER AL INICIO</button>
+  <button class="btn-siguiente" onclick="guardarYVolver()" style="background:transparent;border:1px solid var(--azul);color:var(--azul);box-shadow:none;margin-top:10px;">GUARDAR Y VOLVER AL INICIO</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -641,10 +617,10 @@ window.eliminarTel = function(btn) {
   });
 };
 
-// ── GUARDAR CONFIG ──
-async function guardarConfig() {
+// ── GUARDAR Y SEGUIR ──
+window.guardarYSeguir = async function() {
   const nombre = document.getElementById('nombreCancha').value.trim();
-  if (!nombre) { showToast('⚠️ Ingresá el nombre de la cancha'); return false; }
+  if (!nombre) { showToast('⚠️ Ingresá el nombre de la cancha'); return; }
 
   const tels = [...document.querySelectorAll('#telefonos .tel-row')].map(row => ({
     numero: row.querySelector('input').value,
@@ -665,35 +641,45 @@ async function guardarConfig() {
     updatedAt: new Date().toISOString()
   };
   if (logoBase64) config.logo = logoBase64;
+  if (logoBase64) config.logo = logoBase64;
 
-  await setDoc(doc(db, 'config', 'cancha'), config);
-  return true;
-}
-
-// ── GUARDAR Y SEGUIR ──
-window.guardarYSeguir = async function() {
   try {
-    const ok = await guardarConfig();
-    if (!ok) return;
+    await setDoc(doc(db, 'config', 'cancha'), config);
     showToast('✓ Configuración guardada');
-    setTimeout(() => { window.location.href = 'torneo_pantalla2.html'; }, 1200);
+    setTimeout(() => {
+      window.location.href = 'torneo_pantalla2.html';
+    }, 1200);
   } catch(e) {
     console.error(e);
     showToast('Error al guardar');
   }
 };
 
-// ── GUARDAR Y VOLVER ──
 window.guardarYVolver = async function() {
+  const nombre = document.getElementById('nombreCancha').value.trim();
+  if (!nombre) { showToast('⚠️ Ingresá el nombre de la cancha'); return; }
+  const tels = [...document.querySelectorAll('#telefonos .tel-row')].map(row => ({
+    numero: row.querySelector('input').value,
+    whatsapp: row.querySelector('.wa-toggle').classList.contains('activo')
+  })).filter(t => t.numero);
+  const redes = [...document.querySelectorAll('.red-social input')].map(i => i.value).filter(Boolean);
+  const config = {
+    nombre,
+    colorPrincipal:  document.getElementById('colorPrincipal').value,
+    colorSecundario: document.getElementById('colorSecundario').value,
+    pais:    document.getElementById('pais').value,
+    moneda:  document.getElementById('moneda').value,
+    zona:    document.getElementById('zona').value,
+    idioma:  document.getElementById('idioma').value,
+    telefonos: tels, redes,
+    updatedAt: new Date().toISOString()
+  };
+  if (logoBase64) config.logo = logoBase64;
   try {
-    const ok = await guardarConfig();
-    if (!ok) return;
+    await setDoc(doc(db, 'config', 'cancha'), config);
     showToast('✓ Configuración guardada');
     setTimeout(() => { window.location.href = 'index.html'; }, 1200);
-  } catch(e) {
-    console.error(e);
-    showToast('Error al guardar');
-  }
+  } catch(e) { console.error(e); showToast('Error al guardar'); }
 };
 
 // ── CARGAR CONFIG GUARDADA ──
@@ -702,6 +688,12 @@ async function cargarConfig() {
     const snap = await getDoc(doc(db, 'config', 'cancha'));
     if (!snap.exists()) return;
     const c = snap.data();
+    if (c.logo) {
+      logoBase64 = c.logo;
+      document.getElementById('logoImg').src = c.logo;
+      document.getElementById('logoImg').style.display = 'block';
+      document.getElementById('logoPlaceholder').style.display = 'none';
+    }
     if (c.logo) {
       logoBase64 = c.logo;
       document.getElementById('logoImg').src = c.logo;
