@@ -265,7 +265,7 @@ async function init() {
     const zonas = zSnap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a,b) => a.nombre.localeCompare(b.nombre));
     FASES = [
-      ...zonas.map(z => ({ id: `zona_${z.nombre}`, label: `Zona ${z.nombre}`, zonaId: z.nombre })),
+      ...zonas.map(z => ({ id: `zona_${z.nombre}`, label: `Zona ${z.nombre}`, zonaId: z.nombre, clasifican: z.clasifican || 2 })),
       { id: 'elim', label: 'Eliminacion' }
     ];
   }
@@ -371,9 +371,10 @@ function renderContenido() {
 
     // Cuantos clasifican a llave (solo si hay llave)
     const hayLlave = TORNEO.formato === 'round_robin_llave' || TORNEO.formato === 'zonas_llave';
+    const faseActual = FASES.find(f => f.id === faseActiva);
     const nClasifican = TORNEO.formato === 'round_robin_llave'
       ? TORNEO.clasificadosLlave
-      : 2; // zonas: top 2 de cada zona
+      : (faseActual?.clasifican || 2);
 
     wrap.innerHTML = `
       <div class="tabla-zona">
