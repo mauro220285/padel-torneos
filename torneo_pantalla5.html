@@ -364,39 +364,6 @@ body {
     </div>
   </div>
 
-  <!-- IMAGEN DE CAMPEONES -->
-  <div class="informe-card" id="card-campeones">
-    <div class="informe-header" onclick="toggleCard('campeones')">
-      <span class="informe-icon">🥇</span>
-      <div>
-        <div class="informe-titulo">IMAGEN DE CAMPEONES</div>
-        <div class="informe-desc">Flyer para compartir en redes sociales</div>
-      </div>
-      <span class="informe-chevron">▼</span>
-    </div>
-    <div class="informe-body" style="padding:16px;">
-      <div style="margin-bottom:12px;">
-        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">FOTO DE LOS CAMPEONES</div>
-        <div id="fotoPreviewWrap" style="width:100%;height:160px;background:var(--bg2);border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;" onclick="document.getElementById('fotoInput').click()">
-          <img id="fotoPreviewImg" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
-          <span id="fotoPreviewPlaceholder" style="font-size:13px;color:var(--muted);letter-spacing:1px;">📷 TAP PARA SUBIR FOTO</span>
-        </div>
-        <input type="file" id="fotoInput" accept="image/*" style="display:none;">
-      </div>
-      <div style="margin-bottom:10px;">
-        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">🥇 CAMPEONES</div>
-        <input type="text" id="campeon1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
-        <input type="text" id="campeon2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
-      </div>
-      <div style="margin-bottom:16px;">
-        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">🥈 FINALISTAS</div>
-        <input type="text" id="finalista1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
-        <input type="text" id="finalista2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
-      </div>
-      <button class="btn-share btn-share-img" onclick="generarImagenCampeones()" style="font-size:16px;padding:14px;">📸 GENERAR IMAGEN</button>
-    </div>
-  </div>
-
   <!-- 6. TABLA DE PUNTAJES POR POSICIÓN -->
   <div class="informe-card" id="card-scoring">
     <div class="informe-header" onclick="toggleCard('scoring')">
@@ -1019,8 +986,7 @@ async function renderLlaveInformes() {
   if (elim.length === 0 || !hayLlave) {
     let html = '<div style="padding:16px;">';
     if (zonaFinalizados === totalZona && totalZona > 0) {
-      html += `<div style="color:var(--verde);font-size:13px;margin-bottom:12px;">✅ Todos los partidos de zona finalizados</div>
-        <button onclick="calcularClasificadosYGenerarLlave()" style="width:100%;padding:14px;background:var(--azul);border:none;border-radius:10px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;cursor:pointer;">⚡ GENERAR LLAVE ELIMINATORIA</button>`;
+      html += `<div style="color:var(--verde);font-size:13px;">✅ Todos los partidos de zona finalizados — la llave se genera automáticamente desde Resultados</div>`;
     } else {
       html += `<div style="color:var(--muted);font-size:13px;">Los cruces se generan al finalizar todos los partidos de zona (${zonaFinalizados}/${totalZona})</div>`;
     }
@@ -1841,99 +1807,229 @@ window.generarImagenFixture = async function() {
 window.generarImagenLlave = async function() {
   showToast('Generando imagen llave...');
   const cancha = await cargarConfigCancha();
-  const color  = cancha.colorPrincipal || '#4a9eff';
+  const color  = cancha.colorPrincipal  || '#1a6abf';
+  const color2 = cancha.colorSecundario || '#00d4ff';
 
   const parejas = {};
   const pSnap = await getDocs(collection(db,'torneos',torneoId,'parejas'));
-  pSnap.docs.forEach(d => { parejas[d.id] = d.data(); });
+  pSnap.docs.forEach(d => {
+    const p = d.data();
+    const num = p.numFixture ? `P${p.numFixture} · ` : '';
+    parejas[d.id] = `${num}${p.j1Nombre?.split(' ').pop() || ''} / ${p.j2Nombre?.split(' ').pop() || ''}`;
+  });
 
   const snap = await getDocs(query(collection(db,'torneos',torneoId,'partidos'), orderBy('orden')));
   const ps = snap.docs.map(d => ({id:d.id,...d.data()}));
   const elim = ps.filter(p => p.fase !== 'zona');
+  if (elim.length === 0) { showToast('⚠️ No hay llave generada'); return; }
 
-  if (elim.length === 0) { showToast('⚠️ No hay llave generada todavía'); return; }
-
-  function nombreP(id) {
-    if (!id) return '?';
-    if (id.startsWith('G_')) return id.replace('G_prev_','G.Prev.').replace('G_oct_','G.Oct.').replace('G_crt_','G.Cto.').replace('G_semi_','G.Semi.');
+  function nombreP(id, orden) {
+    if (!id) return orden ? `GAN. ${orden}` : '?';
     const p = parejas[id];
-    return p ? `${p.j1Nombre} / ${p.j2Nombre}` : id;
+    return p || id;
   }
 
-  const rondas = ['previa','octavos','dieciseis','cuartos','semis','final'];
-  const labels = { previa:'PREVIA', octavos:'OCTAVOS', dieciseis:'DIECISEISAVOS', cuartos:'CUARTOS DE FINAL', semis:'SEMIFINAL', final:'FINAL' };
-  const rondasConPartidos = rondas.filter(r => elim.some(p => p.fase === r));
+  // Renombrar "previa" según cantidad de clasificados
+  const fasesLabels = {
+    previa: 'CUARTOS DE FINAL',
+    cuartos: 'CUARTOS DE FINAL',
+    octavos: 'OCTAVOS DE FINAL',
+    dieciseis: 'DIECISEISAVOS',
+    semis: 'SEMIFINALES',
+    final: 'FINAL'
+  };
 
+  const rondasOrden = ['dieciseis','octavos','previa','cuartos','semis','final'];
+  const rondasConPartidos = rondasOrden.filter(r => elim.some(p => p.fase === r));
+
+  // Layout tipo cuadro
   const W = 1080;
-  const lineH = 48;
-  const headerH = 140;
-  const totalPartidos = elim.length;
-  const H = headerH + rondasConPartidos.length * 60 + totalPartidos * lineH + 80;
+  const headerH = 160;
+  const footerH = 50;
+  const colW = Math.floor((W - 60) / rondasConPartidos.length);
+  const padH = 30;
+  const cardH = 100; // altura de cada partido
+  const cardGap = 16;
+  const maxPartidos = Math.max(...rondasConPartidos.map(r => elim.filter(p=>p.fase===r).length));
+  const H = headerH + footerH + maxPartidos * (cardH + cardGap) + padH * 2 + 60;
 
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  ctx.fillStyle = '#0a0a0f';
+  // ── FONDO ──
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#080c14');
+  bgGrad.addColorStop(1, '#0d1520');
+  ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  ctx.fillStyle = color;
+  // Líneas decorativas
+  ctx.strokeStyle = 'rgba(74,158,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 10; i++) {
+    ctx.beginPath(); ctx.moveTo(0, i*120); ctx.lineTo(W, i*120); ctx.stroke();
+  }
+
+  // ── HEADER ──
+  const hGrad = ctx.createLinearGradient(0, 0, W, headerH);
+  hGrad.addColorStop(0, color); hGrad.addColorStop(1, color2);
+  ctx.fillStyle = hGrad;
   ctx.fillRect(0, 0, W, headerH);
+
+  // Logo si existe
+  let textX = 40;
+  if (cancha.logo) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        const s = 110;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(40 + s/2, headerH/2, s/2, 0, Math.PI*2);
+        ctx.clip();
+        ctx.drawImage(img, 40, (headerH-s)/2, s, s);
+        ctx.restore();
+        resolve();
+      };
+      img.onerror = resolve;
+      img.src = cancha.logo;
+    });
+    textX = 170;
+  }
+
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 52px Bebas Neue, Arial';
-  ctx.fillText(cancha.nombre.toUpperCase(), 40, 70);
-  ctx.font = '26px Oswald, Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillText(torneoData?.nombre?.toUpperCase() || 'TORNEO', 40, 110);
-  ctx.font = '22px Oswald, Arial';
-  ctx.fillText('LLAVE ELIMINATORIA', W - 320, 110);
+  ctx.font = 'bold 48px Bebas Neue, Arial';
+  ctx.fillText((cancha.nombre || 'PADEL TEAM').toUpperCase(), textX, 70);
+  ctx.font = 'bold 28px Oswald, Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.fillText((torneoData?.nombre || 'TORNEO').toUpperCase(), textX, 108);
+  ctx.font = 'bold 22px Bebas Neue, Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.textAlign = 'right';
+  ctx.fillText('CUADRO ELIMINATORIO', W - 30, 108);
+  ctx.textAlign = 'left';
 
-  let y = headerH + 30;
+  // ── COLUMNAS POR RONDA ──
+  const colY = headerH + padH;
 
-  rondasConPartidos.forEach(fase => {
-    const rps = elim.filter(p => p.fase === fase);
-    ctx.fillStyle = color;
-    ctx.font = 'bold 26px Bebas Neue, Arial';
-    ctx.fillText(labels[fase] || fase.toUpperCase(), 40, y + 20);
-    y += 38;
+  rondasConPartidos.forEach((fase, colIdx) => {
+    const cx = 30 + colIdx * colW;
+    const rps = elim.filter(p => p.fase === fase).sort((a,b) => (a.orden||0)-(b.orden||0));
+    const label = fasesLabels[fase] || fase.toUpperCase();
 
-    rps.forEach(p => {
-      const g1 = p.resultado?.ganadorId === p.pareja1Id;
-      const g2 = p.resultado?.ganadorId === p.pareja2Id;
+    // Título de columna
+    ctx.fillStyle = color2;
+    ctx.font = 'bold 18px Bebas Neue, Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, cx + colW/2, colY);
+    ctx.textAlign = 'left';
+
+    // Línea bajo título
+    ctx.strokeStyle = color2;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx + 10, colY + 8);
+    ctx.lineTo(cx + colW - 10, colY + 8);
+    ctx.stroke();
+
+    // Partidos
+    rps.forEach((p, pIdx) => {
+      const py = colY + 28 + pIdx * (cardH + cardGap);
       const n1 = nombreP(p.pareja1Id);
       const n2 = nombreP(p.pareja2Id);
+      const g1 = p.resultado?.ganadorId === p.pareja1Id;
+      const g2 = p.resultado?.ganadorId === p.pareja2Id;
 
-      ctx.fillStyle = g1 ? 'rgba(74,202,80,0.1)' : g2 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.04)';
+      // Card fondo
+      ctx.fillStyle = 'rgba(255,255,255,0.04)';
       ctx.beginPath();
-      ctx.roundRect(30, y, W/2 - 40, lineH - 4, 8);
+      ctx.roundRect(cx + 6, py, colW - 12, cardH, 8);
       ctx.fill();
-      ctx.fillStyle = g1 ? '#4aca50' : '#e0e0f0';
-      ctx.font = g1 ? 'bold 20px Oswald, Arial' : '20px Oswald, Arial';
-      ctx.fillText((g1 ? '🏆 ' : '') + n1, 50, y + lineH/2 + 7);
-
-      ctx.fillStyle = '#444';
-      ctx.font = '16px Oswald, Arial';
-      ctx.fillText('VS', W/2 - 20, y + lineH/2 + 6);
-
-      ctx.fillStyle = g2 ? 'rgba(74,202,80,0.1)' : 'rgba(255,255,255,0.04)';
+      ctx.strokeStyle = colIdx === 0 ? color : 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.roundRect(W/2 + 20, y, W/2 - 50, lineH - 4, 8);
-      ctx.fill();
-      ctx.fillStyle = g2 ? '#4aca50' : '#e0e0f0';
-      ctx.font = g2 ? 'bold 20px Oswald, Arial' : '20px Oswald, Arial';
-      ctx.fillText(n2 + (g2 ? ' 🏆' : ''), W/2 + 40, y + lineH/2 + 7);
+      ctx.roundRect(cx + 6, py, colW - 12, cardH, 8);
+      ctx.stroke();
 
-      y += lineH;
+      // Horario
+      if (p.hora) {
+        ctx.fillStyle = color2;
+        ctx.font = 'bold 14px Bebas Neue, Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`🕐 ${p.hora}hs`, cx + colW/2, py + 16);
+        ctx.textAlign = 'left';
+      }
+
+      // Separador
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + 10, py + cardH/2);
+      ctx.lineTo(cx + colW - 10, py + cardH/2);
+      ctx.stroke();
+
+      // VS al centro
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = '11px Oswald, Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('vs', cx + colW/2, py + cardH/2 + 5);
+      ctx.textAlign = 'left';
+
+      // Pareja 1
+      ctx.fillStyle = g1 ? '#FFD700' : '#e0e0f0';
+      ctx.font = g1 ? 'bold 15px Oswald, Arial' : '14px Oswald, Arial';
+      const maxW = colW - 24;
+      let t1 = n1;
+      ctx.font = g1 ? 'bold 15px Oswald, Arial' : '14px Oswald, Arial';
+      while (ctx.measureText(t1).width > maxW && t1.length > 5) t1 = t1.slice(0, -2) + '…';
+      ctx.fillText(t1, cx + 12, py + cardH/2 - 8);
+
+      // Pareja 2
+      ctx.fillStyle = g2 ? '#FFD700' : 'rgba(200,200,220,0.8)';
+      ctx.font = g2 ? 'bold 15px Oswald, Arial' : '14px Oswald, Arial';
+      let t2 = n2;
+      while (ctx.measureText(t2).width > maxW && t2.length > 5) t2 = t2.slice(0, -2) + '…';
+      ctx.fillText(t2, cx + 12, py + cardH/2 + 22);
     });
-    y += 16;
+
+    // Conectores hacia siguiente ronda
+    if (colIdx < rondasConPartidos.length - 1) {
+      rps.forEach((p, pIdx) => {
+        if (pIdx % 2 === 0 && rps[pIdx+1]) {
+          const py1 = colY + 28 + pIdx * (cardH + cardGap) + cardH/2;
+          const py2 = colY + 28 + (pIdx+1) * (cardH + cardGap) + cardH/2;
+          const pyMid = (py1 + py2) / 2;
+          const xRight = cx + colW - 6;
+          const xNext = cx + colW + 6;
+
+          ctx.strokeStyle = 'rgba(74,158,255,0.25)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(xRight, py1);
+          ctx.lineTo(xRight + 6, py1);
+          ctx.lineTo(xRight + 6, pyMid);
+          ctx.lineTo(xNext + 4, pyMid);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(xRight, py2);
+          ctx.lineTo(xRight + 6, py2);
+          ctx.lineTo(xRight + 6, pyMid);
+          ctx.stroke();
+        }
+      });
+    }
   });
 
+  // ── FOOTER ──
   ctx.fillStyle = color;
-  ctx.fillRect(0, H - 40, W, 40);
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = '18px Oswald, Arial';
-  ctx.fillText('PADEL TEAM · torneos', 40, H - 12);
+  ctx.fillRect(0, H - footerH, W, footerH);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = 'bold 20px Bebas Neue, Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${(cancha.nombre||'PADEL TEAM').toUpperCase()} · ¡BUENA SUERTE! 🎾`, W/2, H - 16);
+  ctx.textAlign = 'left';
 
   descargarCanvas(canvas, 'llave_eliminatoria.png');
   showToast('✅ Imagen descargada');
@@ -1942,254 +2038,6 @@ window.generarImagenLlave = async function() {
 window.showToast=showToast;
 window.renderRanking=renderRanking;
 window.renderPuntajesResultados=renderPuntajesResultados;
-
-// ── FOTO PREVIEW CAMPEONES ──
-let fotoCampeonesBase64 = null;
-document.addEventListener('DOMContentLoaded', () => {});
-const fotoInputEl = document.getElementById('fotoInput');
-if (fotoInputEl) {
-  fotoInputEl.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      fotoCampeonesBase64 = ev.target.result;
-      document.getElementById('fotoPreviewImg').src = fotoCampeonesBase64;
-      document.getElementById('fotoPreviewImg').style.display = 'block';
-      document.getElementById('fotoPreviewPlaceholder').style.display = 'none';
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-// ── GENERAR IMAGEN CAMPEONES ──
-window.generarImagenCampeones = async function() {
-  const campeon1  = document.getElementById('campeon1').value.trim();
-  const campeon2  = document.getElementById('campeon2').value.trim();
-  const final1    = document.getElementById('finalista1').value.trim();
-  const final2    = document.getElementById('finalista2').value.trim();
-
-  if (!campeon1 || !campeon2) { showToast('⚠️ Ingresá los nombres de los campeones'); return; }
-
-  showToast('Generando imagen...');
-
-  const cancha   = await cargarConfigCancha();
-  const color    = cancha.colorPrincipal  || '#1a6abf';
-  const color2   = cancha.colorSecundario || '#00d4ff';
-  const nombreTorneo = torneoData?.nombre || 'TORNEO';
-
-  const W = 1080;
-  const H = 1350; // formato cuadrado casi
-  const canvas = document.createElement('canvas');
-  canvas.width  = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-
-  // ── FONDO OSCURO ──
-  ctx.fillStyle = '#080c14';
-  ctx.fillRect(0, 0, W, H);
-
-  // ── FOTO DE FONDO (blur/oscurecida) ──
-  if (fotoCampeonesBase64) {
-    await new Promise(resolve => {
-      const img = new Image();
-      img.onload = () => {
-        ctx.save();
-        ctx.globalAlpha = 0.18;
-        // Escalar para cubrir todo el canvas
-        const scale = Math.max(W / img.width, H / img.height);
-        const sw = img.width * scale;
-        const sh = img.height * scale;
-        ctx.drawImage(img, (W - sw) / 2, (H - sh) / 2, sw, sh);
-        ctx.restore();
-        resolve();
-      };
-      img.onerror = resolve;
-      img.src = fotoCampeonesBase64;
-    });
-  }
-
-  // Degradado superior para logo
-  const topGrad = ctx.createLinearGradient(0, 0, 0, 220);
-  topGrad.addColorStop(0, 'rgba(8,12,20,0.95)');
-  topGrad.addColorStop(1, 'rgba(8,12,20,0)');
-  ctx.fillStyle = topGrad;
-  ctx.fillRect(0, 0, W, 220);
-
-  // ── LOGO ──
-  let logoY = 40;
-  if (cancha.logo) {
-    await new Promise(resolve => {
-      const img = new Image();
-      img.onload = () => {
-        const logoSize = 130;
-        ctx.save();
-        // Glow
-        ctx.shadowColor = color2;
-        ctx.shadowBlur = 30;
-        ctx.beginPath();
-        ctx.arc(W/2, logoY + logoSize/2, logoSize/2, 0, Math.PI*2);
-        ctx.clip();
-        ctx.drawImage(img, W/2 - logoSize/2, logoY, logoSize, logoSize);
-        ctx.restore();
-        resolve();
-      };
-      img.onerror = resolve;
-      img.src = cancha.logo;
-    });
-    logoY += 140;
-  } else {
-    // Sin logo: texto cancha
-    ctx.font = 'bold 36px Bebas Neue, Arial';
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.fillText((cancha.nombre || 'PADEL TEAM').toUpperCase(), W/2, logoY + 40);
-    logoY += 60;
-  }
-
-  // ── FOTO PRINCIPAL ──
-  const fotoY = logoY + 10;
-  const fotoH = 520;
-  if (fotoCampeonesBase64) {
-    await new Promise(resolve => {
-      const img = new Image();
-      img.onload = () => {
-        // Borde azul
-        ctx.strokeStyle = color2;
-        ctx.lineWidth = 5;
-        ctx.strokeRect(40, fotoY, W - 80, fotoH);
-
-        // Foto recortada centrada
-        const scale = Math.max((W - 80) / img.width, fotoH / img.height);
-        const sw = img.width * scale;
-        const sh = img.height * scale;
-        const sx = (W - 80 - sw) / 2 + 40;
-        const sy = fotoY + (fotoH - sh) / 2;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(42, fotoY + 2, W - 84, fotoH - 4);
-        ctx.clip();
-        ctx.drawImage(img, sx, sy, sw, sh);
-        ctx.restore();
-        resolve();
-      };
-      img.onerror = resolve;
-      img.src = fotoCampeonesBase64;
-    });
-  } else {
-    ctx.fillStyle = '#1a2a3a';
-    ctx.fillRect(40, fotoY, W - 80, fotoH);
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.font = '80px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('📷', W/2, fotoY + fotoH/2 + 30);
-  }
-
-  // Degradado sobre foto inferior
-  const fadeGrad = ctx.createLinearGradient(0, fotoY + fotoH - 120, 0, fotoY + fotoH + 20);
-  fadeGrad.addColorStop(0, 'rgba(8,12,20,0)');
-  fadeGrad.addColorStop(1, 'rgba(8,12,20,1)');
-  ctx.fillStyle = fadeGrad;
-  ctx.fillRect(0, fotoY + fotoH - 120, W, 140);
-
-  let y = fotoY + fotoH + 20;
-
-  // ── NOMBRE DEL TORNEO ──
-  ctx.textAlign = 'center';
-  ctx.fillStyle = color2;
-  ctx.font = '22px Oswald, Arial';
-  ctx.fillText(`· ${nombreTorneo.toUpperCase()} ·`, W/2, y);
-  y += 50;
-
-  // ── FELICITACIONES ──
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 72px Bebas Neue, Arial';
-  ctx.fillText('¡Felicitaciones', W/2, y);
-  y += 70;
-  ctx.fillText('Campeones!', W/2, y);
-  y += 50;
-
-  // ── CAJAS CAMPEONES vs FINALISTAS ──
-  const boxY = y;
-  const boxH = 120;
-  const boxW = (W - 80 - 60) / 2;
-
-  // Caja campeones (dorado)
-  ctx.fillStyle = 'rgba(212,170,0,0.15)';
-  ctx.beginPath();
-  ctx.roundRect(40, boxY, boxW, boxH, 10);
-  ctx.fill();
-  ctx.strokeStyle = '#D4AA00';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(40, boxY, boxW, boxH, 10);
-  ctx.stroke();
-
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#D4AA00';
-  ctx.font = '13px Oswald, Arial';
-  ctx.fillText('🥇  CAMPEONES', 56, boxY + 26);
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 28px Bebas Neue, Arial';
-  ctx.fillText(campeon1, 56, boxY + 60);
-  ctx.fillText(campeon2, 56, boxY + 88);
-
-  // Trofeo central
-  ctx.textAlign = 'center';
-  ctx.font = '36px Arial';
-  ctx.fillText('🏆', W/2, boxY + 52);
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.font = '14px Oswald, Arial';
-  ctx.fillText('VS', W/2, boxY + 80);
-
-  // Caja finalistas (azul)
-  const box2X = 40 + boxW + 60;
-  ctx.fillStyle = 'rgba(74,158,255,0.1)';
-  ctx.beginPath();
-  ctx.roundRect(box2X, boxY, boxW, boxH, 10);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(74,158,255,0.4)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.roundRect(box2X, boxY, boxW, boxH, 10);
-  ctx.stroke();
-
-  ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(74,158,255,0.8)';
-  ctx.font = '13px Oswald, Arial';
-  ctx.fillText('🥈  FINALISTAS', box2X + 16, boxY + 26);
-  ctx.fillStyle = '#e0e0f0';
-  ctx.font = 'bold 28px Bebas Neue, Arial';
-  ctx.fillText(final1 || '—', box2X + 16, boxY + 60);
-  ctx.fillText(final2 || '—', box2X + 16, boxY + 88);
-
-  y = boxY + boxH + 40;
-
-  // ── TEXTO DE CIERRE ──
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = '22px Oswald, Arial';
-  ctx.fillText('Gracias a todas las parejas y al público', W/2, y);
-  y += 30;
-  ctx.fillText('que fueron parte de este torneo.', W/2, y);
-  y += 38;
-  ctx.fillStyle = color2;
-  ctx.font = 'bold 24px Oswald, Arial';
-  ctx.fillText('¡Todo esto es posible gracias a ustedes!', W/2, y);
-  y += 36;
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '20px Oswald, Arial';
-  ctx.fillText('Nos vemos en el próximo... 🎾', W/2, y);
-  y += 40;
-  ctx.fillStyle = color2;
-  ctx.font = 'bold 22px Bebas Neue, Arial';
-  ctx.fillText(`— ${cancha.nombre || 'Team Pádel'} —`, W/2, y);
-
-  ctx.textAlign = 'left';
-
-  descargarCanvas(canvas, 'campeones.png');
-  showToast('✅ Imagen descargada');
-};
 
 init();
 </script>
