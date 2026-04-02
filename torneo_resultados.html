@@ -367,9 +367,10 @@ function renderContenido() {
 
     // Cuantos clasifican a llave (solo si hay llave)
     const hayLlave = TORNEO.formato === 'round_robin_llave' || TORNEO.formato === 'zonas_llave';
+    const faseActual = FASES.find(f => f.id === faseActiva);
     const nClasifican = TORNEO.formato === 'round_robin_llave'
       ? TORNEO.clasificadosLlave
-      : 2; // zonas: top 2 de cada zona
+      : (faseActual?.clasifican || 2);
 
     wrap.innerHTML = `
       <div class="tabla-zona">
@@ -756,9 +757,9 @@ window.resetearLlave = async function() {
     await Promise.all(elimPartidos.map(p =>
       deleteDoc(doc(db, 'torneos', torneoId, 'partidos', p.id))
     ));
+    // Limpiar array local antes de verificar para que no vea yaHayElim=true
+    partidos = partidos.filter(p => p.fase === 'zona');
     showToast('✓ Llave reseteada — regenerando...');
-    // Esperar que onSnapshot actualice partidos y luego regenerar
-    await new Promise(r => setTimeout(r, 800));
     await verificarYGenerarSiguienteRonda();
   } catch(e) {
     console.error(e);
