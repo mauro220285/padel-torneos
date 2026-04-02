@@ -248,7 +248,8 @@ async function init() {
   const pSnap = await getDocs(collection(db, 'torneos', torneoId, 'parejas'));
   pSnap.docs.forEach(d => {
     const p = d.data();
-    PAREJAS[d.id] = `${p.j1Nombre} / ${p.j2Nombre}`;
+    const num = p.numFixture ? `P${p.numFixture} · ` : '';
+    PAREJAS[d.id] = `${num}${p.j1Nombre} / ${p.j2Nombre}`;
   });
 
   // Armar tabs segun formato
@@ -661,35 +662,95 @@ async function verificarYGenerarSiguienteRonda() {
 
   // ── ZONAS + LLAVE: verificar todas las zonas
   if (formato === 'zonas_llave') {
-    const zonaIds      = [...new Set(partidos.filter(p=>p.fase==='zona').map(p=>p.zonaId))];
-    const todasOk      = zonaIds.every(zId =>
+    const zonaIds = [...new Set(partidos.filter(p=>p.fase==='zona').map(p=>p.zonaId))]
+                      .sort((a,b) => a.localeCompare(b));
+    const todasOk = zonaIds.every(zId =>
       partidos.filter(p=>p.zonaId===zId).every(p=>p.estado==='finalizado')
     );
-    const yaHayElim    = partidos.some(p=>p.fase==='cuartos'||p.fase==='semis'||p.fase==='final');
+    const yaHayElim = partidos.some(p=>['previa','cuartos','semis','final'].includes(p.fase));
     if (!todasOk || yaHayElim) {
-      // Verificar si hay que generar siguiente ronda eliminatoria
       verificarSiguienteRondaElim();
       return;
     }
-    // Generar cuartos o semis desde zonas
-    const clasificados = zonaIds.flatMap(zId => {
+
+    // Obtener clasificados por zona respetando nClasifican de cada zona
+    const porZona = zonaIds.map(zId => {
       const letra = zId.replace('zona_','');
+      const faseZona = FASES.find(f => f.id === zId);
+      const nClasifican = faseZona?.clasifican || 2;
       const tabla = calcularTabla(letra);
-      return [tabla[0]?.[0], tabla[1]?.[0]].filter(Boolean);
+      return tabla.slice(0, nClasifican).map(([id], i) => ({ id, pos: i+1, zona: letra }));
     });
-    await generarLlave(clasificados);
+
+    const primeros = porZona.map(z => z[0]).filter(Boolean);
+    const segundos = porZona.map(z => z[1]).filter(Boolean);
+    const terceros = porZona.map(z => z[2]).filter(Boolean);
+    const total = primeros.length + segundos.length + terceros.length;
+
+    // Calcular potencia de 2 necesaria
+    const potencia = Math.pow(2, Math.ceil(Math.log2(Math.max(total, 2))));
+    const byesNeeded = potencia - total; // cuántos pasan directo sin jugar previa
+
+    let orden = Math.max(...partidos.map(p => p.orden||0), 0) + 1;
+
+    if (total === potencia) {
+      // Número exacto — cruces directos cruzando zonas
+      // 1A vs 2B, 1B vs 2A, 1C vs 2D, 1D vs 2C, etc.
+      const nZ = primeros.length;
+      const mitad = Math.floor(nZ / 2);
+      const cruces = [];
+      for (let i = 0; i < mitad; i++) {
+        const j = i + mitad;
+        if (primeros[i] && segundos[j]) cruces.push({ p1: primeros[i].id, p2: segundos[j].id });
+        if (primeros[j] && segundos[i]) cruces.push({ p1: primeros[j].id, p2: segundos[i].id });
+      }
+      if (nZ % 2 !== 0 && primeros[mitad] && segundos[mitad]) {
+        cruces.push({ p1: primeros[mitad].id, p2: segundos[mitad].id });
+      }
+      const fase = cruces.length >= 4 ? 'cuartos' : cruces.length >= 2 ? 'semis' : 'final';
+      await Promise.all(cruces.map((c, i) => {
+        const id = `partido_${String(orden+i).padStart(3,'0')}`;
+        return setDoc(doc(db,'torneos',torneoId,'partidos',id), {
+          id, fase, pareja1Id: c.p1, pareja2Id: c.p2,
+          estado: 'pendiente', resultado: null, orden: orden+i, hora: null, cancha: null
+        });
+      }));
+    } else {
+      // Número impar — necesita previa
+      // Los mejores primeros (1A, 1B...) entran directo según byesNeeded
+      const directos = primeros.slice(0, byesNeeded);
+      const enPrevia = [...primeros.slice(byesNeeded), ...segundos, ...terceros];
+      const nPrevia = enPrevia.length;
+      const mitadPrevia = Math.floor(nPrevia / 2);
+
+      // Guardar partidos de previa
+      const previaPromises = [];
+      for (let i = 0; i < mitadPrevia; i++) {
+        const id = `partido_${String(orden+i).padStart(3,'0')}`;
+        previaPromises.push(setDoc(doc(db,'torneos',torneoId,'partidos',id), {
+          id, fase: 'previa',
+          pareja1Id: enPrevia[i].id,
+          pareja2Id: enPrevia[nPrevia-1-i].id,
+          estado: 'pendiente', resultado: null,
+          orden: orden+i, hora: null, cancha: null
+        }));
+      }
+      await Promise.all(previaPromises);
+    }
+
     showToast('Fase de grupos completa — Llave generada');
+    faseActiva = 'elim';
   }
 }
 
-// Verificar si hay que avanzar dentro de la llave (cuartos->semis->final)
+// Verificar si hay que avanzar dentro de la llave
 async function verificarSiguienteRondaElim() {
-  const rondas = ['cuartos','semis'];
+  const rondas = ['previa','cuartos','semis'];
   for (const ronda of rondas) {
     const deRonda = partidos.filter(p => p.fase===ronda);
     if (deRonda.length === 0) continue;
     const rondaOk = deRonda.every(p => p.estado==='finalizado');
-    const siguienteRonda = ronda==='cuartos' ? 'semis' : 'final';
+    const siguienteRonda = ronda==='previa' ? 'semis' : ronda==='cuartos' ? 'semis' : 'final';
     const yaHaySiguiente = partidos.some(p => p.fase===siguienteRonda);
     if (rondaOk && !yaHaySiguiente) {
       const ganadores = deRonda.map(p => p.resultado?.ganadorId).filter(Boolean);
