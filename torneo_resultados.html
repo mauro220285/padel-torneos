@@ -237,10 +237,14 @@ async function init() {
   if (!tSnap.exists()) { showToast('Torneo no encontrado'); return; }
   const t = tSnap.data();
   TORNEO = {
-    nombre:            t.nombre,
-    tercerSet:         t.tercerSet        || 'superTiebreak',
-    formato:           t.formato          || 'round_robin',
-    clasificadosLlave: t.clasificadosLlave || 4
+    nombre:             t.nombre,
+    tercerSet:          t.tercerSet         || 'superTiebreak',
+    formato:            t.formato           || 'round_robin',
+    clasificadosLlave:  t.clasificadosLlave || 4,
+    dias:               t.dias              || [],
+    canchasDisponibles: t.canchasDisponibles|| 1,
+    duracion:           t.duracion          || 90,
+    intervalo:          t.intervalo         || 0,
   };
   document.getElementById('torneo-label').textContent =
     `${t.nombre} · ${t.dias?.[0]?.fecha || ''}`;
@@ -412,10 +416,13 @@ function renderContenido() {
       wrap.innerHTML = '<div class="empty-state">Los cruces se generan al finalizar la fase de grupos</div>';
       return;
     }
-    // Botón reset llave
-    wrap.innerHTML += `<div style="text-align:right;margin-bottom:12px;">
+    // Botones de acción
+    wrap.innerHTML += `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <button onclick="resetearLlave()" style="background:rgba(230,57,70,0.1);border:1px solid var(--rojo);border-radius:8px;padding:7px 14px;color:var(--rojo);font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;cursor:pointer;">
         🗑 RESETEAR LLAVE
+      </button>
+      <button onclick="editarLlave()" style="background:rgba(74,158,255,0.1);border:1px solid var(--azul);border-radius:8px;padding:7px 14px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;cursor:pointer;" id="btnEditarLlave">
+        ✏️ EDITAR LLAVE
       </button>
     </div>`;
     const labels = { previa:'RONDA PREVIA', cuartos:'CUARTOS DE FINAL', semis:'SEMIFINAL', final:'FINAL' };
@@ -481,12 +488,16 @@ function renderPartidoCard(p) {
     </div>`;
   }
 
-  return `<div class="partido-card ${estadoClass}" onclick="abrirModal('${p.id}')">
+  return `<div class="partido-card ${estadoClass}" onclick="${editMode ? '' : `abrirModal('${p.id}')`}" style="${editMode ? 'cursor:default' : ''}">
     <div class="pc-header">
-      <div class="pc-hora">${p.hora||'--:--'}</div>
+      <div class="pc-hora" onclick="${editMode ? `seleccionarParaEditar('${p.id}','hora')` : ''}" style="${editMode ? `cursor:pointer;${editSeleccionado?.partidoId===p.id&&editSeleccionado?.slot==='hora'?'color:var(--amarillo);':''}`  : ''}">${p.hora||'--:--'}</div>
       <div class="pc-info">
         <div class="pc-fase-label">${faseLabel}</div>
-        <div class="pc-parejas">${p.label || `${p1Name} <span style="color:var(--muted)">vs</span> ${p2Name}`}</div>
+        <div class="pc-parejas">
+          <span onclick="${editMode ? `seleccionarParaEditar('${p.id}','p1')` : ''}" style="${editMode ? `cursor:pointer;padding:2px 6px;border-radius:4px;${editSeleccionado?.partidoId===p.id&&editSeleccionado?.slot==='p1'?'background:rgba(240,180,41,0.2);color:var(--amarillo);':'background:rgba(74,158,255,0.08);'}` : ''}">${p1Name}</span>
+          <span style="color:var(--muted)"> vs </span>
+          <span onclick="${editMode ? `seleccionarParaEditar('${p.id}','p2')` : ''}" style="${editMode ? `cursor:pointer;padding:2px 6px;border-radius:4px;${editSeleccionado?.partidoId===p.id&&editSeleccionado?.slot==='p2'?'background:rgba(240,180,41,0.2);color:var(--amarillo);':'background:rgba(74,158,255,0.08);'}` : ''}">${p2Name}</span>
+        </div>
       </div>
       <div class="pc-estado"><span class="estado-badge ${badgeClass}">${badgeText}</span></div>
     </div>
@@ -673,7 +684,7 @@ async function verificarYGenerarSiguienteRonda() {
       return;
     }
 
-    // Obtener clasificados por zona respetando nClasifican de cada zona
+    // Obtener clasificados por zona
     const porZona = zonaIds.map(zId => {
       const letra = zId.replace('zona_','');
       const faseZona = FASES.find(f => f.id === zId);
@@ -684,63 +695,121 @@ async function verificarYGenerarSiguienteRonda() {
 
     const primeros = porZona.map(z => z[0]).filter(Boolean);
     const segundos = porZona.map(z => z[1]).filter(Boolean);
-    const terceros = porZona.map(z => z[2]).filter(Boolean);
+    const terceros = porZona.flatMap(z => z[2] ? [z[2]] : []);
     const total = primeros.length + segundos.length + terceros.length;
-
-    // Calcular potencia de 2 necesaria
     const potencia = Math.pow(2, Math.ceil(Math.log2(Math.max(total, 2))));
-    const byesNeeded = potencia - total; // cuántos pasan directo sin jugar previa
+
+    // Generar slots del último día para asignar horarios a la llave
+    const slotsLlave = generarSlotsLlave();
+    let slotIdx = 0;
 
     let orden = Math.max(...partidos.map(p => p.orden||0), 0) + 1;
 
+    // Función para obtener siguiente slot
+    function nextSlot() {
+      const s = slotsLlave[slotIdx] || null;
+      slotIdx++;
+      return s;
+    }
+
     if (total === potencia) {
-      // Número exacto — cruces directos cruzando zonas
-      // 1A vs 2B, 1B vs 2A, 1C vs 2D, 1D vs 2C, etc.
-      const nZ = primeros.length;
-      const mitad = Math.floor(nZ / 2);
-      const cruces = [];
-      for (let i = 0; i < mitad; i++) {
-        const j = i + mitad;
-        if (primeros[i] && segundos[j]) cruces.push({ p1: primeros[i].id, p2: segundos[j].id });
-        if (primeros[j] && segundos[i]) cruces.push({ p1: primeros[j].id, p2: segundos[i].id });
-      }
-      if (nZ % 2 !== 0 && primeros[mitad] && segundos[mitad]) {
-        cruces.push({ p1: primeros[mitad].id, p2: segundos[mitad].id });
-      }
-      const fase = cruces.length >= 4 ? 'cuartos' : cruces.length >= 2 ? 'semis' : 'final';
+      // Número exacto — cruces cruzados entre zonas sin repetir zona
+      const cruces = armarCrucesPar(primeros, segundos, terceros);
+      const fase = cruces.length >= 4 ? 'cuartos' : 'semis';
       await Promise.all(cruces.map((c, i) => {
+        const slot = nextSlot();
         const id = `partido_${String(orden+i).padStart(3,'0')}`;
         return setDoc(doc(db,'torneos',torneoId,'partidos',id), {
           id, fase, pareja1Id: c.p1, pareja2Id: c.p2,
-          estado: 'pendiente', resultado: null, orden: orden+i, hora: null, cancha: null
+          estado: 'pendiente', resultado: null, orden: orden+i,
+          hora: slot?.hora||null, cancha: slot?.cancha||null, dia: slot?.dia||null
         });
       }));
     } else {
-      // Número impar — necesita previa
-      // Los mejores primeros (1A, 1B...) entran directo según byesNeeded
-      const directos = primeros.slice(0, byesNeeded);
-      const enPrevia = [...primeros.slice(byesNeeded), ...segundos, ...terceros];
-      const nPrevia = enPrevia.length;
-      const mitadPrevia = Math.floor(nPrevia / 2);
-
-      // Guardar partidos de previa
-      const previaPromises = [];
-      for (let i = 0; i < mitadPrevia; i++) {
+      // Número impar — previa + 1 directo a semis
+      // Criterio para 3 zonas (2+2+3):
+      // 1A directo, previa: 2B vs 2C, 1C vs 2A, 1B vs 3C
+      const cruces = armarCrucesImpar(primeros, segundos, terceros, porZona);
+      await Promise.all(cruces.map((c, i) => {
+        const slot = nextSlot();
         const id = `partido_${String(orden+i).padStart(3,'0')}`;
-        previaPromises.push(setDoc(doc(db,'torneos',torneoId,'partidos',id), {
-          id, fase: 'previa',
-          pareja1Id: enPrevia[i].id,
-          pareja2Id: enPrevia[nPrevia-1-i].id,
-          estado: 'pendiente', resultado: null,
-          orden: orden+i, hora: null, cancha: null
-        }));
-      }
-      await Promise.all(previaPromises);
+        return setDoc(doc(db,'torneos',torneoId,'partidos',id), {
+          id, fase: 'previa', pareja1Id: c.p1, pareja2Id: c.p2,
+          estado: 'pendiente', resultado: null, orden: orden+i,
+          hora: slot?.hora||null, cancha: slot?.cancha||null, dia: slot?.dia||null
+        });
+      }));
     }
 
     showToast('Fase de grupos completa — Llave generada');
     faseActiva = 'elim';
   }
+}
+
+// Genera slots del último día del torneo para asignar a la llave
+function generarSlotsLlave() {
+  const dias = TORNEO.dias || [];
+  if (!dias.length) return [];
+  const ultimoDia = dias[dias.length - 1];
+  const slots = [];
+  const canchas = TORNEO.canchasDisponibles || 1;
+  const durMin = TORNEO.duracion || 90;
+  const intervMin = TORNEO.intervalo || 0;
+
+  if (!ultimoDia.apertura) return [];
+  const [hh, mm] = ultimoDia.apertura.split(':').map(Number);
+  let totalMin = hh * 60 + mm;
+
+  const nSlots = ultimoDia.slots || 6;
+  for (let s = 0; s < nSlots; s++) {
+    const hora = `${String(Math.floor(totalMin/60)).padStart(2,'0')}:${String(totalMin%60).padStart(2,'0')}`;
+    for (let c = 1; c <= canchas; c++) {
+      slots.push({ hora, cancha: `Cancha ${c}`, dia: ultimoDia.fecha });
+    }
+    totalMin += durMin + intervMin;
+  }
+  return slots;
+}
+
+// Cruces para número par — cruzar zonas sin repetir
+function armarCrucesPar(primeros, segundos, terceros) {
+  const cruces = [];
+  const nZ = primeros.length;
+  const mitad = Math.floor(nZ / 2);
+  for (let i = 0; i < mitad; i++) {
+    const j = i + mitad;
+    if (primeros[i] && segundos[j]) cruces.push({ p1: primeros[i].id, p2: segundos[j].id });
+    if (primeros[j] && segundos[i]) cruces.push({ p1: primeros[j].id, p2: segundos[i].id });
+  }
+  return cruces;
+}
+
+// Cruces para número impar — criterio federación
+// Para 3 zonas (2+2+3): 1A directo, previa: 2B vs 2C, 1C vs 2A, 1B vs 3C
+function armarCrucesImpar(primeros, segundos, terceros, porZona) {
+  const nZonas = porZona.length;
+
+  if (nZonas === 3 && terceros.length === 1) {
+    // Caso específico 2+2+3 → 7 clasificados
+    // Zonas: A(idx0), B(idx1), C(idx2)
+    const p1A = primeros[0], p2A = segundos[0];
+    const p1B = primeros[1], p2B = segundos[1];
+    const p1C = primeros[2], p2C = segundos[2], p3C = terceros[0];
+    return [
+      { p1: p2B.id, p2: p2C.id },  // 2B vs 2C → gan. enfrenta 1A
+      { p1: p1C.id, p2: p2A.id },  // 1C vs 2A
+      { p1: p1B.id, p2: p3C.id },  // 1B vs 3C
+    ];
+  }
+
+  // Caso genérico — primero de zona A directo, resto juega previa
+  const enPrevia = [...primeros.slice(1), ...segundos, ...terceros];
+  const cruces = [];
+  const mitad = Math.floor(enPrevia.length / 2);
+  for (let i = 0; i < mitad; i++) {
+    cruces.push({ p1: enPrevia[i].id, p2: enPrevia[enPrevia.length-1-i].id });
+  }
+  return cruces;
 }
 
 // Verificar si hay que avanzar dentro de la llave
@@ -809,6 +878,71 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 window.showToast = showToast;
+
+// ── EDITAR LLAVE ──
+let editMode = false;
+let editSeleccionado = null; // { partidoId, slot: 'p1'|'p2'|'hora' }
+
+window.editarLlave = function() {
+  editMode = !editMode;
+  editSeleccionado = null;
+  const btn = document.getElementById('btnEditarLlave');
+  if (btn) btn.textContent = editMode ? '✅ CONFIRMAR EDICIÓN' : '✏️ EDITAR LLAVE';
+  if (btn) btn.style.background = editMode ? 'rgba(76,175,80,0.15)' : 'rgba(74,158,255,0.1)';
+  if (btn) btn.style.borderColor = editMode ? 'var(--verde)' : 'var(--azul)';
+  if (btn) btn.style.color = editMode ? 'var(--verde)' : 'var(--azul)';
+  renderContenido();
+  if (editMode) showToast('Tocá una pareja para moverla, o una hora para intercambiarla');
+};
+
+window.seleccionarParaEditar = async function(partidoId, slot) {
+  if (!editMode) return;
+  if (!editSeleccionado) {
+    editSeleccionado = { partidoId, slot };
+    showToast('Ahora tocá otra posición para intercambiar');
+    renderContenido();
+    return;
+  }
+  // Intercambiar
+  const { partidoId: id2, slot: slot2 } = editSeleccionado;
+  editSeleccionado = null;
+
+  if (partidoId === id2 && slot === slot2) {
+    renderContenido();
+    return;
+  }
+
+  try {
+    const p1 = partidos.find(p => p.id === partidoId);
+    const p2 = partidos.find(p => p.id === id2);
+    if (!p1 || !p2) return;
+
+    if (slot === 'hora' && slot2 === 'hora') {
+      // Intercambiar horarios
+      await Promise.all([
+        updateDoc(doc(db,'torneos',torneoId,'partidos',partidoId), { hora: p2.hora, dia: p2.dia, cancha: p2.cancha }),
+        updateDoc(doc(db,'torneos',torneoId,'partidos',id2), { hora: p1.hora, dia: p1.dia, cancha: p1.cancha })
+      ]);
+      showToast('✓ Horarios intercambiados');
+    } else {
+      // Intercambiar parejas
+      const val1 = slot === 'p1' ? p1.pareja1Id : p1.pareja2Id;
+      const val2 = slot2 === 'p1' ? p2.pareja1Id : p2.pareja2Id;
+
+      const upd1 = slot === 'p1' ? { pareja1Id: val2 } : { pareja2Id: val2 };
+      const upd2 = slot2 === 'p1' ? { pareja1Id: val1 } : { pareja2Id: val1 };
+
+      await Promise.all([
+        updateDoc(doc(db,'torneos',torneoId,'partidos',partidoId), upd1),
+        updateDoc(doc(db,'torneos',torneoId,'partidos',id2), upd2)
+      ]);
+      showToast('✓ Parejas intercambiadas');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('Error al editar');
+  }
+};
 
 // ── RESETEAR LLAVE ──
 window.resetearLlave = async function() {
