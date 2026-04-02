@@ -1810,228 +1810,215 @@ window.generarImagenLlave = async function() {
   const color  = cancha.colorPrincipal  || '#1a6abf';
   const color2 = cancha.colorSecundario || '#00d4ff';
 
-  const parejas = {};
+  const parejasData = {};
   const pSnap = await getDocs(collection(db,'torneos',torneoId,'parejas'));
   pSnap.docs.forEach(d => {
     const p = d.data();
-    const num = p.numFixture ? `P${p.numFixture} · ` : '';
-    parejas[d.id] = `${num}${p.j1Nombre?.split(' ').pop() || ''} / ${p.j2Nombre?.split(' ').pop() || ''}`;
+    const num = p.numFixture ? `P${p.numFixture}` : '';
+    const ap1 = p.j1Nombre?.trim().split(' ').pop() || '';
+    const ap2 = p.j2Nombre?.trim().split(' ').pop() || '';
+    parejasData[d.id] = { short: `${num} · ${ap1}/${ap2}`, num };
   });
 
   const snap = await getDocs(query(collection(db,'torneos',torneoId,'partidos'), orderBy('orden')));
   const ps = snap.docs.map(d => ({id:d.id,...d.data()}));
-  const elim = ps.filter(p => p.fase !== 'zona');
+  const elim = ps.filter(p => p.fase !== 'zona').sort((a,b)=>(a.orden||0)-(b.orden||0));
   if (elim.length === 0) { showToast('⚠️ No hay llave generada'); return; }
 
-  function nombreP(id, orden) {
-    if (!id) return orden ? `GAN. ${orden}` : '?';
-    const p = parejas[id];
-    return p || id;
+  function nombreCorto(id) {
+    if (!id) return '?';
+    return parejasData[id]?.short || id;
+  }
+  function labelGanador(fase, idx) {
+    const labels = { previa:'Cto', cuartos:'Cto', semis:'Semi' };
+    return `GAN. ${labels[fase]||fase} ${idx+1}`;
   }
 
-  // Renombrar "previa" según cantidad de clasificados
+  // Armar estructura de rondas
+  const rondasOrden = ['previa','cuartos','octavos','semis','final'];
+  const rondasPresentes = rondasOrden.filter(r => elim.some(p=>p.fase===r));
   const fasesLabels = {
-    previa: 'CUARTOS DE FINAL',
-    cuartos: 'CUARTOS DE FINAL',
-    octavos: 'OCTAVOS DE FINAL',
-    dieciseis: 'DIECISEISAVOS',
-    semis: 'SEMIFINALES',
-    final: 'FINAL'
+    previa:'CUARTOS DE FINAL', cuartos:'CUARTOS DE FINAL',
+    octavos:'OCTAVOS DE FINAL', semis:'SEMIFINALES', final:'FINAL'
   };
 
-  const rondasOrden = ['dieciseis','octavos','previa','cuartos','semis','final'];
-  const rondasConPartidos = rondasOrden.filter(r => elim.some(p => p.fase === r));
-
-  // Layout tipo cuadro
+  // Canvas dimensiones
   const W = 1080;
   const headerH = 160;
   const footerH = 50;
-  const colW = Math.floor((W - 60) / rondasConPartidos.length);
-  const padH = 30;
-  const cardH = 100; // altura de cada partido
-  const cardGap = 16;
-  const maxPartidos = Math.max(...rondasConPartidos.map(r => elim.filter(p=>p.fase===r).length));
-  const H = headerH + footerH + maxPartidos * (cardH + cardGap) + padH * 2 + 60;
+  const padTop = 20;
+  const slotH = 80;   // altura por slot de partido (cada partido ocupa 2 slots = 160px)
+  const slotGap = 10;
+  const roundW = Math.floor((W - 40) / rondasPresentes.length);
+
+  // Calcular altura máxima necesaria
+  const maxSlots = elim.filter(p=>p.fase===rondasPresentes[0]).length * 2;
+  const H = headerH + padTop + maxSlots * (slotH + slotGap) + footerH + 40;
 
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // ── FONDO ──
-  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
-  bgGrad.addColorStop(0, '#080c14');
-  bgGrad.addColorStop(1, '#0d1520');
-  ctx.fillStyle = bgGrad;
-  ctx.fillRect(0, 0, W, H);
+  // Fondo
+  const bgGrad = ctx.createLinearGradient(0,0,0,H);
+  bgGrad.addColorStop(0,'#080c14'); bgGrad.addColorStop(1,'#0d1a2a');
+  ctx.fillStyle = bgGrad; ctx.fillRect(0,0,W,H);
 
   // Líneas decorativas
-  ctx.strokeStyle = 'rgba(74,158,255,0.06)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 10; i++) {
-    ctx.beginPath(); ctx.moveTo(0, i*120); ctx.lineTo(W, i*120); ctx.stroke();
-  }
+  ctx.strokeStyle='rgba(74,158,255,0.05)'; ctx.lineWidth=1;
+  for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(0,i*100);ctx.lineTo(W,i*100);ctx.stroke();}
 
-  // ── HEADER ──
-  const hGrad = ctx.createLinearGradient(0, 0, W, headerH);
-  hGrad.addColorStop(0, color); hGrad.addColorStop(1, color2);
-  ctx.fillStyle = hGrad;
-  ctx.fillRect(0, 0, W, headerH);
+  // Header
+  const hGrad = ctx.createLinearGradient(0,0,W,headerH);
+  hGrad.addColorStop(0,color); hGrad.addColorStop(1,color2);
+  ctx.fillStyle=hGrad; ctx.fillRect(0,0,W,headerH);
 
-  // Logo si existe
-  let textX = 40;
+  let textX = 30;
   if (cancha.logo) {
     await new Promise(resolve => {
       const img = new Image();
       img.onload = () => {
-        const s = 110;
+        const s=120;
         ctx.save();
         ctx.beginPath();
-        ctx.arc(40 + s/2, headerH/2, s/2, 0, Math.PI*2);
+        ctx.arc(30+s/2, headerH/2, s/2, 0, Math.PI*2);
         ctx.clip();
-        ctx.drawImage(img, 40, (headerH-s)/2, s, s);
+        ctx.drawImage(img,30,(headerH-s)/2,s,s);
         ctx.restore();
         resolve();
       };
-      img.onerror = resolve;
-      img.src = cancha.logo;
+      img.onerror=resolve; img.src=cancha.logo;
     });
-    textX = 170;
+    textX=165;
+  }
+  ctx.fillStyle='#fff';
+  ctx.font='bold 52px Bebas Neue, Arial';
+  ctx.fillText((cancha.nombre||'PADEL TEAM').toUpperCase(),textX,68);
+  ctx.font='bold 28px Oswald, Arial';
+  ctx.fillStyle='rgba(255,255,255,0.85)';
+  ctx.fillText((torneoData?.nombre||'TORNEO').toUpperCase(),textX,108);
+  ctx.font='bold 20px Bebas Neue, Arial';
+  ctx.fillStyle='rgba(255,255,255,0.55)';
+  ctx.textAlign='right';
+  ctx.fillText('CUADRO ELIMINATORIO',W-20,108);
+  ctx.textAlign='left';
+
+  // Título "CUADRO DE PÁDEL"
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.font='bold 24px Bebas Neue, Arial';
+  ctx.textAlign='center';
+  ctx.fillText('— CUADRO DE PÁDEL —',W/2,headerH-12);
+  ctx.textAlign='left';
+
+  const bodyTop = headerH + padTop;
+
+  // Función para dibujar un slot de partido
+  function drawSlot(x, y, w, nombre, ganador, hora, isPlaceholder) {
+    const slotW = w - 16;
+    // Fondo
+    ctx.fillStyle = ganador ? 'rgba(255,215,0,0.12)' : isPlaceholder ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.06)';
+    ctx.beginPath(); ctx.roundRect(x+8,y,slotW,slotH-4,6); ctx.fill();
+    // Borde
+    ctx.strokeStyle = ganador ? 'rgba(255,215,0,0.5)' : isPlaceholder ? 'rgba(255,255,255,0.08)' : 'rgba(74,158,255,0.25)';
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.roundRect(x+8,y,slotW,slotH-4,6); ctx.stroke();
+    // Hora (pequeña, arriba)
+    if (hora) {
+      ctx.fillStyle=color2; ctx.font='bold 13px Oswald, Arial';
+      ctx.fillText(`🕐 ${hora}hs`,x+16,y+16);
+    }
+    // Nombre
+    ctx.fillStyle = ganador ? '#FFD700' : isPlaceholder ? 'rgba(180,180,200,0.4)' : '#e0e0f0';
+    ctx.font = ganador ? 'bold 18px Oswald, Arial' : isPlaceholder ? 'italic 15px Oswald, Arial' : '17px Oswald, Arial';
+    // Truncar si es muy largo
+    let txt = nombre;
+    const maxTxtW = slotW - 20;
+    while(ctx.measureText(txt).width > maxTxtW && txt.length > 4) txt = txt.slice(0,-2)+'…';
+    ctx.fillText(txt, x+16, y + (hora ? 44 : 34));
+    if (ganador) {
+      ctx.fillStyle='rgba(255,215,0,0.6)'; ctx.font='11px Oswald, Arial';
+      ctx.fillText('🏆 CAMPEÓN',x+16,y+62);
+    }
   }
 
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 48px Bebas Neue, Arial';
-  ctx.fillText((cancha.nombre || 'PADEL TEAM').toUpperCase(), textX, 70);
-  ctx.font = 'bold 28px Oswald, Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.fillText((torneoData?.nombre || 'TORNEO').toUpperCase(), textX, 108);
-  ctx.font = 'bold 22px Bebas Neue, Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.textAlign = 'right';
-  ctx.fillText('CUADRO ELIMINATORIO', W - 30, 108);
-  ctx.textAlign = 'left';
-
-  // ── COLUMNAS POR RONDA ──
-  const colY = headerH + padH;
-
-  rondasConPartidos.forEach((fase, colIdx) => {
-    const cx = 30 + colIdx * colW;
-    const rps = elim.filter(p => p.fase === fase).sort((a,b) => (a.orden||0)-(b.orden||0));
+  // Dibujar cada ronda
+  rondasPresentes.forEach((fase, colIdx) => {
+    const cx = 20 + colIdx * roundW;
+    const rps = elim.filter(p=>p.fase===fase).sort((a,b)=>(a.orden||0)-(b.orden||0));
     const label = fasesLabels[fase] || fase.toUpperCase();
 
-    // Título de columna
-    ctx.fillStyle = color2;
-    ctx.font = 'bold 18px Bebas Neue, Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(label, cx + colW/2, colY);
-    ctx.textAlign = 'left';
-
-    // Línea bajo título
-    ctx.strokeStyle = color2;
-    ctx.lineWidth = 1.5;
+    // Título columna
+    ctx.fillStyle=color2;
+    ctx.font='bold 19px Bebas Neue, Arial';
+    ctx.textAlign='center';
+    ctx.fillText(label, cx+roundW/2, bodyTop-4);
+    ctx.strokeStyle=color2; ctx.lineWidth=1.5;
     ctx.beginPath();
-    ctx.moveTo(cx + 10, colY + 8);
-    ctx.lineTo(cx + colW - 10, colY + 8);
-    ctx.stroke();
+    ctx.moveTo(cx+20,bodyTop+4); ctx.lineTo(cx+roundW-20,bodyTop+4); ctx.stroke();
+    ctx.textAlign='left';
 
-    // Partidos
+    const nPrev = colIdx > 0 ? elim.filter(p=>p.fase===rondasPresentes[colIdx-1]).length : 0;
+    const totalPrevSlots = nPrev * 2;
+
     rps.forEach((p, pIdx) => {
-      const py = colY + 28 + pIdx * (cardH + cardGap);
-      const n1 = nombreP(p.pareja1Id);
-      const n2 = nombreP(p.pareja2Id);
-      const g1 = p.resultado?.ganadorId === p.pareja1Id;
-      const g2 = p.resultado?.ganadorId === p.pareja2Id;
-
-      // Card fondo
-      ctx.fillStyle = 'rgba(255,255,255,0.04)';
-      ctx.beginPath();
-      ctx.roundRect(cx + 6, py, colW - 12, cardH, 8);
-      ctx.fill();
-      ctx.strokeStyle = colIdx === 0 ? color : 'rgba(255,255,255,0.1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(cx + 6, py, colW - 12, cardH, 8);
-      ctx.stroke();
-
-      // Horario
-      if (p.hora) {
-        ctx.fillStyle = color2;
-        ctx.font = 'bold 14px Bebas Neue, Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`🕐 ${p.hora}hs`, cx + colW/2, py + 16);
-        ctx.textAlign = 'left';
+      // Calcular posición Y centrada respecto a los dos partidos que la generaron
+      let slotY;
+      if (colIdx === 0) {
+        slotY = bodyTop + 16 + pIdx * 2 * (slotH + slotGap);
+      } else {
+        // Centrar entre los dos partidos que aportaron
+        const prev1Y = bodyTop + 16 + (pIdx*2) * (slotH + slotGap) * (totalPrevSlots/rps.length/2);
+        const prev2Y = bodyTop + 16 + (pIdx*2+1) * (slotH + slotGap) * (totalPrevSlots/rps.length/2);
+        slotY = (prev1Y + prev2Y) / 2 + slotH/4;
       }
 
-      // Separador
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx + 10, py + cardH/2);
-      ctx.lineTo(cx + colW - 10, py + cardH/2);
-      ctx.stroke();
+      const g1 = p.resultado?.ganadorId === p.pareja1Id;
+      const g2 = p.resultado?.ganadorId === p.pareja2Id;
+      const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id) : `GAN. Cto ${pIdx*2+1}`;
+      const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id) : `GAN. Cto ${pIdx*2+2}`;
+      const isP1placeholder = !p.pareja1Id;
+      const isP2placeholder = !p.pareja2Id;
 
-      // VS al centro
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.font = '11px Oswald, Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText('vs', cx + colW/2, py + cardH/2 + 5);
-      ctx.textAlign = 'left';
+      drawSlot(cx, slotY,           roundW, n1, g1, p.hora||null, isP1placeholder);
+      drawSlot(cx, slotY+slotH+slotGap, roundW, n2, g2, null,       isP2placeholder);
 
-      // Pareja 1
-      ctx.fillStyle = g1 ? '#FFD700' : '#e0e0f0';
-      ctx.font = g1 ? 'bold 15px Oswald, Arial' : '14px Oswald, Arial';
-      const maxW = colW - 24;
-      let t1 = n1;
-      ctx.font = g1 ? 'bold 15px Oswald, Arial' : '14px Oswald, Arial';
-      while (ctx.measureText(t1).width > maxW && t1.length > 5) t1 = t1.slice(0, -2) + '…';
-      ctx.fillText(t1, cx + 12, py + cardH/2 - 8);
+      // Línea VS entre los dos
+      ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='bold 13px Oswald, Arial';
+      ctx.textAlign='center';
+      ctx.fillText('VS', cx+roundW/2, slotY+slotH+slotGap/2+4);
+      ctx.textAlign='left';
 
-      // Pareja 2
-      ctx.fillStyle = g2 ? '#FFD700' : 'rgba(200,200,220,0.8)';
-      ctx.font = g2 ? 'bold 15px Oswald, Arial' : '14px Oswald, Arial';
-      let t2 = n2;
-      while (ctx.measureText(t2).width > maxW && t2.length > 5) t2 = t2.slice(0, -2) + '…';
-      ctx.fillText(t2, cx + 12, py + cardH/2 + 22);
+      // Conector hacia siguiente ronda
+      if (colIdx < rondasPresentes.length-1) {
+        const midY = slotY + slotH + slotGap/2;
+        const xRight = cx + roundW - 8;
+        const xNext = cx + roundW + 12;
+        ctx.strokeStyle='rgba(74,158,255,0.3)'; ctx.lineWidth=1.5;
+        ctx.beginPath();
+        ctx.moveTo(xRight, slotY+slotH/2);
+        ctx.lineTo(xRight+8, slotY+slotH/2);
+        ctx.lineTo(xRight+8, midY);
+        ctx.lineTo(xNext, midY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(xRight, slotY+slotH+slotGap+slotH/2);
+        ctx.lineTo(xRight+8, slotY+slotH+slotGap+slotH/2);
+        ctx.lineTo(xRight+8, midY);
+        ctx.stroke();
+      }
     });
-
-    // Conectores hacia siguiente ronda
-    if (colIdx < rondasConPartidos.length - 1) {
-      rps.forEach((p, pIdx) => {
-        if (pIdx % 2 === 0 && rps[pIdx+1]) {
-          const py1 = colY + 28 + pIdx * (cardH + cardGap) + cardH/2;
-          const py2 = colY + 28 + (pIdx+1) * (cardH + cardGap) + cardH/2;
-          const pyMid = (py1 + py2) / 2;
-          const xRight = cx + colW - 6;
-          const xNext = cx + colW + 6;
-
-          ctx.strokeStyle = 'rgba(74,158,255,0.25)';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(xRight, py1);
-          ctx.lineTo(xRight + 6, py1);
-          ctx.lineTo(xRight + 6, pyMid);
-          ctx.lineTo(xNext + 4, pyMid);
-          ctx.stroke();
-
-          ctx.beginPath();
-          ctx.moveTo(xRight, py2);
-          ctx.lineTo(xRight + 6, py2);
-          ctx.lineTo(xRight + 6, pyMid);
-          ctx.stroke();
-        }
-      });
-    }
   });
 
-  // ── FOOTER ──
-  ctx.fillStyle = color;
-  ctx.fillRect(0, H - footerH, W, footerH);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.font = 'bold 20px Bebas Neue, Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(`${(cancha.nombre||'PADEL TEAM').toUpperCase()} · ¡BUENA SUERTE! 🎾`, W/2, H - 16);
-  ctx.textAlign = 'left';
+  // Footer
+  ctx.fillStyle=color;
+  ctx.fillRect(0,H-footerH,W,footerH);
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.font='bold 22px Bebas Neue, Arial';
+  ctx.textAlign='center';
+  ctx.fillText(`${(cancha.nombre||'PADEL TEAM').toUpperCase()} · ¡BUENA SUERTE! 🎾`,W/2,H-14);
+  ctx.textAlign='left';
 
-  descargarCanvas(canvas, 'llave_eliminatoria.png');
+  descargarCanvas(canvas,'llave_eliminatoria.png');
   showToast('✅ Imagen descargada');
 };
 
