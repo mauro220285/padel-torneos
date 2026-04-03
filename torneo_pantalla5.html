@@ -2075,7 +2075,33 @@ window.generarImagenLlave = async function() {
   }
   const partidoGap = 14; // espacio entre partidos
 
-  // Dibujar cada ronda
+  // Version con dos colores de borde (uno por cuadro) — para la final
+  function drawPartidoDosColores(cx, slotY, roundW, n1, n2, g1, g2, hora, ph1, ph2, bc1, bc2) {
+    const slotW = roundW - 16;
+    const nameH = 36;
+    const sepH  = 22;
+    ctx.fillStyle = g1?'rgba(255,215,0,0.12)':ph1?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.roundRect(cx+8,slotY,slotW,nameH,5); ctx.fill();
+    ctx.strokeStyle = g1?'rgba(255,215,0,0.5)':bc1; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(cx+8,slotY,slotW,nameH,5); ctx.stroke();
+    ctx.fillStyle = g1?'#FFD700':ph1?'rgba(180,180,200,0.35)':'#e8e8f0';
+    ctx.font = g1?'bold 16px Oswald, Arial':ph1?'italic 13px Oswald, Arial':'15px Oswald, Arial';
+    let t1=n1; while(ctx.measureText(t1).width>slotW-20&&t1.length>4)t1=t1.slice(0,-2)+'…';
+    ctx.fillText(t1,cx+14,slotY+nameH/2+6);
+    const midY=slotY+nameH;
+    if(hora){ctx.fillStyle=bc1;ctx.font='bold 12px Oswald, Arial';ctx.textAlign='center';ctx.strokeStyle='rgba(0,0,0,0.5)';ctx.lineWidth=1.5;ctx.strokeText(`⏰ ${hora}hs`,cx+roundW/2,midY+14);ctx.fillText(`⏰ ${hora}hs`,cx+roundW/2,midY+14);}
+    else{ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='bold 11px Oswald, Arial';ctx.textAlign='center';ctx.fillText('VS',cx+roundW/2,midY+14);}
+    ctx.textAlign='left';
+    const y2=slotY+nameH+sepH;
+    ctx.fillStyle = g2?'rgba(255,215,0,0.12)':ph2?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.roundRect(cx+8,y2,slotW,nameH,5); ctx.fill();
+    ctx.strokeStyle = g2?'rgba(255,215,0,0.5)':bc2; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(cx+8,y2,slotW,nameH,5); ctx.stroke();
+    ctx.fillStyle = g2?'#FFD700':ph2?'rgba(180,180,200,0.35)':'rgba(220,220,235,0.85)';
+    ctx.font = g2?'bold 16px Oswald, Arial':ph2?'italic 13px Oswald, Arial':'15px Oswald, Arial';
+    let t2=n2; while(ctx.measureText(t2).width>slotW-20&&t2.length>4)t2=t2.slice(0,-2)+'…';
+    ctx.fillText(t2,cx+14,y2+nameH/2+6);
+  }
   rondasPresentes.forEach((fase, colIdx) => {
     const cx = 20 + colIdx * (roundW + colPad);
     const rps = elim.filter(p=>p.fase===fase).sort((a,b)=>(a.orden||0)-(b.orden||0));
@@ -2124,10 +2150,12 @@ window.generarImagenLlave = async function() {
       });
 
     } else if (fase === 'semis') {
-      // Semi 1 al nivel de Cuarto 1 (slot 2 — P8/Romina debajo de P5/Maku)
-      // Semi 2 al nivel de Cuarto 2 (slot 3 — P2/Martina)
-      const semi1Y = bodyTop + 16 + 2 * unitH;
-      const semi2Y = bodyTop + 16 + 3 * unitH;
+      // Semi 1: cuadro superior al nivel de P5/Maku (slot 1), cuadro inferior al nivel de P8/Romina
+      // Entonces el partido de semi1 arranca en slot 1
+      // Semi 2: cuadro superior al nivel de P2/Martina (slot 2 + nameH + sepH dentro del partido)
+      // nameH=36, sepH=22, unitH=partidoH+partidoGap=94+14=108
+      const semi1Y = bodyTop + 16 + 1 * unitH; // P5 row
+      const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22; // P2/Martina row (dentro del slot 2)
 
       const semiPositions = [semi1Y, semi2Y];
       const semisToShow = rps.length > 0 ? rps : [
@@ -2162,19 +2190,20 @@ window.generarImagenLlave = async function() {
       });
 
     } else if (fase === 'final') {
-      // Final centrada entre semi1 (slot 2) y semi2 (slot 3)
-      const semi1Y = bodyTop + 16 + 2 * unitH;
-      const semi2Y = bodyTop + 16 + 3 * unitH;
+      // Final centrada entre semi1 y semi2
+      const semi1Y = bodyTop + 16 + 1 * unitH;
+      const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22;
       const slotY = (semi1Y + semi2Y) / 2;
       const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
       const g1 = p.resultado?.ganadorId === p.pareja1Id;
       const g2 = p.resultado?.ganadorId === p.pareja2Id;
       // Final: borde dorado si hay campeón, sino degradado turquesa
-      const bordeF = (g1||g2) ? 'rgba(255,215,0,0.6)' : color;
-      drawPartidoColored(cx, slotY, roundW,
-        p.pareja1Id ? nombreCorto(p.pareja1Id) : 'GAN. SEMI 1',
-        p.pareja2Id ? nombreCorto(p.pareja2Id) : 'GAN. SEMI 2',
-        g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeF);
+      // Final: cuadro superior turquesa, inferior azul
+      const n1f = p.pareja1Id ? nombreCorto(p.pareja1Id) : 'GAN. SEMI 1';
+      const n2f = p.pareja2Id ? nombreCorto(p.pareja2Id) : 'GAN. SEMI 2';
+      const bc1f = (g1) ? 'rgba(255,215,0,0.6)' : color2; // turquesa arriba
+      const bc2f = (g2) ? 'rgba(255,215,0,0.6)' : color;  // azul abajo
+      drawPartidoDosColores(cx, slotY, roundW, n1f, n2f, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bc1f, bc2f);
     }
   });
 
