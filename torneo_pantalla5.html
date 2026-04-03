@@ -1825,6 +1825,27 @@ window.generarImagenLlave = async function() {
   const elim = ps.filter(p => p.fase !== 'zona').sort((a,b)=>(a.orden||0)-(b.orden||0));
   if (elim.length === 0) { showToast('⚠️ No hay llave generada'); return; }
 
+  // Obtener 1° de zona A para mostrarlo en semi 1
+  let primeroZonaA = null;
+  try {
+    const zonaParts = ps.filter(p => p.fase==='zona' && p.zonaId==='zona_A');
+    const ids = [...new Set(zonaParts.flatMap(p=>[p.pareja1Id,p.pareja2Id]).filter(id=>!/^[GP]_zona_/.test(id)))];
+    const tabla = {};
+    ids.forEach(id => { tabla[id]={pts:0,setsG:0,gamesG:0}; });
+    zonaParts.filter(p=>p.estado==='finalizado'&&p.resultado).forEach(p=>{
+      const r=p.resultado;
+      const realP1 = /^[GP]_zona_/.test(p.pareja1Id) ? (r.ganadorId===p.pareja1Id ? r.ganadorId : r.perdedorId) : p.pareja1Id;
+      const realP2 = /^[GP]_zona_/.test(p.pareja2Id) ? (r.ganadorId===p.pareja2Id ? r.ganadorId : r.perdedorId) : p.pareja2Id;
+      if(tabla[realP1]&&tabla[realP2]){
+        if(r.ganadorId===realP1){tabla[realP1].pts+=2;}else{tabla[realP2].pts+=2;}
+        tabla[realP1].setsG+=(r.setsP1||0); tabla[realP2].setsG+=(r.setsP2||0);
+        tabla[realP1].gamesG+=(r.gamesP1||0); tabla[realP2].gamesG+=(r.gamesP2||0);
+      }
+    });
+    const sorted = Object.entries(tabla).sort(([,a],[,b])=>b.pts-a.pts||(b.setsG-a.setsG)||(b.gamesG-a.gamesG));
+    if(sorted[0]) primeroZonaA = sorted[0][0];
+  } catch(e) { console.error('Error obteniendo 1A:', e); }
+
   function nombreCorto(id) {
     if (!id) return '?';
     return parejasData[id]?.short || id;
@@ -1853,7 +1874,8 @@ window.generarImagenLlave = async function() {
   const headerH = 175;
   const footerH = 65;
   const padTop = 24;
-  const roundW = Math.floor((W - 40) / rondasPresentes.length);
+  const colPad = 50; // padding entre columnas
+  const roundW = Math.floor((W - 40 - colPad * (rondasPresentes.length - 1)) / rondasPresentes.length);
 
   // Para 3 cuartos + 1 directo a semis: necesitamos 4 "slots" de partido
   const primerRonda = rondasPresentes.find(r => elim.some(p=>p.fase===r));
@@ -2008,11 +2030,54 @@ window.generarImagenLlave = async function() {
   }
 
   const partidoH = 36 + 22 + 36; // = 94px — altura fija por partido
+
+  // Version con color de borde personalizable
+  function drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, hora, ph1, ph2, bordeColor) {
+    const slotW = roundW - 16;
+    const nameH = 36;
+    const sepH  = 22;
+    const bc = bordeColor || 'rgba(74,158,255,0.3)';
+
+    // Cuadro P1
+    ctx.fillStyle = g1?'rgba(255,215,0,0.12)':ph1?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.roundRect(cx+8,slotY,slotW,nameH,5); ctx.fill();
+    ctx.strokeStyle = g1?'rgba(255,215,0,0.5)':bc; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(cx+8,slotY,slotW,nameH,5); ctx.stroke();
+    ctx.fillStyle = g1?'#FFD700':ph1?'rgba(180,180,200,0.35)':'#e8e8f0';
+    ctx.font = g1?'bold 16px Oswald, Arial':ph1?'italic 13px Oswald, Arial':'15px Oswald, Arial';
+    let t1=n1; while(ctx.measureText(t1).width>slotW-20&&t1.length>4)t1=t1.slice(0,-2)+'…';
+    ctx.fillText(t1,cx+14,slotY+nameH/2+6);
+
+    // Hora/VS
+    const midY = slotY+nameH;
+    if(hora){
+      ctx.fillStyle=bc; ctx.font='bold 12px Oswald, Arial'; ctx.textAlign='center';
+      ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1.5;
+      ctx.strokeText(`⏰ ${hora}hs`,cx+roundW/2,midY+14);
+      ctx.fillText(`⏰ ${hora}hs`,cx+roundW/2,midY+14);
+    } else {
+      ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 11px Oswald, Arial'; ctx.textAlign='center';
+      ctx.fillText('VS',cx+roundW/2,midY+14);
+    }
+    ctx.textAlign='left';
+
+    // Cuadro P2
+    const y2=slotY+nameH+sepH;
+    ctx.fillStyle = g2?'rgba(255,215,0,0.12)':ph2?'rgba(255,255,255,0.02)':'rgba(255,255,255,0.07)';
+    ctx.beginPath(); ctx.roundRect(cx+8,y2,slotW,nameH,5); ctx.fill();
+    ctx.strokeStyle = g2?'rgba(255,215,0,0.5)':bc; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(cx+8,y2,slotW,nameH,5); ctx.stroke();
+    ctx.fillStyle = g2?'#FFD700':ph2?'rgba(180,180,200,0.35)':'rgba(220,220,235,0.85)';
+    ctx.font = g2?'bold 16px Oswald, Arial':ph2?'italic 13px Oswald, Arial':'15px Oswald, Arial';
+    let t2=n2; while(ctx.measureText(t2).width>slotW-20&&t2.length>4)t2=t2.slice(0,-2)+'…';
+    ctx.fillText(t2,cx+14,y2+nameH/2+6);
+    return nameH+sepH+nameH;
+  }
   const partidoGap = 14; // espacio entre partidos
 
   // Dibujar cada ronda
   rondasPresentes.forEach((fase, colIdx) => {
-    const cx = 20 + colIdx * roundW;
+    const cx = 20 + colIdx * (roundW + colPad);
     const rps = elim.filter(p=>p.fase===fase).sort((a,b)=>(a.orden||0)-(b.orden||0));
     const label = fasesLabels[fase] || fase.toUpperCase();
     const unitH = partidoH + partidoGap;
@@ -2036,39 +2101,19 @@ window.generarImagenLlave = async function() {
         const g2 = p.resultado?.ganadorId === p.pareja2Id;
         const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id) : '?';
         const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id) : '?';
-        drawPartido(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id);
-        // Conector hacia semis
-        if (colIdx < rondasPresentes.length-1) {
-          const midPartidoY = slotY + partidoH/2;
-          const semiIdx = pIdx === 0 ? 0 : 1;
-          const semiY = semiIdx === 0
-            ? bodyTop + 16 + unitH/2
-            : bodyTop + 16 + Math.ceil(nCuartos/2+1) * unitH + unitH/2;
-          const xRight = cx + roundW - 8;
-          ctx.strokeStyle='rgba(74,158,255,0.25)'; ctx.lineWidth=1.5;
-          ctx.beginPath();
-          ctx.moveTo(xRight, midPartidoY);
-          ctx.lineTo(xRight+8, midPartidoY);
-          ctx.lineTo(xRight+8, semiY);
-          ctx.lineTo(cx+roundW+12, semiY);
-          ctx.stroke();
-        }
+        // Cuarto 1 → turquesa (mitad superior), cuartos 2+ → azul (mitad inferior)
+        const bordeColor = pIdx === 0 ? color2 : color;
+        drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
       });
 
     } else if (fase === 'semis') {
-      // Semi 1: centrada en el cuarto que la alimenta solo (cuarto 1, slot 1)
-      // Semi 2: centrada entre los cuartos 2 y 3 (slots 2 y 3)
-      // unitH = partidoH + partidoGap
-      const cto1Y = bodyTop + 16 + 1 * unitH; // cuarto 1
-      const cto2Y = bodyTop + 16 + 2 * unitH; // cuarto 2
-      const cto3Y = bodyTop + 16 + 3 * unitH; // cuarto 3
-
-      // Semi 1 centrada en cuarto 1 (mismo Y)
+      const cto1Y = bodyTop + 16 + 1 * unitH;
+      const cto2Y = bodyTop + 16 + 2 * unitH;
+      const cto3Y = bodyTop + 16 + 3 * unitH;
+      // Semi 1 al mismo nivel que cuarto 1
       const semi1Y = cto1Y;
-      // Semi 2 centrada entre cuarto 2 y cuarto 3
-      const semi2Y = (cto2Y + cto3Y) / 2;
-      // Final centrada entre semi 1 y semi 2
-      const finalCentroY = (semi1Y + semi2Y) / 2;
+      // Semi 2 entre cuarto 2 y cuarto 3
+      const semi2Y = cto2Y + (cto3Y - cto2Y) / 2 - partidoH/4;
 
       const semiPositions = [semi1Y, semi2Y];
       const semisToShow = rps.length > 0 ? rps : [
@@ -2079,38 +2124,31 @@ window.generarImagenLlave = async function() {
         const slotY = semiPositions[pIdx];
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
         const g2 = p.resultado?.ganadorId === p.pareja2Id;
-        // Para semi 1: pareja1 es 1A (directo), pareja2 es gan. cuarto 1
-        const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id) : (pIdx===0 ? '1° ZONA A' : 'GAN. CUARTO 2');
-        const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id) : (pIdx===0 ? 'GAN. CUARTO 1' : 'GAN. CUARTO 3');
-        drawPartido(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id);
-        if (colIdx < rondasPresentes.length-1) {
-          const midY = slotY + partidoH/2;
-          const xRight = cx + roundW - 8;
-          ctx.strokeStyle='rgba(74,158,255,0.25)'; ctx.lineWidth=1.5;
-          ctx.beginPath();
-          ctx.moveTo(xRight, midY);
-          ctx.lineTo(xRight+8, midY);
-          ctx.lineTo(xRight+8, finalCentroY);
-          ctx.lineTo(cx+roundW+12, finalCentroY);
-          ctx.stroke();
-        }
+        const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id)
+          : (pIdx===0 ? (primeroZonaA ? nombreCorto(primeroZonaA) : '1° ZONA A') : 'GAN. CUARTO 2');
+        const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id)
+          : (pIdx===0 ? 'GAN. CUARTO 1' : 'GAN. CUARTO 3');
+        // Color de contorno: turquesa para mitad superior, azul para inferior
+        const bordeColor = pIdx===0 ? color2 : color;
+        drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
       });
 
     } else if (fase === 'final') {
-      // Usar el finalCentroY calculado en semis — fallback si semis no se dibujó
       const cto1Y = bodyTop + 16 + 1 * unitH;
       const cto2Y = bodyTop + 16 + 2 * unitH;
       const cto3Y = bodyTop + 16 + 3 * unitH;
       const semi1Y = cto1Y;
-      const semi2Y = (cto2Y + cto3Y) / 2;
+      const semi2Y = cto2Y + (cto3Y - cto2Y) / 2 - partidoH/4;
       const slotY = (semi1Y + semi2Y) / 2;
       const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
       const g1 = p.resultado?.ganadorId === p.pareja1Id;
       const g2 = p.resultado?.ganadorId === p.pareja2Id;
-      drawPartido(cx, slotY, roundW,
+      // Final: borde dorado si hay campeón, sino degradado turquesa
+      const bordeF = (g1||g2) ? 'rgba(255,215,0,0.6)' : color2;
+      drawPartidoColored(cx, slotY, roundW,
         p.pareja1Id ? nombreCorto(p.pareja1Id) : 'GAN. SEMI 1',
         p.pareja2Id ? nombreCorto(p.pareja2Id) : 'GAN. SEMI 2',
-        g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id);
+        g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeF);
     }
   });
 
