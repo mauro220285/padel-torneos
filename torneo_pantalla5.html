@@ -2110,8 +2110,8 @@ window.generarImagenLlave = async function() {
           const midY = slotY + partidoH/2;
           // Cuarto 1 conecta con semi1 (mismo slot), cuartos 2+ conectan con semi2
           const semiTargetY = pIdx === 0
-            ? bodyTop + 16 + 1 * unitH + partidoH/2   // semi1
-            : bodyTop + 16 + 2 * unitH + partidoH/2;  // semi2
+            ? bodyTop + 16 + 2 * unitH + partidoH/2   // semi1 (slot 2)
+            : bodyTop + 16 + 3 * unitH + partidoH/2;  // semi2 (slot 3)
           const xRight = cx + roundW - 8;
           ctx.strokeStyle = bordeColor; ctx.lineWidth=1.5;
           ctx.beginPath();
@@ -2124,10 +2124,10 @@ window.generarImagenLlave = async function() {
       });
 
     } else if (fase === 'semis') {
-      // Semi 1 exactamente al nivel de Cuarto 1 (slot 1)
-      // Semi 2 exactamente al nivel de Cuarto 2 (slot 2)
-      const semi1Y = bodyTop + 16 + 1 * unitH;
-      const semi2Y = bodyTop + 16 + 2 * unitH;
+      // Semi 1 al nivel de Cuarto 1 (slot 2 — P8/Romina debajo de P5/Maku)
+      // Semi 2 al nivel de Cuarto 2 (slot 3 — P2/Martina)
+      const semi1Y = bodyTop + 16 + 2 * unitH;
+      const semi2Y = bodyTop + 16 + 3 * unitH;
 
       const semiPositions = [semi1Y, semi2Y];
       const semisToShow = rps.length > 0 ? rps : [
@@ -2149,7 +2149,7 @@ window.generarImagenLlave = async function() {
         // Línea conectora hacia final, en el color del borde
         if (colIdx < rondasPresentes.length-1) {
           const midY = slotY + partidoH/2;
-          const finalY = bodyTop + 16 + 1.5 * unitH + partidoH/2; // centro entre semi1 y semi2
+          const finalY = bodyTop + 16 + 2.5 * unitH + partidoH/2; // centro entre semi1 (slot2) y semi2 (slot3)
           const xRight = cx + roundW - 8;
           ctx.strokeStyle = bordeColor; ctx.lineWidth=1.5;
           ctx.beginPath();
@@ -2162,15 +2162,15 @@ window.generarImagenLlave = async function() {
       });
 
     } else if (fase === 'final') {
-      // Final centrada entre semi1 (slot 1) y semi2 (slot 2)
-      const semi1Y = bodyTop + 16 + 1 * unitH;
-      const semi2Y = bodyTop + 16 + 2 * unitH;
+      // Final centrada entre semi1 (slot 2) y semi2 (slot 3)
+      const semi1Y = bodyTop + 16 + 2 * unitH;
+      const semi2Y = bodyTop + 16 + 3 * unitH;
       const slotY = (semi1Y + semi2Y) / 2;
       const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
       const g1 = p.resultado?.ganadorId === p.pareja1Id;
       const g2 = p.resultado?.ganadorId === p.pareja2Id;
       // Final: borde dorado si hay campeón, sino degradado turquesa
-      const bordeF = (g1||g2) ? 'rgba(255,215,0,0.6)' : color2;
+      const bordeF = (g1||g2) ? 'rgba(255,215,0,0.6)' : color;
       drawPartidoColored(cx, slotY, roundW,
         p.pareja1Id ? nombreCorto(p.pareja1Id) : 'GAN. SEMI 1',
         p.pareja2Id ? nombreCorto(p.pareja2Id) : 'GAN. SEMI 2',
