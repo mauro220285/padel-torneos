@@ -54,7 +54,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 .fase-tabs::-webkit-scrollbar { display:none; }
 .fase-tab { flex-shrink:0; padding:7px 14px; background:var(--bg3); border:1px solid var(--border); border-radius:20px; font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; color:var(--muted); cursor:pointer; transition:all 0.2s; text-transform:uppercase; position:relative; }
 .fase-tab.activa { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
-.fase-tab .badge-pend { position:absolute; top:-4px; right:-4px; background:var(--rojo); color:#fff; border-radius:50%; width:16px; height:16px; font-size:9px; display:flex; align-items:center; justify-content:center; font-family:'Oswald',sans-serif; }
+.fase-tab .badge-pend { position:absolute; top:-4px; right:-4px; background:var(--azul); color:#fff; border-radius:50%; width:16px; height:16px; font-size:9px; display:flex; align-items:center; justify-content:center; font-family:'Oswald',sans-serif; }
 
 .section { width:100%; max-width:500px; padding:14px 20px 0; }
 
@@ -827,23 +827,21 @@ async function verificarSiguienteRondaElim() {
       const yaHaySemis = partidos.filter(p => p.fase==='semis');
 
       if (yaHaySemis.length > 0) {
-        // Ya hay semis generadas (con 1A esperando) — completar los slots vacíos
-        // Cruce correcto: semi1 = 1A vs gan(cuarto1), semi2 = gan(cuarto2) vs gan(cuarto3)
-        // El orden de ganadores: [gan_cto1, gan_cto2, gan_cto3] según orden de previas
-        const semi1 = yaHaySemis.find(s => !s.pareja2Id || !s.pareja1Id);
-        const semi2 = yaHaySemis.find(s => s.id !== semi1?.id && (!s.pareja1Id || !s.pareja2Id));
+        // Ya hay semis generadas — completar los slots vacíos
+        // Semi 1: tiene pareja1 (1A) pero le falta pareja2 (gan. previa 1)
+        // Semi 2: le faltan ambas parejas (gan. previa 2 y 3)
+        const semi1 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s =>
+          s.pareja1Id && !s.pareja2Id
+        );
+        const semi2 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s =>
+          !s.pareja1Id && !s.pareja2Id
+        );
 
         const updates = [];
-        if (semi1) {
-          // Semi 1: 1A ya está, gan_cto1 va como pareja2
-          if (!semi1.pareja2Id && ganadores[0]) {
-            updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi1.id), { pareja2Id: ganadores[0] }));
-          } else if (!semi1.pareja1Id && ganadores[0]) {
-            updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi1.id), { pareja1Id: ganadores[0] }));
-          }
+        if (semi1 && ganadores[0]) {
+          updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi1.id), { pareja2Id: ganadores[0] }));
         }
         if (semi2 && ganadores[1] && ganadores[2]) {
-          // Semi 2: gan_cto2 vs gan_cto3
           updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi2.id), {
             pareja1Id: ganadores[1],
             pareja2Id: ganadores[2]
@@ -851,7 +849,7 @@ async function verificarSiguienteRondaElim() {
         }
         if (updates.length > 0) {
           await Promise.all(updates);
-          showToast('Semifinales completadas');
+          showToast('✓ Semifinales completadas');
         }
       } else {
         // No hay semis todavía — generarlas todas (3 ganadores + ? para 1A)
