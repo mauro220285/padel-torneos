@@ -2104,16 +2104,30 @@ window.generarImagenLlave = async function() {
         // Cuarto 1 → turquesa (mitad superior), cuartos 2+ → azul (mitad inferior)
         const bordeColor = pIdx === 0 ? color2 : color;
         drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
+
+        // Línea conectora hacia semis, en el color del borde
+        if (colIdx < rondasPresentes.length-1) {
+          const midY = slotY + partidoH/2;
+          // Cuarto 1 conecta con semi1 (mismo slot), cuartos 2+ conectan con semi2
+          const semiTargetY = pIdx === 0
+            ? bodyTop + 16 + 1 * unitH + partidoH/2   // semi1
+            : bodyTop + 16 + 2 * unitH + partidoH/2;  // semi2
+          const xRight = cx + roundW - 8;
+          ctx.strokeStyle = bordeColor; ctx.lineWidth=1.5;
+          ctx.beginPath();
+          ctx.moveTo(xRight, midY);
+          ctx.lineTo(xRight+8, midY);
+          ctx.lineTo(xRight+8, semiTargetY);
+          ctx.lineTo(cx+roundW+colPad, semiTargetY);
+          ctx.stroke();
+        }
       });
 
     } else if (fase === 'semis') {
-      const cto1Y = bodyTop + 16 + 1 * unitH;
-      const cto2Y = bodyTop + 16 + 2 * unitH;
-      const cto3Y = bodyTop + 16 + 3 * unitH;
-      // Semi 1 al mismo nivel que cuarto 1
-      const semi1Y = cto1Y;
-      // Semi 2 entre cuarto 2 y cuarto 3
-      const semi2Y = cto2Y + (cto3Y - cto2Y) / 2 - partidoH/4;
+      // Semi 1 exactamente al nivel de Cuarto 1 (slot 1)
+      // Semi 2 exactamente al nivel de Cuarto 2 (slot 2)
+      const semi1Y = bodyTop + 16 + 1 * unitH;
+      const semi2Y = bodyTop + 16 + 2 * unitH;
 
       const semiPositions = [semi1Y, semi2Y];
       const semisToShow = rps.length > 0 ? rps : [
@@ -2128,17 +2142,29 @@ window.generarImagenLlave = async function() {
           : (pIdx===0 ? (primeroZonaA ? nombreCorto(primeroZonaA) : '1° ZONA A') : 'GAN. CUARTO 2');
         const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id)
           : (pIdx===0 ? 'GAN. CUARTO 1' : 'GAN. CUARTO 3');
-        // Color de contorno: turquesa para mitad superior, azul para inferior
+        // Semi 1: turquesa, Semi 2: azul
         const bordeColor = pIdx===0 ? color2 : color;
         drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
+
+        // Línea conectora hacia final, en el color del borde
+        if (colIdx < rondasPresentes.length-1) {
+          const midY = slotY + partidoH/2;
+          const finalY = bodyTop + 16 + 1.5 * unitH + partidoH/2; // centro entre semi1 y semi2
+          const xRight = cx + roundW - 8;
+          ctx.strokeStyle = bordeColor; ctx.lineWidth=1.5;
+          ctx.beginPath();
+          ctx.moveTo(xRight, midY);
+          ctx.lineTo(xRight+8, midY);
+          ctx.lineTo(xRight+8, finalY);
+          ctx.lineTo(cx+roundW+colPad, finalY);
+          ctx.stroke();
+        }
       });
 
     } else if (fase === 'final') {
-      const cto1Y = bodyTop + 16 + 1 * unitH;
-      const cto2Y = bodyTop + 16 + 2 * unitH;
-      const cto3Y = bodyTop + 16 + 3 * unitH;
-      const semi1Y = cto1Y;
-      const semi2Y = cto2Y + (cto3Y - cto2Y) / 2 - partidoH/4;
+      // Final centrada entre semi1 (slot 1) y semi2 (slot 2)
+      const semi1Y = bodyTop + 16 + 1 * unitH;
+      const semi2Y = bodyTop + 16 + 2 * unitH;
       const slotY = (semi1Y + semi2Y) / 2;
       const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
       const g1 = p.resultado?.ganadorId === p.pareja1Id;
