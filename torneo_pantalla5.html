@@ -2131,20 +2131,24 @@ window.generarImagenLlave = async function() {
         const bordeColor = pIdx === 0 ? color2 : color;
         drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
 
-        // Línea conectora hacia semis, en el color del borde
+        // Línea conectora hacia semis en el color del borde
         if (colIdx < rondasPresentes.length-1) {
+          // Centro del partido de cuartos
           const midY = slotY + partidoH/2;
-          // Cuarto 1 conecta con semi1 (mismo slot), cuartos 2+ conectan con semi2
-          const semiTargetY = pIdx === 0
-            ? bodyTop + 16 + 2 * unitH + partidoH/2   // semi1 (slot 2)
-            : bodyTop + 16 + 3 * unitH + partidoH/2;  // semi2 (slot 3)
-          const xRight = cx + roundW - 8;
-          ctx.strokeStyle = bordeColor; ctx.lineWidth=1.5;
+          // Semi 1: GAN.CTO1 al nivel de P5 → semi1Y = slot1 - (36+22)
+          const semi1Mid = bodyTop + 16 + 1 * unitH - (36+22) + partidoH/2;
+          // Semi 2: arranca en slot2+(36+22)
+          const semi2Mid = bodyTop + 16 + 2 * unitH + (36+22) + partidoH/2;
+          const semiTargetY = pIdx === 0 ? semi1Mid : semi2Mid;
+          const xRight = cx + roundW - 4;
+          const xNext  = cx + roundW + colPad + 4;
+          ctx.strokeStyle = bordeColor; ctx.lineWidth = 2;
+          ctx.lineJoin = 'round';
           ctx.beginPath();
           ctx.moveTo(xRight, midY);
-          ctx.lineTo(xRight+8, midY);
-          ctx.lineTo(xRight+8, semiTargetY);
-          ctx.lineTo(cx+roundW+colPad, semiTargetY);
+          ctx.lineTo(xRight + 8, midY);
+          ctx.lineTo(xRight + 8, semiTargetY);
+          ctx.lineTo(xNext, semiTargetY);
           ctx.stroke();
         }
       });
@@ -2174,17 +2178,22 @@ window.generarImagenLlave = async function() {
         const bordeColor = pIdx===0 ? color2 : color;
         drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
 
-        // Línea conectora hacia final, en el color del borde
+        // Línea conectora hacia final en el color del borde
         if (colIdx < rondasPresentes.length-1) {
           const midY = slotY + partidoH/2;
-          const finalY = bodyTop + 16 + 2.5 * unitH + partidoH/2; // centro entre semi1 (slot2) y semi2 (slot3)
-          const xRight = cx + roundW - 8;
-          ctx.strokeStyle = bordeColor; ctx.lineWidth=1.5;
+          // Final centrada entre semi1 y semi2
+          const semi1Y2 = bodyTop + 16 + 1 * unitH - (36+22);
+          const semi2Y2 = bodyTop + 16 + 2 * unitH + (36+22);
+          const finalMid = (semi1Y2 + semi2Y2) / 2 + partidoH/2;
+          const xRight = cx + roundW - 4;
+          const xNext  = cx + roundW + colPad + 4;
+          ctx.strokeStyle = bordeColor; ctx.lineWidth = 2;
+          ctx.lineJoin = 'round';
           ctx.beginPath();
           ctx.moveTo(xRight, midY);
-          ctx.lineTo(xRight+8, midY);
-          ctx.lineTo(xRight+8, finalY);
-          ctx.lineTo(cx+roundW+colPad, finalY);
+          ctx.lineTo(xRight + 8, midY);
+          ctx.lineTo(xRight + 8, finalMid);
+          ctx.lineTo(xNext, finalMid);
           ctx.stroke();
         }
       });
