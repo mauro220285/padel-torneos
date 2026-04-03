@@ -415,10 +415,13 @@ function renderContenido() {
       wrap.innerHTML = '<div class="empty-state">Los cruces se generan al finalizar la fase de grupos</div>';
       return;
     }
-    // Botón reset llave
-    wrap.innerHTML += `<div style="text-align:right;margin-bottom:12px;">
+    // Botones acción llave
+    wrap.innerHTML += `<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <button onclick="resetearLlave()" style="background:rgba(230,57,70,0.1);border:1px solid var(--rojo);border-radius:8px;padding:7px 14px;color:var(--rojo);font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;cursor:pointer;">
         🗑 RESETEAR LLAVE
+      </button>
+      <button onclick="editarLlave()" id="btnEditarLlave" style="background:rgba(74,158,255,0.1);border:1px solid var(--azul);border-radius:8px;padding:7px 14px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;cursor:pointer;">
+        ✏️ EDITAR LLAVE
       </button>
     </div>`;
     const labels = { previa:'RONDA PREVIA', cuartos:'CUARTOS DE FINAL', semis:'SEMIFINAL', final:'FINAL' };
@@ -484,12 +487,16 @@ function renderPartidoCard(p) {
     </div>`;
   }
 
-  return `<div class="partido-card ${estadoClass}" onclick="abrirModal('${p.id}')">
+  return `<div class="partido-card ${estadoClass}" onclick="${editMode ? '' : `abrirModal('${p.id}')`}" style="${editMode?'cursor:default':''}">
     <div class="pc-header">
-      <div class="pc-hora">${p.hora||'--:--'}</div>
+      <div class="pc-hora" onclick="${editMode?`seleccionarParaEditar('${p.id}','hora')`:''}" style="${editMode?`cursor:pointer;${editSeleccionado?.partidoId===p.id&&editSeleccionado?.slot==='hora'?'color:var(--amarillo);':''}`:''}">${p.hora||'--:--'}</div>
       <div class="pc-info">
         <div class="pc-fase-label">${faseLabel}</div>
-        <div class="pc-parejas">${p.label || `${p1Name} <span style="color:var(--muted)">vs</span> ${p2Name}`}</div>
+        <div class="pc-parejas">
+          <span onclick="${editMode?`seleccionarParaEditar('${p.id}','p1')`:''}" style="${editMode?`cursor:pointer;padding:2px 4px;border-radius:4px;${editSeleccionado?.partidoId===p.id&&editSeleccionado?.slot==='p1'?'background:rgba(240,180,41,0.2);color:var(--amarillo);':'background:rgba(74,158,255,0.08);'}`  :''}">${p1Name}</span>
+          <span style="color:var(--muted)"> vs </span>
+          <span onclick="${editMode?`seleccionarParaEditar('${p.id}','p2')`:''}" style="${editMode?`cursor:pointer;padding:2px 4px;border-radius:4px;${editSeleccionado?.partidoId===p.id&&editSeleccionado?.slot==='p2'?'background:rgba(240,180,41,0.2);color:var(--amarillo);':'background:rgba(74,158,255,0.08);'}`:''}">${p2Name}</span>
+        </div>
       </div>
       <div class="pc-estado"><span class="estado-badge ${badgeClass}">${badgeText}</span></div>
     </div>
@@ -924,6 +931,59 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 window.showToast = showToast;
+
+// ── EDITAR LLAVE ──
+let editMode = false;
+let editSeleccionado = null;
+
+window.editarLlave = function() {
+  editMode = !editMode;
+  editSeleccionado = null;
+  const btn = document.getElementById('btnEditarLlave');
+  if (btn) {
+    btn.textContent = editMode ? '✅ CONFIRMAR EDICIÓN' : '✏️ EDITAR LLAVE';
+    btn.style.background = editMode ? 'rgba(76,175,80,0.15)' : 'rgba(74,158,255,0.1)';
+    btn.style.borderColor = editMode ? 'var(--verde)' : 'var(--azul)';
+    btn.style.color = editMode ? 'var(--verde)' : 'var(--azul)';
+  }
+  renderContenido();
+  if (editMode) showToast('Tocá una pareja o hora para intercambiar');
+};
+
+window.seleccionarParaEditar = async function(partidoId, slot) {
+  if (!editMode) return;
+  if (!editSeleccionado) {
+    editSeleccionado = { partidoId, slot };
+    showToast('Ahora tocá otra posición para intercambiar');
+    renderContenido();
+    return;
+  }
+  const { partidoId: id2, slot: slot2 } = editSeleccionado;
+  editSeleccionado = null;
+  if (partidoId === id2 && slot === slot2) { renderContenido(); return; }
+  try {
+    const p1 = partidos.find(p => p.id === partidoId);
+    const p2 = partidos.find(p => p.id === id2);
+    if (!p1 || !p2) return;
+    if (slot === 'hora' && slot2 === 'hora') {
+      await Promise.all([
+        updateDoc(doc(db,'torneos',torneoId,'partidos',partidoId), { hora: p2.hora, dia: p2.dia, cancha: p2.cancha }),
+        updateDoc(doc(db,'torneos',torneoId,'partidos',id2), { hora: p1.hora, dia: p1.dia, cancha: p1.cancha })
+      ]);
+      showToast('✓ Horarios intercambiados');
+    } else {
+      const val1 = slot === 'p1' ? p1.pareja1Id : p1.pareja2Id;
+      const val2 = slot2 === 'p1' ? p2.pareja1Id : p2.pareja2Id;
+      const upd1 = slot === 'p1' ? { pareja1Id: val2 } : { pareja2Id: val2 };
+      const upd2 = slot2 === 'p1' ? { pareja1Id: val1 } : { pareja2Id: val1 };
+      await Promise.all([
+        updateDoc(doc(db,'torneos',torneoId,'partidos',partidoId), upd1),
+        updateDoc(doc(db,'torneos',torneoId,'partidos',id2), upd2)
+      ]);
+      showToast('✓ Parejas intercambiadas');
+    }
+  } catch(e) { console.error(e); showToast('Error al editar'); }
+};
 
 // ── RESETEAR LLAVE ──
 window.resetearLlave = async function() {
