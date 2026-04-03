@@ -835,7 +835,11 @@ async function verificarSiguienteRondaElim() {
       const yaHaySemis = partidos.filter(p => p.fase==='semis');
 
       if (yaHaySemis.length > 0) {
-        // Ya hay semis generadas — completar los slots vacíos
+        // Calcular próximos slots disponibles (después de los cuartos)
+        const slotsLlave = generarSlotsLlave();
+        const nPartidosConHora = partidos.filter(p => p.fase==='previa' && p.hora).length;
+        let slotIdx = nPartidosConHora; // empezar después de los cuartos
+
         console.log('Semis encontradas:', yaHaySemis.length, yaHaySemis.map(s=>({id:s.id,p1:s.pareja1Id,p2:s.pareja2Id})));
         console.log('Ganadores previas:', ganadores);
 
@@ -850,12 +854,18 @@ async function verificarSiguienteRondaElim() {
 
         const updates = [];
         if (semi1 && ganadores[0]) {
-          updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi1.id), { pareja2Id: ganadores[0] }));
+          const slot1 = slotsLlave[slotIdx++] || null;
+          updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi1.id), {
+            pareja2Id: ganadores[0],
+            hora: slot1?.hora||null, cancha: slot1?.cancha||null, dia: slot1?.dia||null
+          }));
         }
         if (semi2 && ganadores[1] && ganadores[2]) {
+          const slot2 = slotsLlave[slotIdx++] || null;
           updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi2.id), {
             pareja1Id: ganadores[1],
-            pareja2Id: ganadores[2]
+            pareja2Id: ganadores[2],
+            hora: slot2?.hora||null, cancha: slot2?.cancha||null, dia: slot2?.dia||null
           }));
         }
         console.log('Updates a hacer:', updates.length);
@@ -907,8 +917,14 @@ async function generarLlave(clasificados, forzarFase) {
     }
   }
 
+  // Calcular próximo slot disponible
+  const slotsLlave = generarSlotsLlave();
+  const nConHora = partidos.filter(p => p.fase!=='zona' && p.hora).length;
+  let slotIdx = nConHora;
+
   await Promise.all(cruces.map((c, i) => {
     const id = `partido_${String(orden+i).padStart(3,'0')}`;
+    const slot = slotsLlave[slotIdx++] || null;
     return setDoc(doc(db,'torneos',torneoId,'partidos',id), {
       id, fase,
       pareja1Id: c.p1,
@@ -916,7 +932,7 @@ async function generarLlave(clasificados, forzarFase) {
       estado: 'pendiente',
       resultado: null,
       orden: orden + i,
-      hora: null, cancha: null, conflicto: false
+      hora: slot?.hora||null, cancha: slot?.cancha||null, dia: slot?.dia||null
     });
   }));
 
