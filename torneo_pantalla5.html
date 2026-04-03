@@ -2150,12 +2150,12 @@ window.generarImagenLlave = async function() {
       });
 
     } else if (fase === 'semis') {
-      // Semi 1: cuadro superior al nivel de P5/Maku (slot 1), cuadro inferior al nivel de P8/Romina
-      // Entonces el partido de semi1 arranca en slot 1
-      // Semi 2: cuadro superior al nivel de P2/Martina (slot 2 + nameH + sepH dentro del partido)
-      // nameH=36, sepH=22, unitH=partidoH+partidoGap=94+14=108
-      const semi1Y = bodyTop + 16 + 1 * unitH; // P5 row
-      const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22; // P2/Martina row (dentro del slot 2)
+      // Semi 1: GAN.CUARTO 1 (cuadro inferior) a la altura de P5/Maku
+      // P3/Lara (cuadro superior) queda por encima de P5
+      // nameH=36, sepH=22 → semi1 arranca nameH+sepH antes del slot 1
+      const semi1Y = bodyTop + 16 + 1 * unitH - (36 + 22); // sube para que GAN.CTO1 quede al nivel de P5
+      // Semi 2: cuadro superior al nivel de P2/Martina
+      const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22;
 
       const semiPositions = [semi1Y, semi2Y];
       const semisToShow = rps.length > 0 ? rps : [
@@ -2191,7 +2191,7 @@ window.generarImagenLlave = async function() {
 
     } else if (fase === 'final') {
       // Final centrada entre semi1 y semi2
-      const semi1Y = bodyTop + 16 + 1 * unitH;
+      const semi1Y = bodyTop + 16 + 1 * unitH - (36 + 22);
       const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22;
       const slotY = (semi1Y + semi2Y) / 2;
       const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
