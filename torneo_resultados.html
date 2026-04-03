@@ -185,7 +185,10 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
       <div class="modal-pareja-nombre right" id="modal-p2">Pareja 2</div>
     </div>
     <div class="sets-wrap" id="setsWrap"></div>
-    <button class="btn-agregar-set" id="btnAgregarSet" onclick="agregarSet()">+ AGREGAR SET</button>
+    <div id="btnAgregarSetWrap" style="display:flex;gap:8px;margin-bottom:4px;">
+      <button class="btn-agregar-set" id="btnAgregarSetNormal" onclick="agregarSet('normal')" style="flex:1;">+ SET NORMAL</button>
+      <button class="btn-agregar-set" id="btnAgregarSetSTB" onclick="agregarSet('stb')" style="flex:1;border-color:var(--amarillo);color:var(--amarillo);">+ SUPER TB</button>
+    </div>
     <div class="tercer-set-aviso" id="tercerSetAviso"></div>
     <div class="resultado-preview" id="resultadoPreview">
       <div class="resultado-preview-title">Resultado detectado</div>
@@ -527,8 +530,8 @@ window.abrirModal = function(id) {
     `${subLabel}${partidoEditando.hora ? ' · ' + partidoEditando.hora : ''}${partidoEditando.cancha ? ' · ' + partidoEditando.cancha : ''}`;
 
   setsActuales = partidoEditando.resultado?.sets
-    ? partidoEditando.resultado.sets.map(s => ({...s}))
-    : [{p1:'',p2:''},{p1:'',p2:''}];
+    ? partidoEditando.resultado.sets.map(s => ({...s, tipo: s.tipo||'normal'}))
+    : [{p1:'',p2:'',tipo:'normal'},{p1:'',p2:'',tipo:'normal'}];
 
   renderSets();
   document.getElementById('modalOverlay').classList.add('visible');
@@ -545,13 +548,13 @@ function renderSets() {
   const p2Nm  = (PAREJAS[partidoEditando?.pareja2Id]||'P2').split('/')[0].trim();
 
   wrap.innerHTML = setsActuales.map((s,i) => {
-    const es3  = i===2;
-    const label = es3 ? (TORNEO.tercerSet==='superTiebreak'?'Super TB':'Set 3') : `Set ${i+1}`;
+    const esSTB = s.tipo === 'stb';
+    const label = esSTB ? 'Super TB' : `Set ${i+1}`;
     const g1 = s.p1!==''&&s.p2!==''&&Number(s.p1)>Number(s.p2);
     const g2 = s.p1!==''&&s.p2!==''&&Number(s.p2)>Number(s.p1);
-    const maxVal = es3&&TORNEO.tercerSet==='superTiebreak' ? 10 : 7;
-    return `<div class="set-row">
-      <span class="set-label">${label}</span>
+    const maxVal = esSTB ? 10 : 7;
+    return `<div class="set-row" style="${esSTB?'border-color:rgba(240,180,41,0.3);background:rgba(240,180,41,0.04);':''}">
+      <span class="set-label" style="${esSTB?'color:var(--amarillo);':''}">${label}</span>
       <div class="set-scores">
         <div class="score-input-wrap">
           <span class="score-label-mini">${p1Nm}</span>
@@ -569,19 +572,39 @@ function renderSets() {
     </div>`;
   }).join('');
 
+  actualizarBotonesAgregar();
   actualizarPreview();
 }
 
 window.updateSet   = function(i,p,v){ setsActuales[i][p===1?'p1':'p2']=v; actualizarPreview(); renderSets(); };
 window.eliminarSet = function(i){ setsActuales.splice(i,1); renderSets(); };
-window.agregarSet  = function(){
-  if (setsActuales.length>=3) return;
-  setsActuales.push({p1:'',p2:''});
+window.agregarSet = function(tipo) {
+  // No agregar si el último set ya es STB
+  const ultimo = setsActuales[setsActuales.length - 1];
+  if (ultimo?.tipo === 'stb') return;
+  // No agregar más de 5 sets
+  if (setsActuales.length >= 5) return;
+
+  setsActuales.push({ p1:'', p2:'', tipo: tipo || 'normal' });
+
   const av = document.getElementById('tercerSetAviso');
-  av.style.display='block';
-  av.textContent = TORNEO.tercerSet==='superTiebreak' ? 'Super Tie-Break a 10 puntos' : 'Set 3 completo';
+  if (tipo === 'stb') {
+    av.style.display = 'block';
+    av.textContent = 'Super Tie-Break a 10 puntos — último set';
+  } else {
+    av.style.display = 'none';
+  }
   renderSets();
+  actualizarBotonesAgregar();
 };
+
+function actualizarBotonesAgregar() {
+  const ultimo = setsActuales[setsActuales.length - 1];
+  const esSTB = ultimo?.tipo === 'stb';
+  const maxSets = setsActuales.length >= 5;
+  const wrap = document.getElementById('btnAgregarSetWrap');
+  if (wrap) wrap.style.display = (esSTB || maxSets) ? 'none' : 'flex';
+}
 
 function actualizarPreview() {
   const sets = setsActuales.filter(s => s.p1!==''&&s.p2!=='');
