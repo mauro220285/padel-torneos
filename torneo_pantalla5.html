@@ -1888,14 +1888,67 @@ window.generarImagenLlave = async function() {
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
 
-  // Fondo
-  const bgGrad = ctx.createLinearGradient(0,0,0,H);
-  bgGrad.addColorStop(0,'#080c14'); bgGrad.addColorStop(1,'#0d1a2a');
+  // ── FONDO CANCHA DE PÁDEL SIMULADO ──
+  // Base oscura azul noche
+  const bgGrad = ctx.createRadialGradient(W/2, H*0.3, 0, W/2, H*0.3, W*0.9);
+  bgGrad.addColorStop(0,   '#0a1628');
+  bgGrad.addColorStop(0.5, '#060e1a');
+  bgGrad.addColorStop(1,   '#020508');
   ctx.fillStyle = bgGrad; ctx.fillRect(0,0,W,H);
 
-  // Líneas decorativas
-  ctx.strokeStyle='rgba(74,158,255,0.05)'; ctx.lineWidth=1;
-  for(let i=0;i<12;i++){ctx.beginPath();ctx.moveTo(0,i*100);ctx.lineTo(W,i*100);ctx.stroke();}
+  // Perspectiva de piso de cancha (líneas convergentes al punto de fuga)
+  const fuga = { x: W/2, y: H * 0.55 }; // punto de fuga en el centro-bajo
+  ctx.save();
+  ctx.strokeStyle = 'rgba(100,160,255,0.12)';
+  ctx.lineWidth = 1;
+  // Líneas del piso desde los bordes hacia el punto de fuga
+  for (let i = 0; i <= 12; i++) {
+    const x = (W / 12) * i;
+    ctx.beginPath();
+    ctx.moveTo(x, H);
+    ctx.lineTo(fuga.x, fuga.y);
+    ctx.stroke();
+  }
+  // Líneas horizontales del piso (perspectiva)
+  for (let i = 0; i < 8; i++) {
+    const t = Math.pow(i / 8, 1.5);
+    const y = fuga.y + (H - fuga.y) * t;
+    const wLine = W * (1 - t * 0.3);
+    ctx.beginPath();
+    ctx.moveTo((W - wLine)/2, y);
+    ctx.lineTo((W + wLine)/2, y);
+    ctx.stroke();
+  }
+
+  // Línea central de la red (horizontal, en perspectiva)
+  ctx.strokeStyle = 'rgba(150,200,255,0.2)';
+  ctx.lineWidth = 2;
+  const netY = fuga.y + (H - fuga.y) * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(W*0.05, netY);
+  ctx.lineTo(W*0.95, netY);
+  ctx.stroke();
+
+  // Luz de estadio superior izquierda
+  const lgLeft = ctx.createRadialGradient(W*0.15, H*0.05, 0, W*0.15, H*0.05, W*0.5);
+  lgLeft.addColorStop(0, 'rgba(80,140,255,0.25)');
+  lgLeft.addColorStop(0.4, 'rgba(40,80,180,0.08)');
+  lgLeft.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = lgLeft; ctx.fillRect(0,0,W,H);
+
+  // Luz de estadio superior derecha
+  const lgRight = ctx.createRadialGradient(W*0.85, H*0.05, 0, W*0.85, H*0.05, W*0.5);
+  lgRight.addColorStop(0, 'rgba(80,140,255,0.2)');
+  lgRight.addColorStop(0.4, 'rgba(40,80,180,0.06)');
+  lgRight.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = lgRight; ctx.fillRect(0,0,W,H);
+
+  // Overlay oscuro sobre la parte inferior para que el texto se lea bien
+  const overlayGrad = ctx.createLinearGradient(0, H*0.4, 0, H);
+  overlayGrad.addColorStop(0, 'rgba(2,8,20,0)');
+  overlayGrad.addColorStop(1, 'rgba(2,8,20,0.7)');
+  ctx.fillStyle = overlayGrad; ctx.fillRect(0,0,W,H);
+  ctx.restore();
 
   // Header
   const hGrad = ctx.createLinearGradient(0,0,W,headerH);
