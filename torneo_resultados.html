@@ -835,27 +835,21 @@ async function verificarSiguienteRondaElim() {
     if (!rondaOk) continue;
 
     if (ronda === 'previa') {
-      // Cuando terminan las previas, completar las semis
-      const ganadores = deRonda.map(p => p.resultado?.ganadorId).filter(Boolean);
+      // Solo actuar si las semis todavía no están completas
       const yaHaySemis = partidos.filter(p => p.fase==='semis');
+      const semisCompletas = yaHaySemis.every(s => s.pareja1Id && s.pareja2Id);
+      if (semisCompletas) continue; // semis ya completas, seguir al siguiente ronda
+
+      // Completar semis con ganadores de previas
+      const ganadores = deRonda.map(p => p.resultado?.ganadorId).filter(Boolean);
 
       if (yaHaySemis.length > 0) {
-        // Calcular próximos slots disponibles (después de los cuartos)
         const slotsLlave = generarSlotsLlave();
         const nPartidosConHora = partidos.filter(p => p.fase==='previa' && p.hora).length;
-        let slotIdx = nPartidosConHora; // empezar después de los cuartos
+        let slotIdx = nPartidosConHora;
 
-        console.log('Semis encontradas:', yaHaySemis.length, yaHaySemis.map(s=>({id:s.id,p1:s.pareja1Id,p2:s.pareja2Id})));
-        console.log('Ganadores previas:', ganadores);
-
-        const semi1 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s =>
-          s.pareja1Id && !s.pareja2Id
-        );
-        const semi2 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s =>
-          !s.pareja1Id && !s.pareja2Id
-        );
-
-        console.log('Semi1:', semi1?.id, 'Semi2:', semi2?.id);
+        const semi1 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s => s.pareja1Id && !s.pareja2Id);
+        const semi2 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s => !s.pareja1Id && !s.pareja2Id);
 
         const updates = [];
         if (semi1 && ganadores[0]) {
@@ -868,23 +862,16 @@ async function verificarSiguienteRondaElim() {
         if (semi2 && ganadores[1] && ganadores[2]) {
           const slot2 = slotsLlave[slotIdx++] || null;
           updates.push(updateDoc(doc(db,'torneos',torneoId,'partidos',semi2.id), {
-            pareja1Id: ganadores[1],
-            pareja2Id: ganadores[2],
+            pareja1Id: ganadores[1], pareja2Id: ganadores[2],
             hora: slot2?.hora||null, cancha: slot2?.cancha||null, dia: slot2?.dia||null
           }));
         }
-        console.log('Updates a hacer:', updates.length);
         if (updates.length > 0) {
           await Promise.all(updates);
           showToast('✓ Semifinales completadas');
         }
-      } else {
-        // No hay semis todavía — generarlas todas (3 ganadores + ? para 1A)
-        // Esto no debería pasar con el flujo normal pero por si acaso
-        await generarLlave(ganadores, 'semis');
-        showToast('Semifinales generadas');
       }
-      return;
+      continue; // seguir chequeando si semis también están completas
     }
 
     const siguienteRonda = ronda==='cuartos' ? 'semis' : 'final';
