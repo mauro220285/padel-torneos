@@ -828,14 +828,17 @@ async function verificarSiguienteRondaElim() {
 
       if (yaHaySemis.length > 0) {
         // Ya hay semis generadas — completar los slots vacíos
-        // Semi 1: tiene pareja1 (1A) pero le falta pareja2 (gan. previa 1)
-        // Semi 2: le faltan ambas parejas (gan. previa 2 y 3)
+        console.log('Semis encontradas:', yaHaySemis.length, yaHaySemis.map(s=>({id:s.id,p1:s.pareja1Id,p2:s.pareja2Id})));
+        console.log('Ganadores previas:', ganadores);
+
         const semi1 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s =>
           s.pareja1Id && !s.pareja2Id
         );
         const semi2 = yaHaySemis.sort((a,b)=>(a.orden||0)-(b.orden||0)).find(s =>
           !s.pareja1Id && !s.pareja2Id
         );
+
+        console.log('Semi1:', semi1?.id, 'Semi2:', semi2?.id);
 
         const updates = [];
         if (semi1 && ganadores[0]) {
@@ -847,6 +850,7 @@ async function verificarSiguienteRondaElim() {
             pareja2Id: ganadores[2]
           }));
         }
+        console.log('Updates a hacer:', updates.length);
         if (updates.length > 0) {
           await Promise.all(updates);
           showToast('✓ Semifinales completadas');
