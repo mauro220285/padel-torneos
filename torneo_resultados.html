@@ -766,9 +766,14 @@ async function verificarYGenerarSiguienteRonda() {
 // Genera slots del último día para la llave
 function generarSlotsLlave() {
   const dias = TORNEO.dias || [];
+  console.log('generarSlotsLlave - TORNEO.dias:', JSON.stringify(dias));
   if (!dias.length) return [];
   const ultimoDia = dias[dias.length - 1];
-  if (!ultimoDia?.apertura) return [];
+  console.log('ultimoDia:', JSON.stringify(ultimoDia));
+  if (!ultimoDia?.apertura) {
+    console.log('Sin apertura en ultimoDia');
+    return [];
+  }
   const [hh, mm] = ultimoDia.apertura.split(':').map(Number);
   let totalMin = hh * 60 + mm;
   const slots = [];
