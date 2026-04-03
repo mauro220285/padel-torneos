@@ -2056,34 +2056,54 @@ window.generarImagenLlave = async function() {
       });
 
     } else if (fase === 'semis') {
-      const semiPositions = [
-        bodyTop + 16,
-        bodyTop + 16 + Math.ceil(nCuartos/2+1) * unitH
+      // Semi 1: centrada en el cuarto que la alimenta solo (cuarto 1, slot 1)
+      // Semi 2: centrada entre los cuartos 2 y 3 (slots 2 y 3)
+      // unitH = partidoH + partidoGap
+      const cto1Y = bodyTop + 16 + 1 * unitH; // cuarto 1
+      const cto2Y = bodyTop + 16 + 2 * unitH; // cuarto 2
+      const cto3Y = bodyTop + 16 + 3 * unitH; // cuarto 3
+
+      // Semi 1 centrada en cuarto 1 (mismo Y)
+      const semi1Y = cto1Y;
+      // Semi 2 centrada entre cuarto 2 y cuarto 3
+      const semi2Y = (cto2Y + cto3Y) / 2;
+      // Final centrada entre semi 1 y semi 2
+      const finalCentroY = (semi1Y + semi2Y) / 2;
+
+      const semiPositions = [semi1Y, semi2Y];
+      const semisToShow = rps.length > 0 ? rps : [
+        {pareja1Id:null,pareja2Id:null,hora:null,resultado:null},
+        {pareja1Id:null,pareja2Id:null,hora:null,resultado:null}
       ];
-      const semisToShow = rps.length > 0 ? rps : [{pareja1Id:null,pareja2Id:null,hora:null,resultado:null},{pareja1Id:null,pareja2Id:null,hora:null,resultado:null}];
       semisToShow.forEach((p, pIdx) => {
-        const slotY = semiPositions[pIdx] || semiPositions[0] + pIdx * unitH * 2;
+        const slotY = semiPositions[pIdx];
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
         const g2 = p.resultado?.ganadorId === p.pareja2Id;
-        const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id) : (pIdx===0 ? 'ESPERA GANADOR' : 'GAN. CUARTO 2');
+        // Para semi 1: pareja1 es 1A (directo), pareja2 es gan. cuarto 1
+        const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id) : (pIdx===0 ? '1° ZONA A' : 'GAN. CUARTO 2');
         const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id) : (pIdx===0 ? 'GAN. CUARTO 1' : 'GAN. CUARTO 3');
         drawPartido(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id);
         if (colIdx < rondasPresentes.length-1) {
           const midY = slotY + partidoH/2;
-          const finalY = bodyTop + 16 + Math.floor(totalSlots/2) * unitH + partidoH/2;
           const xRight = cx + roundW - 8;
           ctx.strokeStyle='rgba(74,158,255,0.25)'; ctx.lineWidth=1.5;
           ctx.beginPath();
           ctx.moveTo(xRight, midY);
           ctx.lineTo(xRight+8, midY);
-          ctx.lineTo(xRight+8, finalY);
-          ctx.lineTo(cx+roundW+12, finalY);
+          ctx.lineTo(xRight+8, finalCentroY);
+          ctx.lineTo(cx+roundW+12, finalCentroY);
           ctx.stroke();
         }
       });
 
     } else if (fase === 'final') {
-      const slotY = bodyTop + 16 + Math.floor(totalSlots/2) * unitH;
+      // Usar el finalCentroY calculado en semis — fallback si semis no se dibujó
+      const cto1Y = bodyTop + 16 + 1 * unitH;
+      const cto2Y = bodyTop + 16 + 2 * unitH;
+      const cto3Y = bodyTop + 16 + 3 * unitH;
+      const semi1Y = cto1Y;
+      const semi2Y = (cto2Y + cto3Y) / 2;
+      const slotY = (semi1Y + semi2Y) / 2;
       const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
       const g1 = p.resultado?.ganadorId === p.pareja1Id;
       const g2 = p.resultado?.ganadorId === p.pareja2Id;
