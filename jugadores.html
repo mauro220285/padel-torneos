@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Padel Team — Jugadores</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --azul:    #4a9eff;
+  --cyan:    #00d4ff;
+  --bg:      #0a0a0f;
+  --bg2:     #111118;
+  --bg3:     #18181f;
+  --border:  #222230;
+  --text:    #e0e0f0;
+  --muted:   #555570;
+  --label:   #7a7a99;
+  --verde:   #4caf50;
+  --rojo:    #e63946;
+  --amarillo:#f0b429;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif;
+  min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 80px;
+}
+
+/* HEADER */
+.app-header {
+  width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%);
+  border-bottom:1px solid var(--border); padding:18px 20px 14px;
+  display:flex; align-items:center; justify-content:center; position:relative;
+}
+.header-back {
+  position:absolute; left:16px;
+  background:none; border:1px solid var(--border); border-radius:8px;
+  padding:6px 10px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:12px; letter-spacing:2px; cursor:pointer;
+}
+.header-back:hover { border-color:var(--azul); color:var(--azul); }
+.app-header::after {
+  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent);
+}
+.header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:6px; color:#fff; }
+.header-logo span { color:var(--azul); }
+
+/* PAGE TITLE */
+.page-title { width:100%; max-width:500px; padding:20px 20px 6px; }
+.page-title h2 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:4px; color:#fff; }
+.page-title p { font-size:13px; color:var(--label); letter-spacing:1px; margin-top:4px; }
+
+/* SECTION */
+.section { width:100%; max-width:500px; padding:12px 20px 0; }
+.section-label {
+  font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:4px;
+  text-transform:uppercase; color:var(--azul); margin-bottom:12px;
+  display:flex; align-items:center; gap:10px;
+}
+.section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+
+/* BUSCAR */
+.search-wrap { position:relative; margin-bottom:12px; }
+.search-wrap input {
+  width:100%; background:var(--bg2); border:1px solid var(--border);
+  border-radius:10px; padding:11px 16px 11px 40px;
+  color:var(--text); font-family:'Oswald',sans-serif; font-size:14px;
+  letter-spacing:1px; outline:none;
+}
+.search-wrap input:focus { border-color:var(--azul); }
+.search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; }
+
+/* FILTROS */
+.filtros { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+.filtro-btn {
+  background:var(--bg2); border:1px solid var(--border); border-radius:20px;
+  padding:5px 12px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:11px; letter-spacing:1px; cursor:pointer; transition:all 0.2s;
+}
+.filtro-btn.active { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
+
+/* CONTADOR */
+.contador {
+  font-family:'Oswald',sans-serif; font-size:12px; color:var(--muted);
+  letter-spacing:1px; margin-bottom:10px;
+}
+.contador span { color:var(--azul); }
+
+/* JUGADOR CARD */
+.jugador-card {
+  background:var(--bg2); border:1px solid var(--border); border-radius:12px;
+  padding:14px 16px; margin-bottom:8px; display:flex; align-items:center;
+  gap:12px; cursor:pointer; transition:border-color 0.2s;
+}
+.jugador-card:hover { border-color:var(--azul); }
+.jugador-avatar {
+  width:40px; height:40px; border-radius:50%; background:rgba(74,158,255,0.12);
+  border:1px solid rgba(74,158,255,0.2); display:flex; align-items:center;
+  justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:18px;
+  color:var(--azul); flex-shrink:0;
+}
+.jugador-info { flex:1; min-width:0; }
+.jugador-nombre { font-family:'Oswald',sans-serif; font-size:15px; color:#fff; letter-spacing:1px; }
+.jugador-meta { display:flex; gap:8px; margin-top:3px; flex-wrap:wrap; }
+.tag {
+  font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1px;
+  padding:2px 8px; border-radius:10px;
+}
+.tag-cat { background:rgba(74,158,255,0.1); color:var(--azul); border:1px solid rgba(74,158,255,0.2); }
+.tag-seccion { background:rgba(76,175,80,0.1); color:var(--verde); border:1px solid rgba(76,175,80,0.2); }
+.tag-seccion.damas { background:rgba(240,100,150,0.1); color:#f06496; border-color:rgba(240,100,150,0.2); }
+.tag-seccion.menores { background:rgba(240,180,41,0.1); color:var(--amarillo); border-color:rgba(240,180,41,0.2); }
+.jugador-pts { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--azul); flex-shrink:0; }
+.jugador-pts-label { font-family:'Oswald',sans-serif; font-size:9px; color:var(--muted); letter-spacing:1px; text-align:center; }
+
+/* BTN AGREGAR */
+.btn-agregar {
+  position:fixed; bottom:24px; right:24px;
+  width:56px; height:56px; border-radius:50%;
+  background:var(--azul); border:none; color:#fff;
+  font-size:28px; cursor:pointer; box-shadow:0 4px 20px rgba(74,158,255,0.4);
+  display:flex; align-items:center; justify-content:center;
+  transition:transform 0.2s;
+}
+.btn-agregar:active { transform:scale(0.92); }
+
+/* MODAL */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.7);
+  display:flex; align-items:flex-end; justify-content:center;
+  z-index:200; opacity:0; pointer-events:none; transition:opacity 0.2s;
+}
+.modal-overlay.visible { opacity:1; pointer-events:all; }
+.modal {
+  width:100%; max-width:500px; background:var(--bg2);
+  border-radius:20px 20px 0 0; border-top:1px solid var(--border);
+  padding:24px 20px 40px; transform:translateY(100%); transition:transform 0.3s;
+  max-height:90vh; overflow-y:auto;
+}
+.modal-overlay.visible .modal { transform:translateY(0); }
+.modal-title {
+  font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:4px;
+  color:#fff; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;
+}
+.modal-close { background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; }
+
+/* FIELDS */
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--label); margin-bottom:5px; }
+.field input, .field select, .field textarea {
+  width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+  padding:10px 12px; color:var(--text); font-family:'Oswald',sans-serif;
+  font-size:14px; letter-spacing:1px; outline:none; transition:border-color 0.2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color:var(--azul); }
+.field textarea { resize:none; min-height:90px; }
+.field select option { background:#1a1a2a; }
+
+.modal-btns { display:flex; gap:10px; margin-top:20px; }
+.btn-guardar {
+  flex:1; background:var(--azul); border:none; border-radius:10px;
+  padding:13px; color:#fff; font-family:'Oswald',sans-serif;
+  font-size:14px; letter-spacing:2px; cursor:pointer;
+}
+.btn-cancelar {
+  flex:1; background:transparent; border:1px solid var(--border); border-radius:10px;
+  padding:13px; color:var(--muted); font-family:'Oswald',sans-serif;
+  font-size:14px; letter-spacing:2px; cursor:pointer;
+}
+.btn-eliminar {
+  width:100%; background:rgba(230,57,70,0.1); border:1px solid var(--rojo);
+  border-radius:10px; padding:11px; color:var(--rojo); font-family:'Oswald',sans-serif;
+  font-size:13px; letter-spacing:2px; cursor:pointer; margin-top:8px;
+}
+
+.empty-state { text-align:center; padding:40px 20px; color:var(--muted); }
+.empty-state div { font-size:40px; margin-bottom:12px; }
+.empty-state p { font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; }
+
+.toast {
+  position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:#1a3a6e; border:1px solid var(--azul); color:#fff;
+  padding:10px 20px; border-radius:20px; font-family:'Oswald',sans-serif;
+  font-size:13px; letter-spacing:1px; opacity:0; transition:all 0.3s; z-index:300;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <button class="header-back" onclick="window.location.href='index.html'">← INICIO</button>
+  <div class="header-logo">PADEL <span>TEAM</span></div>
+</div>
+
+<div class="page-title">
+  <h2>JUGADORES</h2>
+  <p id="subtitulo">Gestión de jugadores</p>
+</div>
+
+<div class="section">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="inputBuscar" placeholder="Buscar jugador..." oninput="filtrar()">
+  </div>
+  <div class="filtros">
+    <button class="filtro-btn active" onclick="setFiltro('todos',this)">TODOS</button>
+    <button class="filtro-btn" onclick="setFiltro('Caballeros',this)">CABALLEROS</button>
+    <button class="filtro-btn" onclick="setFiltro('Damas',this)">DAMAS</button>
+    <button class="filtro-btn" onclick="setFiltro('Menores',this)">MENORES</button>
+  </div>
+  <div class="contador" id="contador"></div>
+  <div id="listaJugadores"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modalTitulo">NUEVO JUGADOR</span>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="field">
+      <label>Nombre y Apellido</label>
+      <input type="text" id="fNombre" placeholder="Ej: García Julieta">
+    </div>
+    <div class="field">
+      <label>Sección</label>
+      <select id="fSeccion">
+        <option value="Caballeros">Caballeros</option>
+        <option value="Damas">Damas</option>
+        <option value="Menores">Menores</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Categoría</label>
+      <select id="fCategoria">
+        <option value="1°">1° Categoría</option>
+        <option value="2°">2° Categoría</option>
+        <option value="3°">3° Categoría</option>
+        <option value="4°">4° Categoría</option>
+        <option value="5°">5° Categoría</option>
+        <option value="6°">6° Categoría</option>
+        <option value="7°">7° Categoría</option>
+        <option value="8°">8° Categoría</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Notas (teléfono, redes, observaciones...)</label>
+      <textarea id="fNotas" placeholder="Ej: WhatsApp 299-4123456 · @instagram · Jugador externo"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancelar" onclick="cerrarModal()">CANCELAR</button>
+      <button class="btn-guardar" onclick="guardarJugador()">GUARDAR</button>
+    </div>
+    <button class="btn-eliminar" id="btnEliminar" onclick="eliminarJugador()" style="display:none;">
+      🗑 ELIMINAR JUGADOR
+    </button>
+  </div>
+</div>
+
+<button class="btn-agregar" onclick="abrirModalNuevo()">+</button>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const fbConf = {
+  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain: "padel-team-76749.firebaseapp.com",
+  projectId: "padel-team-76749",
+  storageBucket: "padel-team-76749.firebasestorage.app",
+  messagingSenderId: "449257104174",
+  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = getApps().find(a=>a.name==='jugadores-app') || initializeApp(fbConf, 'jugadores-app');
+const db  = getFirestore(app);
+
+let JUGADORES = [];
+let filtroActivo = 'todos';
+let jugadorEditandoId = null;
+
+// ── CARGAR ──
+async function cargar() {
+  const snap = await getDocs(collection(db, 'jugadores'));
+  JUGADORES = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .sort((a,b) => (a.nombreDisplay||'').localeCompare(b.nombreDisplay||''));
+  document.getElementById('subtitulo').textContent = `${JUGADORES.length} jugadores registrados`;
+  filtrar();
+}
+
+// ── FILTRAR Y RENDERIZAR ──
+window.filtrar = function() {
+  const q = document.getElementById('inputBuscar').value.trim().toLowerCase();
+  const lista = JUGADORES.filter(j => {
+    const nombre = (j.nombreDisplay || j.id).toLowerCase();
+    const matchQ = !q || nombre.includes(q);
+    const matchF = filtroActivo === 'todos' || j.seccion === filtroActivo;
+    return matchQ && matchF;
+  });
+
+  document.getElementById('contador').innerHTML =
+    `Mostrando <span>${lista.length}</span> de <span>${JUGADORES.length}</span> jugadores`;
+
+  const wrap = document.getElementById('listaJugadores');
+  if (!lista.length) {
+    wrap.innerHTML = `<div class="empty-state"><div>👤</div><p>SIN RESULTADOS</p></div>`;
+    return;
+  }
+
+  wrap.innerHTML = lista.map(j => {
+    const nombre = j.nombreDisplay || j.id;
+    const inicial = nombre.charAt(0).toUpperCase();
+    const seccion = j.seccion || 'Caballeros';
+    const secClass = seccion === 'Damas' ? 'damas' : seccion === 'Menores' ? 'menores' : '';
+    const cat = j.categoria || '';
+    const pts = j.puntosAnuales || j.puntos || 0;
+    return `<div class="jugador-card" onclick="abrirModalEditar('${j.id}')">
+      <div class="jugador-avatar">${inicial}</div>
+      <div class="jugador-info">
+        <div class="jugador-nombre">${nombre}</div>
+        <div class="jugador-meta">
+          ${cat ? `<span class="tag tag-cat">${cat} CAT</span>` : ''}
+          <span class="tag tag-seccion ${secClass}">${seccion.toUpperCase()}</span>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <div class="jugador-pts">${pts}</div>
+        <div class="jugador-pts-label">PTS</div>
+      </div>
+    </div>`;
+  }).join('');
+};
+
+window.setFiltro = function(val, btn) {
+  filtroActivo = val;
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filtrar();
+};
+
+// ── MODAL NUEVO ──
+window.abrirModalNuevo = function() {
+  jugadorEditandoId = null;
+  document.getElementById('modalTitulo').textContent = 'NUEVO JUGADOR';
+  document.getElementById('fNombre').value = '';
+  document.getElementById('fSeccion').value = 'Caballeros';
+  document.getElementById('fCategoria').value = '6°';
+  document.getElementById('fNotas').value = '';
+  document.getElementById('btnEliminar').style.display = 'none';
+  document.getElementById('modalOverlay').classList.add('visible');
+  setTimeout(() => document.getElementById('fNombre').focus(), 300);
+};
+
+// ── MODAL EDITAR ──
+window.abrirModalEditar = function(id) {
+  const j = JUGADORES.find(x => x.id === id);
+  if (!j) return;
+  jugadorEditandoId = id;
+  document.getElementById('modalTitulo').textContent = 'EDITAR JUGADOR';
+  document.getElementById('fNombre').value = j.nombreDisplay || '';
+  document.getElementById('fSeccion').value = j.seccion || 'Caballeros';
+  document.getElementById('fCategoria').value = j.categoria || '6°';
+  document.getElementById('fNotas').value = j.notas || '';
+  document.getElementById('btnEliminar').style.display = 'block';
+  document.getElementById('modalOverlay').classList.add('visible');
+};
+
+window.cerrarModal = function() {
+  document.getElementById('modalOverlay').classList.remove('visible');
+  jugadorEditandoId = null;
+};
+
+// ── GUARDAR ──
+window.guardarJugador = async function() {
+  const nombre = document.getElementById('fNombre').value.trim();
+  if (!nombre) { showToast('⚠️ Ingresá el nombre'); return; }
+
+  const seccion   = document.getElementById('fSeccion').value;
+  const categoria = document.getElementById('fCategoria').value;
+  const notas     = document.getElementById('fNotas').value.trim();
+
+  // ID: apellido-nombre en minúsculas sin espacios
+  const docId = jugadorEditandoId ||
+    nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+
+  const data = {
+    nombreDisplay: nombre,
+    seccion,
+    categoria,
+    notas,
+  };
+
+  try {
+    if (jugadorEditandoId) {
+      await updateDoc(doc(db, 'jugadores', docId), data);
+      showToast('✓ Jugador actualizado');
+    } else {
+      // Verificar que no exista ya
+      const existe = JUGADORES.find(j => j.id === docId);
+      if (existe) { showToast('⚠️ Ya existe un jugador con ese nombre'); return; }
+      await setDoc(doc(db, 'jugadores', docId), {
+        ...data,
+        puntos: 0,
+        puntosAnuales: 0,
+        fechaAlta: new Date().toISOString().split('T')[0]
+      });
+      showToast('✓ Jugador agregado');
+    }
+    cerrarModal();
+    await cargar();
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al guardar');
+  }
+};
+
+// ── ELIMINAR ──
+window.eliminarJugador = async function() {
+  if (!jugadorEditandoId) return;
+  const j = JUGADORES.find(x => x.id === jugadorEditandoId);
+  const pts = j?.puntosAnuales || j?.puntos || 0;
+  const msg = pts > 0
+    ? `⚠️ ${j?.nombreDisplay} tiene ${pts} puntos acumulados. ¿Eliminar igual?`
+    : `¿Eliminar a ${j?.nombreDisplay}?`;
+  if (!confirm(msg)) return;
+  try {
+    await deleteDoc(doc(db, 'jugadores', jugadorEditandoId));
+    showToast('✓ Jugador eliminado');
+    cerrarModal();
+    await cargar();
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al eliminar');
+  }
+};
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Cerrar modal al tocar fuera
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) cerrarModal();
+});
+
+cargar();
+</script>
+</body>
+</html>
