@@ -6,184 +6,113 @@
 <title>Padel Team — Jugadores</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --azul:    #4a9eff;
-  --cyan:    #00d4ff;
-  --bg:      #0a0a0f;
-  --bg2:     #111118;
-  --bg3:     #18181f;
-  --border:  #222230;
-  --text:    #e0e0f0;
-  --muted:   #555570;
-  --label:   #7a7a99;
-  --verde:   #4caf50;
-  --rojo:    #e63946;
-  --amarillo:#f0b429;
-}
+:root { --azul:#4a9eff; --cyan:#00d4ff; --bg:#0a0a0f; --bg2:#111118; --bg3:#18181f; --border:#222230; --text:#e0e0f0; --muted:#555570; --label:#7a7a99; --verde:#4caf50; --rojo:#e63946; --amarillo:#f0b429; }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-body {
-  background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif;
-  min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 80px;
-}
-
-/* HEADER */
-.app-header {
-  width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%);
-  border-bottom:1px solid var(--border); padding:18px 20px 14px;
-  display:flex; align-items:center; justify-content:center; position:relative;
-}
-.header-back {
-  position:absolute; left:16px;
-  background:none; border:1px solid var(--border); border-radius:8px;
-  padding:6px 10px; color:var(--muted); font-family:'Oswald',sans-serif;
-  font-size:12px; letter-spacing:2px; cursor:pointer;
-}
+body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0 0 80px; }
+.app-header { width:100%; background:linear-gradient(180deg,#0d0d16 0%,var(--bg) 100%); border-bottom:1px solid var(--border); padding:18px 20px 14px; display:flex; align-items:center; justify-content:center; position:relative; }
+.app-header::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent); }
+.header-back { position:absolute; left:16px; background:none; border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:2px; cursor:pointer; }
 .header-back:hover { border-color:var(--azul); color:var(--azul); }
-.app-header::after {
-  content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
-  background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent);
-}
 .header-logo { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:6px; color:#fff; }
 .header-logo span { color:var(--azul); }
-
-/* PAGE TITLE */
 .page-title { width:100%; max-width:500px; padding:20px 20px 6px; }
 .page-title h2 { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:4px; color:#fff; }
 .page-title p { font-size:13px; color:var(--label); letter-spacing:1px; margin-top:4px; }
-
-/* SECTION */
 .section { width:100%; max-width:500px; padding:12px 20px 0; }
-.section-label {
-  font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:4px;
-  text-transform:uppercase; color:var(--azul); margin-bottom:12px;
-  display:flex; align-items:center; gap:10px;
-}
-.section-label::after { content:''; flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
-
-/* BUSCAR */
-.search-wrap { position:relative; margin-bottom:12px; }
-.search-wrap input {
-  width:100%; background:var(--bg2); border:1px solid var(--border);
-  border-radius:10px; padding:11px 16px 11px 40px;
-  color:var(--text); font-family:'Oswald',sans-serif; font-size:14px;
-  letter-spacing:1px; outline:none;
-}
+.search-wrap { position:relative; margin-bottom:10px; }
+.search-wrap input { width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:11px 16px 11px 40px; color:var(--text); font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:1px; outline:none; }
 .search-wrap input:focus { border-color:var(--azul); }
-.search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px; }
-
-/* FILTROS */
-.filtros { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
-.filtro-btn {
-  background:var(--bg2); border:1px solid var(--border); border-radius:20px;
-  padding:5px 12px; color:var(--muted); font-family:'Oswald',sans-serif;
-  font-size:11px; letter-spacing:1px; cursor:pointer; transition:all 0.2s;
-}
+.search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--muted); }
+.filtros { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+.filtro-btn { background:var(--bg2); border:1px solid var(--border); border-radius:20px; padding:5px 12px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; }
 .filtro-btn.active { background:rgba(74,158,255,0.12); border-color:var(--azul); color:var(--azul); }
-
-/* CONTADOR */
-.contador {
-  font-family:'Oswald',sans-serif; font-size:12px; color:var(--muted);
-  letter-spacing:1px; margin-bottom:10px;
-}
+.acciones-admin { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.btn-admin { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px 14px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; }
+.btn-admin:hover { border-color:var(--azul); color:var(--azul); }
+.contador { font-family:'Oswald',sans-serif; font-size:12px; color:var(--muted); letter-spacing:1px; margin-bottom:10px; }
 .contador span { color:var(--azul); }
-
-/* JUGADOR CARD */
-.jugador-card {
-  background:var(--bg2); border:1px solid var(--border); border-radius:12px;
-  padding:14px 16px; margin-bottom:8px; display:flex; align-items:center;
-  gap:12px; cursor:pointer; transition:border-color 0.2s;
-}
+.jugador-card { background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:border-color 0.2s; }
 .jugador-card:hover { border-color:var(--azul); }
-.jugador-avatar {
-  width:40px; height:40px; border-radius:50%; background:rgba(74,158,255,0.12);
-  border:1px solid rgba(74,158,255,0.2); display:flex; align-items:center;
-  justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:18px;
-  color:var(--azul); flex-shrink:0;
-}
+.jugador-card.seleccionado-fusion { border-color:var(--amarillo) !important; background:rgba(240,180,41,0.05); }
+.jugador-avatar { width:40px; height:40px; border-radius:50%; background:rgba(74,158,255,0.12); border:1px solid rgba(74,158,255,0.2); display:flex; align-items:center; justify-content:center; font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--azul); flex-shrink:0; }
 .jugador-info { flex:1; min-width:0; }
 .jugador-nombre { font-family:'Oswald',sans-serif; font-size:15px; color:#fff; letter-spacing:1px; }
 .jugador-meta { display:flex; gap:8px; margin-top:3px; flex-wrap:wrap; }
-.tag {
-  font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1px;
-  padding:2px 8px; border-radius:10px;
-}
+.tag { font-family:'Oswald',sans-serif; font-size:10px; letter-spacing:1px; padding:2px 8px; border-radius:10px; }
 .tag-cat { background:rgba(74,158,255,0.1); color:var(--azul); border:1px solid rgba(74,158,255,0.2); }
 .tag-seccion { background:rgba(76,175,80,0.1); color:var(--verde); border:1px solid rgba(76,175,80,0.2); }
 .tag-seccion.damas { background:rgba(240,100,150,0.1); color:#f06496; border-color:rgba(240,100,150,0.2); }
 .tag-seccion.menores { background:rgba(240,180,41,0.1); color:var(--amarillo); border-color:rgba(240,180,41,0.2); }
 .jugador-pts { font-family:'Bebas Neue',sans-serif; font-size:22px; color:var(--azul); flex-shrink:0; }
 .jugador-pts-label { font-family:'Oswald',sans-serif; font-size:9px; color:var(--muted); letter-spacing:1px; text-align:center; }
-
-/* BTN AGREGAR */
-.btn-agregar {
-  position:fixed; bottom:24px; right:24px;
-  width:56px; height:56px; border-radius:50%;
-  background:var(--azul); border:none; color:#fff;
-  font-size:28px; cursor:pointer; box-shadow:0 4px 20px rgba(74,158,255,0.4);
-  display:flex; align-items:center; justify-content:center;
-  transition:transform 0.2s;
-}
-.btn-agregar:active { transform:scale(0.92); }
-
-/* MODAL */
-.modal-overlay {
-  position:fixed; inset:0; background:rgba(0,0,0,0.7);
-  display:flex; align-items:flex-end; justify-content:center;
-  z-index:200; opacity:0; pointer-events:none; transition:opacity 0.2s;
-}
+.fusion-banner { background:rgba(240,180,41,0.08); border:1px solid rgba(240,180,41,0.3); border-radius:10px; padding:12px 16px; margin-bottom:12px; display:none; }
+.fusion-banner-txt { font-family:'Oswald',sans-serif; font-size:13px; color:var(--amarillo); letter-spacing:1px; }
+.fusion-banner-sub { font-family:'Oswald',sans-serif; font-size:11px; color:var(--muted); margin-top:4px; }
+.btn-fusion-cancel { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 10px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:11px; cursor:pointer; margin-top:8px; }
+.btn-agregar { position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:50%; background:var(--azul); border:none; color:#fff; font-size:28px; cursor:pointer; box-shadow:0 4px 20px rgba(74,158,255,0.4); display:flex; align-items:center; justify-content:center; }
+/* MODALES */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); display:flex; align-items:flex-end; justify-content:center; z-index:200; opacity:0; pointer-events:none; transition:opacity 0.2s; }
 .modal-overlay.visible { opacity:1; pointer-events:all; }
-.modal {
-  width:100%; max-width:500px; background:var(--bg2);
-  border-radius:20px 20px 0 0; border-top:1px solid var(--border);
-  padding:24px 20px 40px; transform:translateY(100%); transition:transform 0.3s;
-  max-height:90vh; overflow-y:auto;
-}
+.modal { width:100%; max-width:500px; background:var(--bg2); border-radius:20px 20px 0 0; border-top:1px solid var(--border); padding:24px 20px 40px; transform:translateY(100%); transition:transform 0.3s; max-height:90vh; overflow-y:auto; }
 .modal-overlay.visible .modal { transform:translateY(0); }
-.modal-title {
-  font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:4px;
-  color:#fff; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;
-}
+.modal-title { font-family:'Bebas Neue',sans-serif; font-size:24px; letter-spacing:4px; color:#fff; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; }
 .modal-close { background:none; border:none; color:var(--muted); font-size:22px; cursor:pointer; }
-
-/* FIELDS */
 .field { margin-bottom:14px; }
 .field label { display:block; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--label); margin-bottom:5px; }
-.field input, .field select, .field textarea {
-  width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px;
-  padding:10px 12px; color:var(--text); font-family:'Oswald',sans-serif;
-  font-size:14px; letter-spacing:1px; outline:none; transition:border-color 0.2s;
-}
+.field input, .field select, .field textarea { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:1px; outline:none; transition:border-color 0.2s; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--azul); }
 .field textarea { resize:none; min-height:90px; }
 .field select option { background:#1a1a2a; }
-
 .modal-btns { display:flex; gap:10px; margin-top:20px; }
-.btn-guardar {
-  flex:1; background:var(--azul); border:none; border-radius:10px;
-  padding:13px; color:#fff; font-family:'Oswald',sans-serif;
-  font-size:14px; letter-spacing:2px; cursor:pointer;
-}
-.btn-cancelar {
-  flex:1; background:transparent; border:1px solid var(--border); border-radius:10px;
-  padding:13px; color:var(--muted); font-family:'Oswald',sans-serif;
-  font-size:14px; letter-spacing:2px; cursor:pointer;
-}
-.btn-eliminar {
-  width:100%; background:rgba(230,57,70,0.1); border:1px solid var(--rojo);
-  border-radius:10px; padding:11px; color:var(--rojo); font-family:'Oswald',sans-serif;
-  font-size:13px; letter-spacing:2px; cursor:pointer; margin-top:8px;
-}
-
+.btn-guardar { flex:1; background:var(--azul); border:none; border-radius:10px; padding:13px; color:#fff; font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; }
+.btn-cancelar { flex:1; background:transparent; border:1px solid var(--border); border-radius:10px; padding:13px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; }
+.btn-eliminar { width:100%; background:rgba(230,57,70,0.1); border:1px solid var(--rojo); border-radius:10px; padding:11px; color:var(--rojo); font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px; cursor:pointer; margin-top:8px; }
+.aviso-similares { background:rgba(240,180,41,0.08); border:1px solid rgba(240,180,41,0.3); border-radius:10px; padding:12px 14px; margin-bottom:14px; display:none; }
+.aviso-similares-titulo { font-family:'Oswald',sans-serif; font-size:11px; letter-spacing:2px; color:var(--amarillo); margin-bottom:8px; }
+.similar-item { font-family:'Oswald',sans-serif; font-size:13px; color:var(--text); padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+/* PIN */
+.pin-modal { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:300; opacity:0; pointer-events:none; transition:opacity 0.2s; }
+.pin-modal.visible { opacity:1; pointer-events:all; }
+.pin-box { background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:28px 24px; width:300px; text-align:center; }
+.pin-titulo { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:4px; color:#fff; margin-bottom:6px; }
+.pin-sub { font-family:'Oswald',sans-serif; font-size:12px; color:var(--muted); letter-spacing:1px; margin-bottom:20px; }
+.pin-input { width:100%; background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:14px; color:#fff; font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:8px; text-align:center; outline:none; margin-bottom:16px; }
+.pin-input:focus { border-color:var(--azul); }
+.pin-error { color:var(--rojo); font-family:'Oswald',sans-serif; font-size:12px; letter-spacing:1px; margin-bottom:10px; min-height:18px; }
+.pin-btns { display:flex; gap:8px; }
+.pin-ok { flex:1; background:var(--azul); border:none; border-radius:8px; padding:12px; color:#fff; font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px; cursor:pointer; }
+.pin-cancel { flex:1; background:none; border:1px solid var(--border); border-radius:8px; padding:12px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:2px; cursor:pointer; }
+/* FUSION MODAL */
+.fusion-modal { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:250; opacity:0; pointer-events:none; transition:opacity 0.2s; padding:20px; }
+.fusion-modal.visible { opacity:1; pointer-events:all; }
+.fusion-box { background:var(--bg2); border:1px solid var(--amarillo); border-radius:16px; padding:24px; width:100%; max-width:460px; }
+.fusion-titulo { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:4px; color:var(--amarillo); margin-bottom:16px; }
+.fusion-jugadores { display:flex; gap:10px; margin-bottom:16px; }
+.fusion-jug { flex:1; background:var(--bg3); border-radius:10px; padding:12px; text-align:center; border:2px solid transparent; cursor:pointer; transition:all 0.2s; }
+.fusion-jug.elegido { border-color:var(--azul); background:rgba(74,158,255,0.08); }
+.fusion-jug-nombre { font-family:'Oswald',sans-serif; font-size:13px; color:#fff; margin-bottom:4px; }
+.fusion-jug-pts { font-family:'Bebas Neue',sans-serif; font-size:24px; color:var(--azul); }
+.fusion-jug-label { font-family:'Oswald',sans-serif; font-size:10px; color:var(--muted); letter-spacing:1px; }
+.fusion-info { background:rgba(74,158,255,0.06); border:1px solid rgba(74,158,255,0.15); border-radius:8px; padding:12px; margin-bottom:16px; font-family:'Oswald',sans-serif; font-size:13px; color:var(--muted); letter-spacing:1px; }
+.fusion-info span { color:var(--azul); }
+.fusion-btns { display:flex; gap:10px; }
+.btn-fusion-ok { flex:1; background:var(--amarillo); border:none; border-radius:10px; padding:13px; color:#000; font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; font-weight:bold; }
+.btn-fusion-no { flex:1; background:none; border:1px solid var(--border); border-radius:10px; padding:13px; color:var(--muted); font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; }
+/* CSV */
+.csv-area { background:var(--bg3); border:1px dashed var(--border); border-radius:10px; padding:16px; margin-bottom:14px; text-align:center; cursor:pointer; }
+.csv-area:hover { border-color:var(--azul); }
+.csv-area-txt { font-family:'Oswald',sans-serif; font-size:13px; color:var(--muted); letter-spacing:1px; }
+.csv-preview { margin-top:12px; max-height:200px; overflow-y:auto; }
+.csv-row { display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04); font-family:'Oswald',sans-serif; font-size:12px; }
+.csv-row-nombre { flex:1; color:var(--text); }
+.csv-row-status { font-size:11px; padding:2px 8px; border-radius:8px; }
+.status-nuevo { background:rgba(76,175,80,0.15); color:var(--verde); }
+.status-dup { background:rgba(240,180,41,0.15); color:var(--amarillo); }
+.status-skip { background:rgba(85,85,112,0.2); color:var(--muted); }
 .empty-state { text-align:center; padding:40px 20px; color:var(--muted); }
 .empty-state div { font-size:40px; margin-bottom:12px; }
 .empty-state p { font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:2px; }
-
-.toast {
-  position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px);
-  background:#1a3a6e; border:1px solid var(--azul); color:#fff;
-  padding:10px 20px; border-radius:20px; font-family:'Oswald',sans-serif;
-  font-size:13px; letter-spacing:1px; opacity:0; transition:all 0.3s; z-index:300;
-}
+.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px); background:#1a3a6e; border:1px solid var(--azul); color:#fff; padding:10px 20px; border-radius:20px; font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:1px; opacity:0; transition:all 0.3s; z-index:400; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 </style>
 </head>
@@ -196,7 +125,7 @@ body {
 
 <div class="page-title">
   <h2>JUGADORES</h2>
-  <p id="subtitulo">Gestión de jugadores</p>
+  <p id="subtitulo">Cargando...</p>
 </div>
 
 <div class="section">
@@ -210,20 +139,33 @@ body {
     <button class="filtro-btn" onclick="setFiltro('Damas',this)">DAMAS</button>
     <button class="filtro-btn" onclick="setFiltro('Menores',this)">MENORES</button>
   </div>
+  <div class="acciones-admin">
+    <button class="btn-admin" onclick="pedirPinYEjecutar('importar')">📥 IMPORTAR CSV</button>
+    <button class="btn-admin" onclick="pedirPinYEjecutar('fusion')" style="border-color:rgba(240,180,41,0.3);color:var(--amarillo);">🔗 FUSIONAR</button>
+  </div>
+  <div class="fusion-banner" id="fusionBanner">
+    <div class="fusion-banner-txt">🔗 MODO FUSIÓN ACTIVO</div>
+    <div class="fusion-banner-sub" id="fusionBannerSub">Tocá el primer jugador a fusionar</div>
+    <button class="btn-fusion-cancel" onclick="cancelarFusion()">✕ CANCELAR</button>
+  </div>
   <div class="contador" id="contador"></div>
   <div id="listaJugadores"></div>
 </div>
 
-<!-- Modal -->
+<!-- Modal jugador -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <div class="modal-title">
       <span id="modalTitulo">NUEVO JUGADOR</span>
       <button class="modal-close" onclick="cerrarModal()">✕</button>
     </div>
+    <div class="aviso-similares" id="avisoSimilares">
+      <div class="aviso-similares-titulo">⚠️ JUGADORES SIMILARES ENCONTRADOS</div>
+      <div id="listaSimilares"></div>
+    </div>
     <div class="field">
       <label>Nombre y Apellido</label>
-      <input type="text" id="fNombre" placeholder="Ej: García Julieta">
+      <input type="text" id="fNombre" placeholder="Ej: García Julieta" oninput="detectarSimilares()">
     </div>
     <div class="field">
       <label>Sección</label>
@@ -246,6 +188,10 @@ body {
         <option value="8°">8° Categoría</option>
       </select>
     </div>
+    <div class="field" id="fieldPuntos" style="display:none;">
+      <label>Puntos acumulados</label>
+      <input type="number" id="fPuntos" min="0" placeholder="0">
+    </div>
     <div class="field">
       <label>Notas (teléfono, redes, observaciones...)</label>
       <textarea id="fNotas" placeholder="Ej: WhatsApp 299-4123456 · @instagram · Jugador externo"></textarea>
@@ -254,9 +200,82 @@ body {
       <button class="btn-cancelar" onclick="cerrarModal()">CANCELAR</button>
       <button class="btn-guardar" onclick="guardarJugador()">GUARDAR</button>
     </div>
-    <button class="btn-eliminar" id="btnEliminar" onclick="eliminarJugador()" style="display:none;">
-      🗑 ELIMINAR JUGADOR
-    </button>
+    <button class="btn-eliminar" id="btnEliminar" onclick="pedirPinYEjecutar('eliminar')" style="display:none;">🗑 ELIMINAR JUGADOR</button>
+  </div>
+</div>
+
+<!-- PIN Modal -->
+<div class="pin-modal" id="pinModal">
+  <div class="pin-box">
+    <div class="pin-titulo">🔒 ACCESO ADMIN</div>
+    <div class="pin-sub" id="pinSub">Ingresá el PIN de administrador</div>
+    <input type="password" class="pin-input" id="pinInput" maxlength="6" inputmode="numeric" placeholder="····">
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" onclick="cerrarPin()">CANCELAR</button>
+      <button class="pin-ok" onclick="verificarPin()">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fusion modal -->
+<div class="fusion-modal" id="fusionModal">
+  <div class="fusion-box">
+    <div class="fusion-titulo">🔗 FUSIONAR JUGADORES</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:12px;">ELEGÍ QUÉ NOMBRE CONSERVAR — los puntos se suman automáticamente</div>
+    <div class="fusion-jugadores">
+      <div class="fusion-jug elegido" id="fj1" onclick="elegirNombreFusion(0)">
+        <div class="fusion-jug-nombre" id="fjNombre1">—</div>
+        <div class="fusion-jug-pts" id="fjPts1">0</div>
+        <div class="fusion-jug-label">PUNTOS</div>
+      </div>
+      <div class="fusion-jug" id="fj2" onclick="elegirNombreFusion(1)">
+        <div class="fusion-jug-nombre" id="fjNombre2">—</div>
+        <div class="fusion-jug-pts" id="fjPts2">0</div>
+        <div class="fusion-jug-label">PUNTOS</div>
+      </div>
+    </div>
+    <div class="fusion-info">Resultado: <span id="fusionResultNombre">—</span> con <span id="fusionResultPts">0</span> puntos totales</div>
+    <div class="fusion-btns">
+      <button class="btn-fusion-no" onclick="cerrarFusionModal()">CANCELAR</button>
+      <button class="btn-fusion-ok" onclick="confirmarFusion()">FUSIONAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- CSV Modal -->
+<div class="modal-overlay" id="csvOverlay">
+  <div class="modal">
+    <div class="modal-title">
+      <span>IMPORTAR CSV</span>
+      <button class="modal-close" onclick="cerrarCsv()">✕</button>
+    </div>
+    <div class="field">
+      <label>Columna del nombre (número, empezando en 1)</label>
+      <input type="number" id="csvColNombre" value="1" min="1">
+    </div>
+    <div class="field">
+      <label>Columna de categoría (0 = ninguna)</label>
+      <input type="number" id="csvColCat" value="2" min="0">
+    </div>
+    <div class="field">
+      <label>Sección por defecto</label>
+      <select id="csvSeccion">
+        <option value="Caballeros">Caballeros</option>
+        <option value="Damas">Damas</option>
+        <option value="Menores">Menores</option>
+      </select>
+    </div>
+    <div class="csv-area" onclick="document.getElementById('csvFileInput').click()">
+      <div class="csv-area-txt">📄 Tocá para seleccionar el archivo CSV</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);margin-top:4px;" id="csvFileName">Ningún archivo seleccionado</div>
+    </div>
+    <input type="file" id="csvFileInput" accept=".csv,.txt" style="display:none;">
+    <div class="csv-preview" id="csvPreview"></div>
+    <div class="modal-btns" id="csvBtns" style="display:none;">
+      <button class="btn-cancelar" onclick="cerrarCsv()">CANCELAR</button>
+      <button class="btn-guardar" onclick="importarCsv()">IMPORTAR</button>
+    </div>
   </div>
 </div>
 
@@ -265,189 +284,313 @@ body {
 
 <script type="module">
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const fbConf = {
-  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
-  authDomain: "padel-team-76749.firebaseapp.com",
-  projectId: "padel-team-76749",
-  storageBucket: "padel-team-76749.firebasestorage.app",
-  messagingSenderId: "449257104174",
-  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
-};
-const app = getApps().find(a=>a.name==='jugadores-app') || initializeApp(fbConf, 'jugadores-app');
+const fbConf = { apiKey:"AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA", authDomain:"padel-team-76749.firebaseapp.com", projectId:"padel-team-76749", storageBucket:"padel-team-76749.firebasestorage.app", messagingSenderId:"449257104174", appId:"1:449257104174:web:7f72b5d62c2d92813dd0bf" };
+const app = getApps().find(a=>a.name==='jug-app') || initializeApp(fbConf,'jug-app');
 const db  = getFirestore(app);
 
 let JUGADORES = [];
 let filtroActivo = 'todos';
 let jugadorEditandoId = null;
+let modoFusion = false;
+let fusionSeleccionados = [];
+let pinCallback = null;
+let csvDatos = [];
 
-// ── CARGAR ──
 async function cargar() {
-  const snap = await getDocs(collection(db, 'jugadores'));
-  JUGADORES = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    .sort((a,b) => (a.nombreDisplay||'').localeCompare(b.nombreDisplay||''));
+  const snap = await getDocs(collection(db,'jugadores'));
+  JUGADORES = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.nombreDisplay||'').localeCompare(b.nombreDisplay||''));
   document.getElementById('subtitulo').textContent = `${JUGADORES.length} jugadores registrados`;
   filtrar();
 }
 
-// ── FILTRAR Y RENDERIZAR ──
+function normalizar(str) { return (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
+function generarId(nombre) { return normalizar(nombre).replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''); }
+
+function similitud(a, b) {
+  a = normalizar(a); b = normalizar(b);
+  if (a===b) return 1;
+  const pa = a.split(' ').sort().join(' '), pb = b.split(' ').sort().join(' ');
+  if (pa===pb) return 1;
+  const wa = new Set(a.split(' ')), wb = new Set(b.split(' '));
+  const intersec = [...wa].filter(w=>wb.has(w)).length;
+  return intersec / new Set([...wa,...wb]).size;
+}
+
+function buscarSimilares(nombre) {
+  return JUGADORES.filter(j => j.id!==jugadorEditandoId && similitud(nombre, j.nombreDisplay||j.id) >= 0.6);
+}
+
 window.filtrar = function() {
   const q = document.getElementById('inputBuscar').value.trim().toLowerCase();
   const lista = JUGADORES.filter(j => {
-    const nombre = (j.nombreDisplay || j.id).toLowerCase();
-    const matchQ = !q || nombre.includes(q);
-    const matchF = filtroActivo === 'todos' || j.seccion === filtroActivo;
-    return matchQ && matchF;
+    const nombre = normalizar(j.nombreDisplay||j.id);
+    const sec = j.seccion||j.categoria||'Caballeros';
+    return (!q||nombre.includes(q)) && (filtroActivo==='todos'||sec===filtroActivo);
   });
-
-  document.getElementById('contador').innerHTML =
-    `Mostrando <span>${lista.length}</span> de <span>${JUGADORES.length}</span> jugadores`;
-
+  document.getElementById('contador').innerHTML = `Mostrando <span>${lista.length}</span> de <span>${JUGADORES.length}</span> jugadores`;
   const wrap = document.getElementById('listaJugadores');
-  if (!lista.length) {
-    wrap.innerHTML = `<div class="empty-state"><div>👤</div><p>SIN RESULTADOS</p></div>`;
-    return;
-  }
-
+  if (!lista.length) { wrap.innerHTML = `<div class="empty-state"><div>👤</div><p>SIN RESULTADOS</p></div>`; return; }
   wrap.innerHTML = lista.map(j => {
-    const nombre = j.nombreDisplay || j.id;
-    const inicial = nombre.charAt(0).toUpperCase();
-    const seccion = j.seccion || 'Caballeros';
-    const secClass = seccion === 'Damas' ? 'damas' : seccion === 'Menores' ? 'menores' : '';
-    const cat = j.categoria || '';
-    const pts = j.puntosAnuales || j.puntos || 0;
-    return `<div class="jugador-card" onclick="abrirModalEditar('${j.id}')">
-      <div class="jugador-avatar">${inicial}</div>
+    const nombre = j.nombreDisplay||j.id;
+    const sec = j.seccion||j.categoria||'Caballeros';
+    const secClass = sec==='Damas'?'damas':sec==='Menores'?'menores':'';
+    const pts = j.puntosAnuales||j.puntos||0;
+    const esFusion = modoFusion && fusionSeleccionados.some(f=>f.id===j.id);
+    return `<div class="jugador-card${esFusion?' seleccionado-fusion':''}" onclick="onCardClick('${j.id}')">
+      <div class="jugador-avatar">${nombre.charAt(0).toUpperCase()}</div>
       <div class="jugador-info">
         <div class="jugador-nombre">${nombre}</div>
         <div class="jugador-meta">
-          ${cat ? `<span class="tag tag-cat">${cat} CAT</span>` : ''}
-          <span class="tag tag-seccion ${secClass}">${seccion.toUpperCase()}</span>
+          ${j.categoria?`<span class="tag tag-cat">${j.categoria} CAT</span>`:''}
+          <span class="tag tag-seccion ${secClass}">${sec.toUpperCase()}</span>
         </div>
       </div>
-      <div style="text-align:center;">
-        <div class="jugador-pts">${pts}</div>
-        <div class="jugador-pts-label">PTS</div>
-      </div>
+      <div style="text-align:center;"><div class="jugador-pts">${pts}</div><div class="jugador-pts-label">PTS</div></div>
     </div>`;
   }).join('');
 };
 
 window.setFiltro = function(val, btn) {
   filtroActivo = val;
-  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   filtrar();
 };
 
-// ── MODAL NUEVO ──
+window.onCardClick = function(id) { modoFusion ? seleccionarParaFusion(id) : abrirModalEditar(id); };
+
 window.abrirModalNuevo = function() {
   jugadorEditandoId = null;
   document.getElementById('modalTitulo').textContent = 'NUEVO JUGADOR';
-  document.getElementById('fNombre').value = '';
+  ['fNombre','fNotas'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fSeccion').value = 'Caballeros';
   document.getElementById('fCategoria').value = '6°';
-  document.getElementById('fNotas').value = '';
+  document.getElementById('fieldPuntos').style.display = 'none';
   document.getElementById('btnEliminar').style.display = 'none';
+  document.getElementById('avisoSimilares').style.display = 'none';
   document.getElementById('modalOverlay').classList.add('visible');
-  setTimeout(() => document.getElementById('fNombre').focus(), 300);
+  setTimeout(()=>document.getElementById('fNombre').focus(),300);
 };
 
-// ── MODAL EDITAR ──
 window.abrirModalEditar = function(id) {
-  const j = JUGADORES.find(x => x.id === id);
-  if (!j) return;
+  const j = JUGADORES.find(x=>x.id===id); if (!j) return;
   jugadorEditandoId = id;
   document.getElementById('modalTitulo').textContent = 'EDITAR JUGADOR';
-  document.getElementById('fNombre').value = j.nombreDisplay || '';
-  document.getElementById('fSeccion').value = j.seccion || 'Caballeros';
-  document.getElementById('fCategoria').value = j.categoria || '6°';
-  document.getElementById('fNotas').value = j.notas || '';
+  document.getElementById('fNombre').value = j.nombreDisplay||'';
+  document.getElementById('fSeccion').value = j.seccion||j.categoria||'Caballeros';
+  document.getElementById('fCategoria').value = j.categoria||'6°';
+  document.getElementById('fNotas').value = j.notas||'';
+  document.getElementById('fPuntos').value = j.puntosAnuales||j.puntos||0;
+  document.getElementById('fieldPuntos').style.display = 'block';
   document.getElementById('btnEliminar').style.display = 'block';
+  document.getElementById('avisoSimilares').style.display = 'none';
   document.getElementById('modalOverlay').classList.add('visible');
 };
 
-window.cerrarModal = function() {
-  document.getElementById('modalOverlay').classList.remove('visible');
-  jugadorEditandoId = null;
+window.cerrarModal = function() { document.getElementById('modalOverlay').classList.remove('visible'); jugadorEditandoId=null; };
+
+window.detectarSimilares = function() {
+  const nombre = document.getElementById('fNombre').value.trim();
+  if (nombre.length < 3) { document.getElementById('avisoSimilares').style.display='none'; return; }
+  const sim = buscarSimilares(nombre);
+  if (!sim.length) { document.getElementById('avisoSimilares').style.display='none'; return; }
+  document.getElementById('listaSimilares').innerHTML = sim.slice(0,3).map(j=>`<div class="similar-item">⚠️ ${j.nombreDisplay||j.id} — ${j.puntosAnuales||j.puntos||0} pts</div>`).join('');
+  document.getElementById('avisoSimilares').style.display = 'block';
 };
 
-// ── GUARDAR ──
 window.guardarJugador = async function() {
   const nombre = document.getElementById('fNombre').value.trim();
   if (!nombre) { showToast('⚠️ Ingresá el nombre'); return; }
-
-  const seccion   = document.getElementById('fSeccion').value;
+  const seccion = document.getElementById('fSeccion').value;
   const categoria = document.getElementById('fCategoria').value;
-  const notas     = document.getElementById('fNotas').value.trim();
-
-  // ID: apellido-nombre en minúsculas sin espacios
-  const docId = jugadorEditandoId ||
-    nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
-
-  const data = {
-    nombreDisplay: nombre,
-    seccion,
-    categoria,
-    notas,
-  };
-
+  const notas = document.getElementById('fNotas').value.trim();
+  const puntos = parseInt(document.getElementById('fPuntos').value)||0;
+  const docId = jugadorEditandoId || generarId(nombre);
+  const data = { nombreDisplay:nombre, seccion, categoria, notas };
   try {
     if (jugadorEditandoId) {
-      await updateDoc(doc(db, 'jugadores', docId), data);
+      await updateDoc(doc(db,'jugadores',docId), {...data, puntosAnuales:puntos, puntos});
       showToast('✓ Jugador actualizado');
     } else {
-      // Verificar que no exista ya
-      const existe = JUGADORES.find(j => j.id === docId);
-      if (existe) { showToast('⚠️ Ya existe un jugador con ese nombre'); return; }
-      await setDoc(doc(db, 'jugadores', docId), {
-        ...data,
-        puntos: 0,
-        puntosAnuales: 0,
-        fechaAlta: new Date().toISOString().split('T')[0]
-      });
+      if (JUGADORES.find(j=>j.id===docId)) { showToast('⚠️ Ya existe un jugador con ese nombre'); return; }
+      await setDoc(doc(db,'jugadores',docId), {...data, puntos:0, puntosAnuales:0, fechaAlta:new Date().toISOString().split('T')[0]});
       showToast('✓ Jugador agregado');
     }
-    cerrarModal();
-    await cargar();
-  } catch(e) {
-    console.error(e);
-    showToast('❌ Error al guardar');
+    cerrarModal(); await cargar();
+  } catch(e) { showToast('❌ Error al guardar'); }
+};
+
+// ── PIN ──
+window.pedirPinYEjecutar = async function(accion) {
+  const snap = await getDoc(doc(db,'config','cancha'));
+  const pinGuardado = snap.exists() ? (snap.data().pinAdmin||'1234') : '1234';
+  window._pinGuardado = pinGuardado;
+  pinCallback = (ok) => {
+    if (!ok) return;
+    if (accion==='fusion') activarModoFusion();
+    else if (accion==='importar') abrirCsv();
+    else if (accion==='eliminar') ejecutarEliminar();
+  };
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinSub').textContent = accion==='eliminar'?'PIN requerido para eliminar':accion==='fusion'?'PIN requerido para fusionar':'PIN requerido para importar';
+  document.getElementById('pinModal').classList.add('visible');
+  setTimeout(()=>document.getElementById('pinInput').focus(),200);
+};
+
+window.verificarPin = function() {
+  const ing = document.getElementById('pinInput').value.trim();
+  if (ing===window._pinGuardado) {
+    document.getElementById('pinModal').classList.remove('visible');
+    if (pinCallback) pinCallback(true);
+  } else {
+    document.getElementById('pinError').textContent = '❌ PIN incorrecto';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinInput').focus();
   }
 };
+
+window.cerrarPin = function() { document.getElementById('pinModal').classList.remove('visible'); if(pinCallback) pinCallback(false); pinCallback=null; };
+document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') window.verificarPin(); });
 
 // ── ELIMINAR ──
-window.eliminarJugador = async function() {
+async function ejecutarEliminar() {
   if (!jugadorEditandoId) return;
-  const j = JUGADORES.find(x => x.id === jugadorEditandoId);
-  const pts = j?.puntosAnuales || j?.puntos || 0;
-  const msg = pts > 0
-    ? `⚠️ ${j?.nombreDisplay} tiene ${pts} puntos acumulados. ¿Eliminar igual?`
-    : `¿Eliminar a ${j?.nombreDisplay}?`;
-  if (!confirm(msg)) return;
-  try {
-    await deleteDoc(doc(db, 'jugadores', jugadorEditandoId));
-    showToast('✓ Jugador eliminado');
-    cerrarModal();
-    await cargar();
-  } catch(e) {
-    console.error(e);
-    showToast('❌ Error al eliminar');
-  }
-};
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+  const j = JUGADORES.find(x=>x.id===jugadorEditandoId);
+  const pts = j?.puntosAnuales||j?.puntos||0;
+  if (!confirm(pts>0?`⚠️ ${j?.nombreDisplay} tiene ${pts} puntos. ¿Eliminar igual?`:`¿Eliminar a ${j?.nombreDisplay}?`)) return;
+  try { await deleteDoc(doc(db,'jugadores',jugadorEditandoId)); showToast('✓ Eliminado'); cerrarModal(); await cargar(); }
+  catch(e) { showToast('❌ Error'); }
 }
 
-// Cerrar modal al tocar fuera
-document.getElementById('modalOverlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('modalOverlay')) cerrarModal();
+// ── FUSIÓN ──
+function activarModoFusion() {
+  modoFusion=true; fusionSeleccionados=[];
+  document.getElementById('fusionBanner').style.display='block';
+  document.getElementById('fusionBannerSub').textContent='Tocá el primer jugador a fusionar';
+  filtrar();
+}
+
+window.cancelarFusion = function() {
+  modoFusion=false; fusionSeleccionados=[];
+  document.getElementById('fusionBanner').style.display='none';
+  filtrar();
+};
+
+function seleccionarParaFusion(id) {
+  const j = JUGADORES.find(x=>x.id===id); if (!j) return;
+  if (fusionSeleccionados.some(f=>f.id===id)) { fusionSeleccionados=fusionSeleccionados.filter(f=>f.id!==id); }
+  else {
+    if (fusionSeleccionados.length>=2) { showToast('Solo podés seleccionar 2'); return; }
+    fusionSeleccionados.push(j);
+  }
+  if (fusionSeleccionados.length===1) document.getElementById('fusionBannerSub').textContent=`1° seleccionado: ${fusionSeleccionados[0].nombreDisplay} — Tocá el segundo`;
+  else if (fusionSeleccionados.length===2) mostrarFusionModal();
+  filtrar();
+}
+
+let fusionNombreElegido = 0;
+
+function mostrarFusionModal() {
+  const j1=fusionSeleccionados[0], j2=fusionSeleccionados[1];
+  document.getElementById('fjNombre1').textContent=j1.nombreDisplay||j1.id;
+  document.getElementById('fjPts1').textContent=j1.puntosAnuales||j1.puntos||0;
+  document.getElementById('fjNombre2').textContent=j2.nombreDisplay||j2.id;
+  document.getElementById('fjPts2').textContent=j2.puntosAnuales||j2.puntos||0;
+  fusionNombreElegido=0; actualizarFusionUI();
+  document.getElementById('fusionModal').classList.add('visible');
+}
+
+window.elegirNombreFusion = function(idx) { fusionNombreElegido=idx; actualizarFusionUI(); };
+
+function actualizarFusionUI() {
+  document.getElementById('fj1').className='fusion-jug'+(fusionNombreElegido===0?' elegido':'');
+  document.getElementById('fj2').className='fusion-jug'+(fusionNombreElegido===1?' elegido':'');
+  const j=fusionSeleccionados[fusionNombreElegido];
+  const pts1=fusionSeleccionados[0].puntosAnuales||fusionSeleccionados[0].puntos||0;
+  const pts2=fusionSeleccionados[1].puntosAnuales||fusionSeleccionados[1].puntos||0;
+  document.getElementById('fusionResultNombre').textContent=j?.nombreDisplay||j?.id||'—';
+  document.getElementById('fusionResultPts').textContent=pts1+pts2;
+}
+
+window.cerrarFusionModal = function() { document.getElementById('fusionModal').classList.remove('visible'); cancelarFusion(); };
+
+window.confirmarFusion = async function() {
+  const conservar=fusionSeleccionados[fusionNombreElegido];
+  const eliminar=fusionSeleccionados[fusionNombreElegido===0?1:0];
+  const ptsTotal=(conservar.puntosAnuales||conservar.puntos||0)+(eliminar.puntosAnuales||eliminar.puntos||0);
+  try {
+    await updateDoc(doc(db,'jugadores',conservar.id), {puntosAnuales:ptsTotal, puntos:ptsTotal});
+    await deleteDoc(doc(db,'jugadores',eliminar.id));
+    document.getElementById('fusionModal').classList.remove('visible');
+    cancelarFusion();
+    showToast(`✓ Fusionados — ${ptsTotal} pts en ${conservar.nombreDisplay}`);
+    await cargar();
+  } catch(e) { showToast('❌ Error al fusionar'); }
+};
+
+// ── CSV ──
+function abrirCsv() {
+  csvDatos=[];
+  document.getElementById('csvPreview').innerHTML='';
+  document.getElementById('csvBtns').style.display='none';
+  document.getElementById('csvFileName').textContent='Ningún archivo seleccionado';
+  document.getElementById('csvOverlay').classList.add('visible');
+}
+
+window.cerrarCsv = function() { document.getElementById('csvOverlay').classList.remove('visible'); };
+
+document.getElementById('csvFileInput').addEventListener('change', async (e) => {
+  const file=e.target.files[0]; if (!file) return;
+  document.getElementById('csvFileName').textContent=file.name;
+  procesarCsvTexto(await file.text());
 });
+
+function procesarCsvTexto(text) {
+  const colNombre=parseInt(document.getElementById('csvColNombre').value)-1;
+  const colCatRaw=parseInt(document.getElementById('csvColCat').value);
+  const colCat=colCatRaw>0?colCatRaw-1:-1;
+  const seccion=document.getElementById('csvSeccion').value;
+  csvDatos=[];
+  const preview=[];
+  text.split('\n').filter(l=>l.trim()).forEach(linea=>{
+    const cols=linea.split(/[,;|\t]/).map(c=>c.trim().replace(/^["']|["']$/g,''));
+    const nombre=cols[colNombre]; if(!nombre||nombre.length<2) return;
+    const cat=colCat>=0?cols[colCat]||'':'';
+    const id=generarId(nombre);
+    const existeExacto=JUGADORES.find(j=>j.id===id);
+    const similares=buscarSimilares(nombre).filter(j=>j.id!==id);
+    const status=existeExacto?'skip':similares.length?'dup':'nuevo';
+    const statusTxt=existeExacto?'YA EXISTE':similares.length?`SIMILAR: ${similares[0].nombreDisplay}`:'NUEVO';
+    csvDatos.push({nombre,cat,seccion,id,status,similares});
+    preview.push({nombre,statusTxt,status});
+  });
+  const nuevos=csvDatos.filter(d=>d.status==='nuevo').length;
+  const dups=csvDatos.filter(d=>d.status==='dup').length;
+  const skips=csvDatos.filter(d=>d.status==='skip').length;
+  document.getElementById('csvPreview').innerHTML=
+    `<div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">${nuevos} nuevos · ${dups} similares · ${skips} ya existentes</div>`+
+    preview.map(p=>`<div class="csv-row"><span class="csv-row-nombre">${p.nombre}</span><span class="csv-row-status status-${p.status}">${p.statusTxt}</span></div>`).join('');
+  document.getElementById('csvBtns').style.display=nuevos>0?'flex':'none';
+}
+
+window.importarCsv = async function() {
+  const aNuevos=csvDatos.filter(d=>d.status==='nuevo');
+  if (!aNuevos.length) { showToast('No hay jugadores nuevos'); return; }
+  let ok=0;
+  for (const j of aNuevos) {
+    try {
+      await setDoc(doc(db,'jugadores',j.id), {nombreDisplay:j.nombre, seccion:j.seccion, categoria:j.cat||'', notas:'', puntos:0, puntosAnuales:0, fechaAlta:new Date().toISOString().split('T')[0]});
+      ok++;
+    } catch(e) { console.error(e); }
+  }
+  cerrarCsv(); showToast(`✓ ${ok} jugadores importados`); await cargar();
+};
+
+function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+document.getElementById('modalOverlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modalOverlay')) cerrarModal(); });
 
 cargar();
 </script>

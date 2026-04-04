@@ -534,7 +534,19 @@ body {
 
 <div class="divider"></div>
 
-<!-- BOTÓN SIGUIENTE -->
+<!-- PIN ADMIN -->
+<div class="section" style="margin-top:0;">
+  <div class="section-label">Seguridad</div>
+  <div class="field">
+    <label>PIN de administrador (para fusión, eliminación e importación de jugadores)</label>
+    <input type="password" id="pinAdmin" maxlength="6" inputmode="numeric" placeholder="1234" style="letter-spacing:4px;font-size:20px;">
+  </div>
+  <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:-8px;margin-bottom:8px;">
+    Mínimo 4 dígitos. Por defecto: 1234
+  </div>
+</div>
+
+<div class="divider"></div>
 <div style="width:100%;max-width:500px;padding:0 20px;">
   <button class="btn-siguiente" onclick="guardarYSeguir()">SIGUIENTE → CREAR TORNEO</button>
   <button class="btn-siguiente" onclick="guardarYVolver()" style="background:transparent;border:1px solid var(--azul);color:var(--azul);box-shadow:none;margin-top:10px;">GUARDAR Y VOLVER AL INICIO</button>
@@ -642,6 +654,8 @@ window.guardarYSeguir = async function() {
   };
   if (logoBase64) config.logo = logoBase64;
   if (logoBase64) config.logo = logoBase64;
+  const pin = document.getElementById('pinAdmin').value.trim();
+  if (pin.length >= 4) config.pinAdmin = pin;
 
   try {
     await setDoc(doc(db, 'config', 'cancha'), config);
@@ -675,6 +689,8 @@ window.guardarYVolver = async function() {
     updatedAt: new Date().toISOString()
   };
   if (logoBase64) config.logo = logoBase64;
+  const pinV = document.getElementById('pinAdmin').value.trim();
+  if (pinV.length >= 4) config.pinAdmin = pinV;
   try {
     await setDoc(doc(db, 'config', 'cancha'), config);
     showToast('✓ Configuración guardada');
@@ -707,6 +723,7 @@ async function cargarConfig() {
     if (c.moneda)  document.getElementById('moneda').value  = c.moneda;
     if (c.zona)    document.getElementById('zona').value    = c.zona;
     if (c.idioma)  document.getElementById('idioma').value  = c.idioma;
+    if (c.pinAdmin) document.getElementById('pinAdmin').value = c.pinAdmin;
     if (c.telefonos) {
       const wrap = document.getElementById('telefonos');
       wrap.innerHTML = '';
