@@ -223,13 +223,7 @@ body {
   <div class="step done" onclick="window.location.href='torneo_pantalla2.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
   <div class="step active"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
   <div class="step" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
-  <div class="step" onclick="window.location.href='torneo_resultados.html'" style="cursor:pointer"><div class="step-num">R</div><div class="step-label">Resultados</div></div>
-  <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
-</div>
-
-  <div class="step done" onclick="window.location.href='torneo_pantalla2.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
-  <div class="step active"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
-  <div class="step" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
+  <div class="step" onclick="window.location.href='torneo_resultados.html'" style="cursor:pointer"><div class="step-num">R</div><div class="step-label">Result.</div></div>
   <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
@@ -711,7 +705,7 @@ async function cargarJugadores() {
   if (JUGADORES_CACHE) return JUGADORES_CACHE;
   try {
     const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-    const { getFirestore, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const { getFirestore, collection, getDocs, collectionGroup } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
     const fbConf = {
       apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
       authDomain: "padel-team-76749.firebaseapp.com",
@@ -722,8 +716,32 @@ async function cargarJugadores() {
     };
     const fbApp = getApps().find(a=>a.name==='p3-app') || initializeApp(fbConf, 'p3-app');
     const fbDb = getFirestore(fbApp);
-    const snap = await getDocs(collection(fbDb, 'jugadores'));
-    JUGADORES_CACHE = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Primero intentar colección jugadores dedicada
+    const jugSnap = await getDocs(collection(fbDb, 'jugadores'));
+    // Colección jugadores existe — usar nombreDisplay
+    JUGADORES_CACHE = jugSnap.docs.map(d => ({
+      id: d.id,
+      nombre: d.data().nombreDisplay || d.id,
+      categoria: d.data().categoriaTorneo || d.data().categoria || ''
+    }));
+    return JUGADORES_CACHE;
+
+    // Si no hay colección jugadores, buscar en todas las parejas de torneos anteriores
+    const parejasSnap = await getDocs(collectionGroup(fbDb, 'parejas'));
+    const vistos = new Set();
+    const jugadores = [];
+    parejasSnap.docs.forEach(d => {
+      const p = d.data();
+      [{ nombre: p.j1Nombre, cat: p.j1Categoria }, { nombre: p.j2Nombre, cat: p.j2Categoria }]
+        .forEach(({ nombre, cat }) => {
+          if (nombre && !vistos.has(nombre.toLowerCase())) {
+            vistos.add(nombre.toLowerCase());
+            jugadores.push({ nombre, categoria: cat || '' });
+          }
+        });
+    });
+    JUGADORES_CACHE = jugadores;
     return JUGADORES_CACHE;
   } catch(e) {
     console.error('Error cargando jugadores:', e);
@@ -739,11 +757,11 @@ window.buscarJugador = async function(input, catId) {
   if (query.length < 2) { lista.style.display = 'none'; return; }
 
   const jugadores = await cargarJugadores();
-  const filtrados = jugadores.filter(j =>
-    (j.nombre || '').toLowerCase().includes(query) ||
-    (j.apellido || '').toLowerCase().includes(query) ||
-    (`${j.nombre} ${j.apellido}`).toLowerCase().includes(query)
-  ).slice(0, 8);
+  const filtrados = jugadores.filter(j => {
+    const nombreCompleto = (j.nombre || '').toLowerCase();
+    const partes = nombreCompleto.split(' ');
+    return nombreCompleto.includes(query) || partes.some(p => p.startsWith(query));
+  }).slice(0, 8);
 
   if (!filtrados.length) { lista.style.display = 'none'; return; }
 
