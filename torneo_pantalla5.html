@@ -392,6 +392,39 @@ body {
     </div>
   </div>
 
+  <!-- IMAGEN DE CAMPEONES -->
+  <div class="informe-card" id="card-campeones">
+    <div class="informe-header" onclick="toggleCard('campeones')">
+      <span class="informe-icon">🥇</span>
+      <div>
+        <div class="informe-titulo">IMAGEN DE CAMPEONES</div>
+        <div class="informe-desc">Flyer para compartir en redes sociales</div>
+      </div>
+      <span class="informe-chevron">▼</span>
+    </div>
+    <div class="informe-body" style="padding:16px;">
+      <div style="margin-bottom:12px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">FOTO DE LOS CAMPEONES</div>
+        <div id="fotoPreviewWrap" style="width:100%;height:160px;background:var(--bg2);border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;" onclick="document.getElementById('fotoInput').click()">
+          <img id="fotoPreviewImg" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
+          <span id="fotoPreviewPlaceholder" style="font-size:13px;color:var(--muted);letter-spacing:1px;">📷 TAP PARA SUBIR FOTO</span>
+        </div>
+        <input type="file" id="fotoInput" accept="image/*" style="display:none;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">🥇 CAMPEONES</div>
+        <input type="text" id="campeon1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
+        <input type="text" id="campeon2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">🥈 FINALISTAS</div>
+        <input type="text" id="finalista1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
+        <input type="text" id="finalista2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
+      </div>
+      <button class="btn-share btn-share-img" onclick="generarImagenCampeones()" style="font-size:16px;padding:14px;">📸 GENERAR IMAGEN</button>
+    </div>
+  </div>
+
   <!-- 7. TABLA ANUAL DE JUGADORES -->
   <div class="informe-card" id="card-ranking">
     <div class="informe-header" onclick="toggleCard('ranking')">
@@ -2295,6 +2328,129 @@ window.generarImagenLlave = async function() {
 };
 
 window.showToast=showToast;
+window.renderRanking=renderRanking;
+window.renderPuntajesResultados=renderPuntajesResultados;
+
+// ── FOTO CAMPEONES ──
+let fotoCampeonesBase64 = null;
+const fotoInputEl = document.getElementById('fotoInput');
+if (fotoInputEl) {
+  fotoInputEl.addEventListener('change', (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      fotoCampeonesBase64 = ev.target.result;
+      document.getElementById('fotoPreviewImg').src = fotoCampeonesBase64;
+      document.getElementById('fotoPreviewImg').style.display = 'block';
+      document.getElementById('fotoPreviewPlaceholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+window.generarImagenCampeones = async function() {
+  const campeon1 = document.getElementById('campeon1').value.trim();
+  const campeon2 = document.getElementById('campeon2').value.trim();
+  const final1   = document.getElementById('finalista1').value.trim();
+  const final2   = document.getElementById('finalista2').value.trim();
+  if (!campeon1 || !campeon2) { showToast('\u26a0\ufe0f Ingres\u00e1 los nombres de los campeones'); return; }
+  showToast('Generando imagen...');
+  const cancha = await cargarConfigCancha();
+  const color  = cancha.colorPrincipal  || '#1a6abf';
+  const color2 = cancha.colorSecundario || '#00d4ff';
+  const nombreTorneo = torneoData?.nombre || 'TORNEO';
+  const W = 1080, H = 1350;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#080c14'; ctx.fillRect(0,0,W,H);
+  if (fotoCampeonesBase64) {
+    await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        ctx.save(); ctx.globalAlpha = 0.18;
+        const scale = Math.max(W/img.width, H/img.height);
+        ctx.drawImage(img,(W-img.width*scale)/2,(H-img.height*scale)/2,img.width*scale,img.height*scale);
+        ctx.restore(); resolve();
+      };
+      img.onerror=resolve; img.src=fotoCampeonesBase64;
+    });
+  }
+  const topGrad=ctx.createLinearGradient(0,0,0,220);
+  topGrad.addColorStop(0,'rgba(8,12,20,0.95)'); topGrad.addColorStop(1,'rgba(8,12,20,0)');
+  ctx.fillStyle=topGrad; ctx.fillRect(0,0,W,220);
+  let logoY=40;
+  if (cancha.logo) {
+    await new Promise(resolve => {
+      const img=new Image();
+      img.onload=()=>{
+        const s=130; ctx.save(); ctx.shadowColor=color2; ctx.shadowBlur=30;
+        ctx.beginPath(); ctx.arc(W/2,logoY+s/2,s/2,0,Math.PI*2); ctx.clip();
+        ctx.drawImage(img,W/2-s/2,logoY,s,s); ctx.restore(); resolve();
+      };
+      img.onerror=resolve; img.src=cancha.logo;
+    });
+    logoY+=150;
+  } else {
+    ctx.font='bold 36px Bebas Neue, Arial'; ctx.fillStyle='#fff'; ctx.textAlign='center';
+    ctx.fillText((cancha.nombre||'PADEL TEAM').toUpperCase(),W/2,logoY+40); logoY+=60;
+  }
+  const fotoY=logoY+10, fotoH=520;
+  if (fotoCampeonesBase64) {
+    await new Promise(resolve => {
+      const img=new Image();
+      img.onload=()=>{
+        ctx.strokeStyle=color2; ctx.lineWidth=5; ctx.strokeRect(40,fotoY,W-80,fotoH);
+        const scale=Math.max((W-80)/img.width,fotoH/img.height);
+        const sw=img.width*scale, sh=img.height*scale;
+        ctx.save(); ctx.beginPath(); ctx.rect(42,fotoY+2,W-84,fotoH-4); ctx.clip();
+        ctx.drawImage(img,(W-80-sw)/2+40,fotoY+(fotoH-sh)/2,sw,sh);
+        ctx.restore(); resolve();
+      };
+      img.onerror=resolve; img.src=fotoCampeonesBase64;
+    });
+  } else {
+    ctx.fillStyle='#1a2a3a'; ctx.fillRect(40,fotoY,W-80,fotoH);
+  }
+  const fg=ctx.createLinearGradient(0,fotoY+fotoH-120,0,fotoY+fotoH+20);
+  fg.addColorStop(0,'rgba(8,12,20,0)'); fg.addColorStop(1,'rgba(8,12,20,1)');
+  ctx.fillStyle=fg; ctx.fillRect(0,fotoY+fotoH-120,W,140);
+  let y=fotoY+fotoH+20;
+  ctx.textAlign='center'; ctx.fillStyle=color2; ctx.font='22px Oswald, Arial';
+  ctx.fillText('\u00b7 '+nombreTorneo.toUpperCase()+' \u00b7',W/2,y); y+=50;
+  ctx.fillStyle='#fff'; ctx.font='bold 72px Bebas Neue, Arial';
+  ctx.fillText('\u00a1Felicitaciones',W/2,y); y+=70;
+  ctx.fillText('Campeones!',W/2,y); y+=50;
+  const boxY=y, boxH=120, boxW=(W-80-60)/2;
+  ctx.fillStyle='rgba(212,170,0,0.15)'; ctx.beginPath(); ctx.roundRect(40,boxY,boxW,boxH,10); ctx.fill();
+  ctx.strokeStyle='#D4AA00'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.roundRect(40,boxY,boxW,boxH,10); ctx.stroke();
+  ctx.textAlign='left'; ctx.fillStyle='#D4AA00'; ctx.font='13px Oswald, Arial';
+  ctx.fillText('\ud83e\udd47  CAMPEONES',56,boxY+26);
+  ctx.fillStyle='#FFD700'; ctx.font='bold 26px Bebas Neue, Arial';
+  ctx.fillText(campeon1,56,boxY+60); ctx.fillText(campeon2,56,boxY+90);
+  ctx.textAlign='center'; ctx.font='36px Arial'; ctx.fillText('\ud83c\udfc6',W/2,boxY+52);
+  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='14px Oswald, Arial'; ctx.fillText('VS',W/2,boxY+80);
+  const box2X=40+boxW+60;
+  ctx.fillStyle='rgba(74,158,255,0.1)'; ctx.beginPath(); ctx.roundRect(box2X,boxY,boxW,boxH,10); ctx.fill();
+  ctx.strokeStyle='rgba(74,158,255,0.4)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.roundRect(box2X,boxY,boxW,boxH,10); ctx.stroke();
+  ctx.textAlign='left'; ctx.fillStyle='rgba(74,158,255,0.8)'; ctx.font='13px Oswald, Arial';
+  ctx.fillText('\ud83e\udd48  FINALISTAS',box2X+16,boxY+26);
+  ctx.fillStyle='#e0e0f0'; ctx.font='bold 26px Bebas Neue, Arial';
+  ctx.fillText(final1||'\u2014',box2X+16,boxY+60); ctx.fillText(final2||'\u2014',box2X+16,boxY+90);
+  y=boxY+boxH+40;
+  ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='22px Oswald, Arial';
+  ctx.fillText('Gracias a todas las parejas y al p\u00fablico',W/2,y); y+=30;
+  ctx.fillText('que fueron parte de este torneo.',W/2,y); y+=38;
+  ctx.fillStyle=color2; ctx.font='bold 24px Oswald, Arial';
+  ctx.fillText('\u00a1Todo esto es posible gracias a ustedes!',W/2,y); y+=36;
+  ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='20px Oswald, Arial';
+  ctx.fillText('Nos vemos en el pr\u00f3ximo... \ud83c\udfbe',W/2,y); y+=40;
+  ctx.fillStyle=color2; ctx.font='bold 22px Bebas Neue, Arial';
+  ctx.fillText('\u2014 '+(cancha.nombre||'Team P\u00e1del')+' \u2014',W/2,y);
+  ctx.textAlign='left';
+  descargarCanvas(canvas,'campeones.png');
+  showToast('\u2705 Imagen descargada');
+};
 
 // ── FONDO LLAVE ──
 let fondoLlaveBase64 = null;
