@@ -103,6 +103,21 @@ body {
 .jugador-label { font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--azul); margin-bottom:6px; display:flex; align-items:center; gap:6px; }
 .jugador-label::after { content:''; flex:1; height:1px; background:var(--border); }
 
+.autocomplete-wrap { position: relative; }
+.autocomplete-lista {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+  background: #1a1a2e; border: 1px solid var(--azul);
+  border-radius: 0 0 8px 8px; max-height: 180px; overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.autocomplete-item {
+  padding: 10px 14px; cursor: pointer;
+  font-family: 'Oswald', sans-serif; font-size: 14px; color: #e0e0f0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.autocomplete-item:hover, .autocomplete-item.selected { background: rgba(74,158,255,0.15); color: #fff; }
+.autocomplete-item .ac-cat { font-size: 11px; color: var(--azul); letter-spacing: 1px; }
 .field { margin-bottom:8px; }
 .field label { display:block; font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--label); margin-bottom:4px; }
 .field input, .field select {
@@ -209,6 +224,12 @@ body {
   <div class="step active"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
   <div class="step" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
   <div class="step" onclick="window.location.href='torneo_resultados.html'" style="cursor:pointer"><div class="step-num">R</div><div class="step-label">Resultados</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+</div>
+
+  <div class="step done" onclick="window.location.href='torneo_pantalla2.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Torneo</div></div>
+  <div class="step active"><div class="step-num">3</div><div class="step-label">Parejas</div></div>
+  <div class="step" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">4</div><div class="step-label">Revisión</div></div>
   <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
@@ -389,12 +410,19 @@ function jugadorHTML(parejaId, num) {
   labelDiv.innerHTML = `Jugador ${num}`;
   wrap.appendChild(labelDiv);
 
-  // Nombre
+  // Nombre con autocompletado
   const fieldNombre = document.createElement('div');
   fieldNombre.className = 'field';
   fieldNombre.innerHTML = `<label>Nombre y apellido</label>
-    <input type="text" id="j${num}-nombre-${parejaId}" placeholder="Nombre del jugador..."
-      oninput="actualizarResumen('${parejaId}')">`;
+    <div class="autocomplete-wrap">
+      <input type="text" id="j${num}-nombre-${parejaId}" placeholder="Nombre del jugador..."
+        autocomplete="off"
+        oninput="actualizarResumen('${parejaId}'); buscarJugador(this, 'j${num}-cat-${parejaId}')"
+        onkeydown="navegarSugerencias(event, this)"
+        onfocus="buscarJugador(this, 'j${num}-cat-${parejaId}')"
+        onblur="setTimeout(()=>cerrarSugerencias(this), 200)">
+      <div class="autocomplete-lista" id="ac-${num}-${parejaId}" style="display:none;"></div>
+    </div>`;
   wrap.appendChild(fieldNombre);
 
   // Categoría (si aplica) + género (si mixto)
@@ -673,6 +701,111 @@ window.guardarYSeguir = async function() {
   } catch(e) {
     console.error(e);
     showToast('❌ Error al guardar parejas');
+  }
+};
+
+// ── AUTOCOMPLETADO DE JUGADORES ──
+let JUGADORES_CACHE = null;
+
+async function cargarJugadores() {
+  if (JUGADORES_CACHE) return JUGADORES_CACHE;
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getFirestore, collection, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const fbConf = {
+      apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+      authDomain: "padel-team-76749.firebaseapp.com",
+      projectId: "padel-team-76749",
+      storageBucket: "padel-team-76749.firebasestorage.app",
+      messagingSenderId: "449257104174",
+      appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+    };
+    const fbApp = getApps().find(a=>a.name==='p3-app') || initializeApp(fbConf, 'p3-app');
+    const fbDb = getFirestore(fbApp);
+    const snap = await getDocs(collection(fbDb, 'jugadores'));
+    JUGADORES_CACHE = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return JUGADORES_CACHE;
+  } catch(e) {
+    console.error('Error cargando jugadores:', e);
+    return [];
+  }
+}
+
+window.buscarJugador = async function(input, catId) {
+  const query = input.value.trim().toLowerCase();
+  const listaId = input.nextElementSibling?.id || input.parentElement.querySelector('.autocomplete-lista')?.id;
+  const lista = input.parentElement.querySelector('.autocomplete-lista');
+  if (!lista) return;
+  if (query.length < 2) { lista.style.display = 'none'; return; }
+
+  const jugadores = await cargarJugadores();
+  const filtrados = jugadores.filter(j =>
+    (j.nombre || '').toLowerCase().includes(query) ||
+    (j.apellido || '').toLowerCase().includes(query) ||
+    (`${j.nombre} ${j.apellido}`).toLowerCase().includes(query)
+  ).slice(0, 8);
+
+  if (!filtrados.length) { lista.style.display = 'none'; return; }
+
+  lista.innerHTML = filtrados.map((j, i) => {
+    const nombre = `${j.nombre || ''} ${j.apellido || ''}`.trim() || j.id;
+    const cat = j.categoria || '';
+    return `<div class="autocomplete-item" data-nombre="${nombre}" data-cat="${cat}" data-idx="${i}"
+      onmousedown="seleccionarJugador(this, '${input.id}', '${catId}')">
+      <span>${nombre}</span>
+      ${cat ? `<span class="ac-cat">${cat}</span>` : ''}
+    </div>`;
+  }).join('');
+  lista.style.display = 'block';
+};
+
+window.seleccionarJugador = function(item, inputId, catId) {
+  const nombre = item.dataset.nombre;
+  const cat = item.dataset.cat;
+  const inp = document.getElementById(inputId);
+  if (inp) {
+    inp.value = nombre;
+    inp.dispatchEvent(new Event('input'));
+  }
+  if (cat && catId) {
+    const catEl = document.getElementById(catId);
+    if (catEl) {
+      // Intentar seleccionar la categoría que coincida
+      const opts = Array.from(catEl.options);
+      const match = opts.find(o => o.value.toLowerCase() === cat.toLowerCase());
+      if (match) catEl.value = match.value;
+    }
+  }
+  // Cerrar lista
+  const lista = inp?.parentElement?.querySelector('.autocomplete-lista');
+  if (lista) lista.style.display = 'none';
+};
+
+window.cerrarSugerencias = function(input) {
+  const lista = input?.parentElement?.querySelector('.autocomplete-lista');
+  if (lista) lista.style.display = 'none';
+};
+
+window.navegarSugerencias = function(e, input) {
+  const lista = input?.parentElement?.querySelector('.autocomplete-lista');
+  if (!lista || lista.style.display === 'none') return;
+  const items = lista.querySelectorAll('.autocomplete-item');
+  let idx = Array.from(items).findIndex(i => i.classList.contains('selected'));
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (idx >= 0) items[idx].classList.remove('selected');
+    idx = Math.min(idx + 1, items.length - 1);
+    items[idx]?.classList.add('selected');
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (idx >= 0) items[idx].classList.remove('selected');
+    idx = Math.max(idx - 1, 0);
+    items[idx]?.classList.add('selected');
+  } else if (e.key === 'Enter') {
+    const sel = lista.querySelector('.selected');
+    if (sel) { e.preventDefault(); sel.dispatchEvent(new MouseEvent('mousedown')); }
+  } else if (e.key === 'Escape') {
+    lista.style.display = 'none';
   }
 };
 
