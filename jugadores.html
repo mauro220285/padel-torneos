@@ -142,6 +142,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   <div class="acciones-admin">
     <button class="btn-admin" onclick="pedirPinYEjecutar('importar')">📥 IMPORTAR CSV</button>
     <button class="btn-admin" onclick="pedirPinYEjecutar('fusion')" style="border-color:rgba(240,180,41,0.3);color:var(--amarillo);">🔗 FUSIONAR</button>
+    <button class="btn-admin" onclick="pedirPinYEjecutar('recalcular')" style="border-color:rgba(76,175,80,0.3);color:var(--verde);">🔄 RECALCULAR PTS</button>
   </div>
   <div class="fusion-banner" id="fusionBanner">
     <div class="fusion-banner-txt">🔗 MODO FUSIÓN ACTIVO</div>
@@ -336,7 +337,14 @@ window.filtrar = function() {
     const nombre = j.nombreDisplay||j.id;
     const sec = j.seccion||j.categoria||'Caballeros';
     const secClass = sec==='Damas'?'damas':sec==='Menores'?'menores':'';
-    const pts = j.puntosAnuales||j.puntos||0;
+    // Sumar puntosAnualesCat si puntos raíz es 0
+    let pts = j.puntosAnuales||j.puntos||0;
+    if (!pts && j.puntosAnualesCat) {
+      Object.values(j.puntosAnualesCat).forEach(cat => {
+        if (typeof cat === 'object') Object.values(cat).forEach(v => { pts += (Number(v)||0); });
+        else pts += (Number(cat)||0);
+      });
+    }
     const esFusion = modoFusion && fusionSeleccionados.some(f=>f.id===j.id);
     return `<div class="jugador-card${esFusion?' seleccionado-fusion':''}" onclick="onCardClick('${j.id}')">
       <div class="jugador-avatar">${nombre.charAt(0).toUpperCase()}</div>
@@ -382,7 +390,15 @@ window.abrirModalEditar = function(id) {
   document.getElementById('fSeccion').value = j.seccion||j.categoria||'Caballeros';
   document.getElementById('fCategoria').value = j.categoria||'6°';
   document.getElementById('fNotas').value = j.notas||'';
-  document.getElementById('fPuntos').value = j.puntosAnuales||j.puntos||0;
+  // Calcular puntos reales
+  let ptsEdit = j.puntosAnuales||j.puntos||0;
+  if (!ptsEdit && j.puntosAnualesCat) {
+    Object.values(j.puntosAnualesCat).forEach(cat => {
+      if (typeof cat === 'object') Object.values(cat).forEach(v => { ptsEdit += (Number(v)||0); });
+      else ptsEdit += (Number(cat)||0);
+    });
+  }
+  document.getElementById('fPuntos').value = ptsEdit;
   document.getElementById('fieldPuntos').style.display = 'block';
   document.getElementById('btnEliminar').style.display = 'block';
   document.getElementById('avisoSimilares').style.display = 'none';
@@ -411,7 +427,8 @@ window.guardarJugador = async function() {
   const data = { nombreDisplay:nombre, seccion, categoria, notas };
   try {
     if (jugadorEditandoId) {
-      await updateDoc(doc(db,'jugadores',docId), {...data, puntosAnuales:puntos, puntos});
+      // Solo actualizar datos de perfil, NO tocar puntos ni puntosAnualesCat
+      await updateDoc(doc(db,'jugadores',docId), data);
       showToast('✓ Jugador actualizado');
     } else {
       if (JUGADORES.find(j=>j.id===docId)) { showToast('⚠️ Ya existe un jugador con ese nombre'); return; }
@@ -432,6 +449,7 @@ window.pedirPinYEjecutar = async function(accion) {
     if (accion==='fusion') activarModoFusion();
     else if (accion==='importar') abrirCsv();
     else if (accion==='eliminar') ejecutarEliminar();
+    else if (accion==='recalcular') recalcularPuntos();
   };
   document.getElementById('pinInput').value = '';
   document.getElementById('pinError').textContent = '';
@@ -588,6 +606,36 @@ window.importarCsv = async function() {
   }
   cerrarCsv(); showToast(`✓ ${ok} jugadores importados`); await cargar();
 };
+
+async function recalcularPuntos() {
+  if (!confirm('¿Recalcular puntos de todos los jugadores?\nEsto restaura puntosAnuales como objeto {año: puntos} desde puntosAnualesCat.')) return;
+  let ok = 0, errores = 0;
+  for (const j of JUGADORES) {
+    try {
+      // puntosAnualesCat tiene estructura: { Caballeros: { 2026: 240 } }
+      // puntosAnuales debe ser: { 2026: 240 } (suma de todas las categorías por año)
+      if (j.puntosAnualesCat && typeof j.puntosAnualesCat === 'object') {
+        const puntosAnualesNuevo = {};
+        Object.values(j.puntosAnualesCat).forEach(catObj => {
+          if (typeof catObj === 'object') {
+            Object.entries(catObj).forEach(([anio, pts]) => {
+              puntosAnualesNuevo[anio] = (puntosAnualesNuevo[anio] || 0) + (Number(pts)||0);
+            });
+          }
+        });
+        // Solo actualizar si puntosAnuales actual es un número (fue pisado) o difiere
+        const actualEsNumero = typeof j.puntosAnuales === 'number';
+        const hayDatos = Object.keys(puntosAnualesNuevo).length > 0;
+        if (hayDatos && (actualEsNumero || JSON.stringify(j.puntosAnuales) !== JSON.stringify(puntosAnualesNuevo))) {
+          await updateDoc(doc(db,'jugadores',j.id), { puntosAnuales: puntosAnualesNuevo });
+          ok++;
+        }
+      }
+    } catch(e) { errores++; console.error(j.id, e); }
+  }
+  showToast(`✓ ${ok} jugadores actualizados${errores>0?' · '+errores+' errores':''}`);
+  await cargar();
+}
 
 function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
 document.getElementById('modalOverlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modalOverlay')) cerrarModal(); });
