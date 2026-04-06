@@ -186,6 +186,15 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
     <label>Nombre del torneo</label>
     <input type="text" id="nombreTorneo" placeholder="Ej: 7° Torneo Caballeros">
   </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:4px;">
+    <div>
+      <div style="font-family:'Oswald',sans-serif;font-size:13px;color:var(--text);letter-spacing:1px;">SUMA AL RANKING</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);margin-top:2px;">Los puntos se acreditan al finalizar</div>
+    </div>
+    <div id="toggleRanking" onclick="toggleAcredita()" style="width:48px;height:26px;border-radius:13px;background:var(--azul);cursor:pointer;position:relative;transition:background 0.2s;">
+      <div id="toggleRankingCircle" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;right:4px;transition:right 0.2s;"></div>
+    </div>
+  </div>
 </div>
 
 <!-- TIPO -->
@@ -654,6 +663,16 @@ window.calcular = function() {
   }
 };
 
+// ── TOGGLE ACREDITA PUNTOS ──
+let acreditaPuntos = true;
+window.toggleAcredita = function() {
+  acreditaPuntos = !acreditaPuntos;
+  const tog = document.getElementById('toggleRanking');
+  const circle = document.getElementById('toggleRankingCircle');
+  tog.style.background = acreditaPuntos ? 'var(--azul)' : 'var(--muted)';
+  circle.style.right = acreditaPuntos ? '4px' : '24px';
+};
+
 // ── GUARDAR Y SEGUIR ──
 window.guardarYSeguir = async function() {
   const nombre = document.getElementById('nombreTorneo').value.trim();
@@ -709,6 +728,7 @@ window.guardarYSeguir = async function() {
     horaCorteMediodia:  document.getElementById('horaMediadia')?.value || '13:00',
     tercerSet:          'superTiebreak',
     dias,
+    acreditaPuntos,
     escalaPuntos: { 1:100, 2:90, 3:80, 5:70, 9:60, 99:50 },
     estado: 'borrador'
   };

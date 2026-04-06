@@ -248,10 +248,16 @@ async function cargar() {
   const snap = await getDocs(collection(db, 'jugadores'));
   todosJugadores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  // Detectar años disponibles
+  // Detectar años disponibles desde puntosAnualesCat o puntosAnuales
   const anios = new Set();
   todosJugadores.forEach(j => {
-    Object.keys(j.puntosAnuales || {}).forEach(a => anios.add(a));
+    if (j.puntosAnualesCat && typeof j.puntosAnualesCat === 'object') {
+      Object.values(j.puntosAnualesCat).forEach(catObj => {
+        if (typeof catObj === 'object') Object.keys(catObj).forEach(a => anios.add(a));
+      });
+    } else if (j.puntosAnuales && typeof j.puntosAnuales === 'object') {
+      Object.keys(j.puntosAnuales).forEach(a => anios.add(a));
+    }
   });
   const aniosOrden = [...anios].sort().reverse();
   if (aniosOrden.length === 0) aniosOrden.push(anioActivo);
@@ -270,20 +276,38 @@ function renderRanking() {
   const ORDEN_CAT_TORNEO = ['Octava','Séptima','Sexta','Quinta','Cuarta','Tercera','Segunda','Primera'];
 
   const porCatTorneo = {};
+
   todosJugadores
     .filter(j => {
-      const cat = j.categoria || j.historial?.find(h=>h.categoria)?.categoria || 'General';
-      return cat === catActiva;
+      // Filtrar por sección (Caballeros/Damas)
+      const sec = j.seccion || j.categoria || 'Caballeros';
+      return sec === catActiva;
     })
-    .filter(j => j.puntosAnuales?.[anioActivo] > 0)
     .forEach(j => {
-      const catT = j.categoriaTorneo || j.historial?.find(h=>h.categoriaTorneo)?.categoriaTorneo || 'Sin categoría';
-      if (!porCatTorneo[catT]) porCatTorneo[catT] = [];
-      porCatTorneo[catT].push({
-        nombre: j.nombreDisplay || j.id,
-        pts: j.puntosAnuales?.[anioActivo] || 0,
-        torneos: j.historial?.filter(h => h.fecha?.startsWith(anioActivo)).length || 0
-      });
+      const nombre = j.nombreDisplay || j.id;
+
+      // Leer puntosAnualesCat: { Sexta: { 2026: 80 }, Séptima: { 2026: 100 } }
+      if (j.puntosAnualesCat && typeof j.puntosAnualesCat === 'object') {
+        Object.entries(j.puntosAnualesCat).forEach(([catT, anios]) => {
+          if (typeof anios !== 'object') return;
+          const pts = Number(anios[anioActivo]) || 0;
+          if (pts <= 0) return;
+          // Contar torneos del historial en esa categoría y año
+          const torneos = (j.historial||[]).filter(h =>
+            h.fecha?.startsWith(anioActivo) && h.categoriaTorneo === catT
+          ).length;
+          if (!porCatTorneo[catT]) porCatTorneo[catT] = [];
+          porCatTorneo[catT].push({ nombre, pts, torneos });
+        });
+      } else {
+        // Fallback: estructura vieja con puntosAnuales + categoriaTorneo
+        const pts = (typeof j.puntosAnuales === 'object' ? j.puntosAnuales?.[anioActivo] : 0) || 0;
+        if (pts <= 0) return;
+        const catT = j.categoriaTorneo || 'Sin categoría';
+        const torneos = (j.historial||[]).filter(h => h.fecha?.startsWith(anioActivo)).length;
+        if (!porCatTorneo[catT]) porCatTorneo[catT] = [];
+        porCatTorneo[catT].push({ nombre, pts, torneos });
+      }
     });
 
   const catsConDatos = ORDEN_CAT_TORNEO.filter(c => porCatTorneo[c]);

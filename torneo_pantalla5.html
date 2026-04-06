@@ -352,6 +352,7 @@ body {
         </div>
         <button class="btn-share btn-share-img" style="margin-top:4px;" onclick="generarImagenLlave()">📸 Generar imagen Llave</button>
         <button class="btn-share" style="background:rgba(240,180,41,0.08);border:1px solid var(--amarillo);color:var(--amarillo);margin-top:4px;" onclick="cerrarTorneo()">🏁 Cerrar torneo y acreditar puntos</button>
+        <button class="btn-share" id="btnCerrarSinPuntos" style="background:rgba(85,85,112,0.1);border:1px solid var(--muted);color:var(--muted);margin-top:4px;" onclick="cerrarSinAcreditar()">🏁 Cerrar torneo SIN acreditar puntos</button>
       </div>
     </div>
   </div>
@@ -544,6 +545,13 @@ async function init() {
       scoring       = torneoData.escalaPuntos || {};
       document.querySelector('.page-title p').textContent =
         `${torneoData.nombre} · ${torneoData.dias?.[0]?.fecha || ''}`;
+
+      // Mostrar/ocultar botones según acreditaPuntos
+      const acredita = torneoData.acreditaPuntos !== false; // default true
+      const btnAcreditar = document.querySelector('[onclick="cerrarTorneo()"]');
+      const btnSinPuntos = document.getElementById('btnCerrarSinPuntos');
+      if (btnAcreditar) btnAcreditar.style.display = acredita ? 'block' : 'none';
+      if (btnSinPuntos) btnSinPuntos.style.display = !acredita ? 'block' : 'none';
 
       // Leer resultados reales de Firebase
       await cargarResultados();
@@ -1526,6 +1534,14 @@ window.importarCSV = async function() {
 };
 
 // ── CERRAR TORNEO ─────────────────────────────────────────
+window.cerrarSinAcreditar = async function() {
+  if (!confirm('¿Cerrar el torneo sin acreditar puntos? El torneo quedará como finalizado pero no sumará al ranking.')) return;
+  try {
+    await updateDoc(doc(db,'torneos',torneoId), { estado: 'finalizado', acreditaPuntos: false });
+    showToast('✓ Torneo cerrado sin acreditación');
+  } catch(e) { showToast('❌ Error al cerrar'); }
+};
+
 window.cerrarTorneo = async function() {
   if (!torneoId || RESULTADOS.length===0) { showToast('⚠️ Sin resultados para cerrar'); return; }
   if (!confirm('¿Cerrar el torneo y acreditar los puntos a los jugadores?')) return;

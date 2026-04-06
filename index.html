@@ -194,6 +194,24 @@ body {
   <button class="btn-seleccionar" id="btnSeleccionar" onclick="seleccionarTorneo()">
     CONTINUAR CON ESTE TORNEO →
   </button>
+  <button id="btnEliminarTorneo" onclick="pedirPinEliminar()" style="display:none;width:100%;margin-top:8px;background:transparent;border:1px solid var(--rojo);border-radius:12px;padding:12px;color:var(--rojo);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">
+    🗑 ELIMINAR ESTE TORNEO
+  </button>
+</div>
+
+<!-- PIN ELIMINAR TORNEO -->
+<div id="pinOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:300;display:none;align-items:center;justify-content:center;">
+  <div style="background:#111118;border:1px solid #222230;border-radius:16px;padding:28px 24px;width:300px;text-align:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;color:#fff;margin-bottom:6px;">🔒 CONFIRMAR</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:12px;color:#555570;letter-spacing:1px;margin-bottom:20px;">PIN requerido para eliminar torneo</div>
+    <input type="password" id="pinEliminarInput" maxlength="6" inputmode="numeric" placeholder="····"
+      style="width:100%;background:#18181f;border:1px solid #222230;border-radius:8px;padding:14px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none;margin-bottom:16px;">
+    <div id="pinEliminarError" style="color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;min-height:18px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="cerrarPinEliminar()" style="flex:1;background:none;border:1px solid #222230;border-radius:8px;padding:12px;color:#555570;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
+      <button onclick="confirmarEliminar()" style="flex:1;background:#e63946;border:none;border-radius:8px;padding:12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">ELIMINAR</button>
+    </div>
+  </div>
 </div>
 
 <!-- LINK VISTA PÚBLICA -->
@@ -209,7 +227,7 @@ body {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, query, orderBy, getDocs, getDoc, doc, limit }
+import { getFirestore, collection, query, orderBy, getDocs, getDoc, doc, limit, deleteDoc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -307,6 +325,7 @@ function elegirTorneo(id, data, card) {
   torneoSeleccionadoId   = id;
   torneoSeleccionadoData = data;
   document.getElementById('btnSeleccionar').classList.add('visible');
+  document.getElementById('btnEliminarTorneo').style.display = 'block';
   document.getElementById('publicLinkWrap').style.display = 'flex';
   document.getElementById('publicLink').href = `torneo_publico.html?id=${id}`;
 
@@ -317,6 +336,54 @@ function elegirTorneo(id, data, card) {
     document.getElementById('btn-configuracion').style.display = 'none';
   }
 }
+
+// ── ELIMINAR TORNEO ──
+let pinAdminGuardado = '1234';
+getDoc(doc(db,'config','cancha')).then(snap => {
+  if (snap.exists() && snap.data().pinAdmin) pinAdminGuardado = snap.data().pinAdmin;
+});
+
+window.pedirPinEliminar = function() {
+  if (!torneoSeleccionadoId) return;
+  document.getElementById('pinEliminarInput').value = '';
+  document.getElementById('pinEliminarError').textContent = '';
+  const overlay = document.getElementById('pinOverlay');
+  overlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('pinEliminarInput').focus(), 200);
+};
+
+window.cerrarPinEliminar = function() {
+  document.getElementById('pinOverlay').style.display = 'none';
+};
+
+window.confirmarEliminar = async function() {
+  const ingresado = document.getElementById('pinEliminarInput').value.trim();
+  if (ingresado !== pinAdminGuardado) {
+    document.getElementById('pinEliminarError').textContent = '❌ PIN incorrecto';
+    document.getElementById('pinEliminarInput').value = '';
+    return;
+  }
+  const nombre = torneoSeleccionadoData?.nombre || torneoSeleccionadoId;
+  if (!confirm(`¿Eliminar "${nombre}" permanentemente? Esta acción no se puede deshacer.`)) return;
+  try {
+    // Eliminar subcolecciones primero
+    const subcols = ['parejas','partidos','zonas','fixture'];
+    for (const sub of subcols) {
+      const snap = await getDocs(collection(db,'torneos',torneoSeleccionadoId,sub));
+      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+    }
+    await deleteDoc(doc(db,'torneos',torneoSeleccionadoId));
+    cerrarPinEliminar();
+    document.getElementById('btnEliminarTorneo').style.display = 'none';
+    document.getElementById('btnSeleccionar').classList.remove('visible');
+    torneoSeleccionadoId = null;
+    showToast('✓ Torneo eliminado');
+    await cargarTorneos();
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al eliminar');
+  }
+};
 
 window.irACrear = function() {
   sessionStorage.removeItem('torneoId');
