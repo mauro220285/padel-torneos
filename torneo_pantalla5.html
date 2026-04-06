@@ -1439,16 +1439,39 @@ async function cargarExternos() {
 window.leerCSV = function(input) {
   const file = input.files[0];
   if (!file) return;
+
+  // Detectar y corregir nombre invertido
+  const NOMBRES_COMUNES = ['juan','carlos','luis','pedro','jose','jorge','miguel','roberto','daniel','martin',
+    'pablo','diego','alejandro','andres','sebastian','nicolas','gabriel','fernando','ricardo','marcos',
+    'mario','gustavo','eduardo','alberto','oscar','hugo','ramon','santiago','ezequiel','maximiliano',
+    'maria','ana','laura','carolina','valeria','natalia','victoria','paula','gabriela','camila',
+    'lucia','florencia','daniela','sofia','valentina','martina','romina','julieta','paola',
+    'guillermo','hernan','mateo','thiago','lautaro','agustin','facundo','leandro','franco','ivan',
+    'cecilia','silvana','lorena','vanesa','claudia','marcela','andrea','patricia','rosa','susana'];
+  function normalizarNombre(str) {
+    const palabras = str.trim().split(/\s+/);
+    if (palabras.length < 2) return str.trim();
+    const primera = palabras[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if (NOMBRES_COMUNES.includes(primera)) {
+      return [...palabras.slice(1), palabras[0]].join(' ');
+    }
+    return str.trim();
+  }
+
   const reader = new FileReader();
   reader.onload = (e) => {
     const lines = e.target.result.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l=>l.trim());
     csvDatos = [];
     let html = '';
+    let invertidos = 0;
     lines.forEach((line, i) => {
       if (i===0 && line.toLowerCase().includes('jugador')) return;
       const cols = line.split(',').map(c=>c.trim());
       if (cols.length >= 4) {
-        const jugador  = cols[0];
+        const jugadorRaw = cols[0];
+        const jugador    = normalizarNombre(jugadorRaw);
+        const invertido  = jugador !== jugadorRaw;
+        if (invertido) invertidos++;
         const torneo   = cols[1] || '';
         const cancha   = cols[2] || '';
         const fecha    = cols[3] || '';
@@ -1457,17 +1480,19 @@ window.leerCSV = function(input) {
         const categoria_torneo = cols[6] || '';
         if (jugador && puntos > 0) {
           csvDatos.push({ jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo });
-          html += `<div class="csv-preview-row"><span class="csv-ok">✓</span><span style="flex:1">${jugador}</span><span style="font-size:11px;color:var(--muted);margin-right:8px;">${categoria}${categoria_torneo ? ' · '+categoria_torneo : ''}</span><span style="color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;">${puntos}</span></div>`;
+          html += `<div class="csv-preview-row"><span class="csv-ok">✓</span><span style="flex:1">${jugador}${invertido?` <span style="color:var(--amarillo);font-size:10px;">(invertido)</span>`:''}</span><span style="font-size:11px;color:var(--muted);margin-right:8px;">${categoria}${categoria_torneo?' · '+categoria_torneo:''}</span><span style="color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;">${puntos}</span></div>`;
         } else {
           html += `<div class="csv-preview-row"><span class="csv-err">✗</span><span style="flex:1;color:var(--muted)">Fila ${i+1}: inválida</span></div>`;
         }
       }
     });
     const preview = document.getElementById('csv-preview');
-    preview.innerHTML = html ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:8px;">${html}</div>` : '';
+    const avisoInv = invertidos > 0 ? `<div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--amarillo);margin-bottom:6px;letter-spacing:1px;">⚠️ ${invertidos} nombres invertidos corregidos automáticamente</div>` : '';
+    preview.innerHTML = html ? `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:8px;">${avisoInv}${html}</div>` : '';
     const btn = document.getElementById('btn-importar');
     if (btn) btn.style.display = csvDatos.length>0?'flex':'none';
-    if (csvDatos.length>0) showToast(`✓ ${csvDatos.length} registros listos`);
+    if (csvDatos.length>0) showToast(`✓ ${csvDatos.length} registros listos${invertidos>0?' · '+invertidos+' nombres corregidos':''}`);
+
   };
   reader.readAsText(file);
 };

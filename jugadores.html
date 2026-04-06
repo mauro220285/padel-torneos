@@ -251,16 +251,12 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
       <span>IMPORTAR CSV</span>
       <button class="modal-close" onclick="cerrarCsv()">✕</button>
     </div>
-    <div class="field">
-      <label>Columna del nombre (número, empezando en 1)</label>
-      <input type="number" id="csvColNombre" value="1" min="1">
+    <div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:12px;background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.15);border-radius:8px;padding:10px 12px;">
+      Formato esperado: <span style="color:var(--azul);">jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo</span><br>
+      <span style="color:var(--amarillo);">Los nombres invertidos se corrigen automáticamente.</span>
     </div>
     <div class="field">
-      <label>Columna de categoría (0 = ninguna)</label>
-      <input type="number" id="csvColCat" value="2" min="0">
-    </div>
-    <div class="field">
-      <label>Sección por defecto</label>
+      <label>Sección por defecto (si no está en el CSV)</label>
       <select id="csvSeccion">
         <option value="Caballeros">Caballeros</option>
         <option value="Damas">Damas</option>
@@ -566,45 +562,125 @@ document.getElementById('csvFileInput').addEventListener('change', async (e) => 
   procesarCsvTexto(await file.text());
 });
 
+function normalizarNombreCSV(str) {
+  // Detecta si viene "Nombre Apellido" vs "Apellido Nombre"
+  // Heurística: si la primera palabra es un nombre común conocido, está invertido
+  const NOMBRES_COMUNES = ['juan','carlos','luis','pedro','jose','jorge','miguel','roberto','daniel','martin',
+    'pablo','diego','alejandro','andres','sebastian','nicolas','gabriel','fernando','ricardo','marcos',
+    'mario','gustavo','eduardo','alberto','oscar','hugo','ramon','santiago','ezequiel','maximiliano',
+    'maria','ana','laura','carolina','valeria','natalia','victoria','paula','gabriela','camila',
+    'lucia','florencia','daniela','sofía','sofia','valentina','martina','romina','julieta','paola',
+    'guillermo','hernan','mateo','thiago','lautaro','agustin','facundo','leandro','franco','ivan',
+    'cecilia','silvana','lorena','vanesa','claudia','marcela','andrea','patricia','rosa','susana'];
+  const palabras = str.trim().split(/\s+/);
+  if (palabras.length < 2) return str.trim();
+  const primera = palabras[0].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const esNombre = NOMBRES_COMUNES.includes(primera);
+  if (esNombre) {
+    // Viene Nombre Apellido → invertir a Apellido Nombre
+    const apellidos = palabras.slice(1);
+    const nombre = palabras[0];
+    return [...apellidos, nombre].join(' ');
+  }
+  return str.trim();
+}
+
 function procesarCsvTexto(text) {
-  const colNombre=parseInt(document.getElementById('csvColNombre').value)-1;
-  const colCatRaw=parseInt(document.getElementById('csvColCat').value);
-  const colCat=colCatRaw>0?colCatRaw-1:-1;
-  const seccion=document.getElementById('csvSeccion').value;
-  csvDatos=[];
-  const preview=[];
-  text.split('\n').filter(l=>l.trim()).forEach(linea=>{
-    const cols=linea.split(/[,;|\t]/).map(c=>c.trim().replace(/^["']|["']$/g,''));
-    const nombre=cols[colNombre]; if(!nombre||nombre.length<2) return;
-    const cat=colCat>=0?cols[colCat]||'':'';
-    const id=generarId(nombre);
-    const existeExacto=JUGADORES.find(j=>j.id===id);
-    const similares=buscarSimilares(nombre).filter(j=>j.id!==id);
-    const status=existeExacto?'skip':similares.length?'dup':'nuevo';
-    const statusTxt=existeExacto?'YA EXISTE':similares.length?`SIMILAR: ${similares[0].nombreDisplay}`:'NUEVO';
-    csvDatos.push({nombre,cat,seccion,id,status,similares});
-    preview.push({nombre,statusTxt,status});
+  const seccionDefault = document.getElementById('csvSeccion').value;
+  csvDatos = [];
+  const preview = [];
+  // Detectar separador
+  const sep = text.includes(';') ? ';' : text.includes('\t') ? '\t' : ',';
+  const lineas = text.split('\n').filter(l => l.trim());
+  // Saltar header si existe
+  const inicio = lineas[0].toLowerCase().includes('jugador') || lineas[0].toLowerCase().includes('nombre') ? 1 : 0;
+
+  lineas.slice(inicio).forEach(linea => {
+    const cols = linea.split(sep).map(c => c.trim().replace(/^["']|["']$/g, ''));
+    const nombreRaw = cols[0]; if (!nombreRaw || nombreRaw.length < 2) return;
+
+    // Normalizar nombre (detectar inversión)
+    const nombreOriginal = nombreRaw;
+    const nombre = normalizarNombreCSV(nombreRaw);
+    const invertido = nombre !== nombreOriginal;
+
+    // Leer columnas según formato
+    // jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo
+    const torneo       = cols[1] || '';
+    const cancha       = cols[2] || '';
+    const fecha        = cols[3] || '';
+    const puntos       = parseInt(cols[4]) || 0;
+    const seccionCSV   = cols[5] || ''; // Caballeros/Damas
+    const catTorneo    = cols[6] || ''; // Séptima, Sexta, etc.
+
+    // Determinar sección
+    const seccionNorm = seccionCSV.toLowerCase();
+    const seccion = seccionNorm.includes('dam') ? 'Damas' :
+                    seccionNorm.includes('men') ? 'Menores' :
+                    seccionCSV ? 'Caballeros' : seccionDefault;
+
+    const id = generarId(nombre);
+    const existeExacto = JUGADORES.find(j => j.id === id);
+    const similares = buscarSimilares(nombre).filter(j => j.id !== id);
+    const status = existeExacto ? 'skip' : similares.length ? 'dup' : 'nuevo';
+    const avisos = [];
+    if (invertido) avisos.push('⚠️ nombre invertido');
+    if (status === 'dup') avisos.push(`similar: ${similares[0].nombreDisplay}`);
+    const statusTxt = status === 'skip' ? 'YA EXISTE' :
+                      status === 'dup' ? `SIMILAR: ${similares[0].nombreDisplay}` : 'NUEVO';
+
+    csvDatos.push({ nombre, nombreOriginal, invertido, torneo, fecha, puntos, seccion, catTorneo, id, status, similares, avisos });
+    preview.push({ nombre, nombreOriginal, invertido, statusTxt, status, puntos, catTorneo });
   });
-  const nuevos=csvDatos.filter(d=>d.status==='nuevo').length;
-  const dups=csvDatos.filter(d=>d.status==='dup').length;
-  const skips=csvDatos.filter(d=>d.status==='skip').length;
-  document.getElementById('csvPreview').innerHTML=
-    `<div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">${nuevos} nuevos · ${dups} similares · ${skips} ya existentes</div>`+
-    preview.map(p=>`<div class="csv-row"><span class="csv-row-nombre">${p.nombre}</span><span class="csv-row-status status-${p.status}">${p.statusTxt}</span></div>`).join('');
-  document.getElementById('csvBtns').style.display=nuevos>0?'flex':'none';
+
+  const nuevos = csvDatos.filter(d => d.status === 'nuevo').length;
+  const dups   = csvDatos.filter(d => d.status === 'dup').length;
+  const skips  = csvDatos.filter(d => d.status === 'skip').length;
+  const inv    = csvDatos.filter(d => d.invertido).length;
+
+  document.getElementById('csvPreview').innerHTML =
+    `<div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">
+      ${nuevos} nuevos · ${dups} similares · ${skips} ya existentes${inv > 0 ? ` · <span style="color:var(--amarillo)">⚠️ ${inv} nombres invertidos (corregidos)</span>` : ''}
+    </div>` +
+    preview.map(p => `<div class="csv-row">
+      <span class="csv-row-nombre">${p.nombre}${p.invertido ? ` <span style="color:var(--amarillo);font-size:10px;">(era: ${p.nombreOriginal})</span>` : ''}</span>
+      <span style="font-family:'Oswald',sans-serif;font-size:10px;color:var(--muted);margin-right:4px;">${p.catTorneo}</span>
+      ${p.puntos > 0 ? `<span style="font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--azul);margin-right:4px;">${p.puntos}pts</span>` : ''}
+      <span class="csv-row-status status-${p.status}">${p.statusTxt}</span>
+    </div>`).join('');
+
+  document.getElementById('csvBtns').style.display = nuevos > 0 ? 'flex' : 'none';
 }
 
 window.importarCsv = async function() {
-  const aNuevos=csvDatos.filter(d=>d.status==='nuevo');
+  const aNuevos = csvDatos.filter(d => d.status === 'nuevo');
   if (!aNuevos.length) { showToast('No hay jugadores nuevos'); return; }
-  let ok=0;
+  let ok = 0;
+  const anio = new Date().getFullYear().toString();
   for (const j of aNuevos) {
     try {
-      await setDoc(doc(db,'jugadores',j.id), {nombreDisplay:j.nombre, seccion:j.seccion, categoria:j.cat||'', notas:'', puntos:0, puntosAnuales:0, fechaAlta:new Date().toISOString().split('T')[0]});
+      // Armar puntosAnuales como objeto si hay puntos en el CSV
+      const puntosAnuales = j.puntos > 0 ? { [anio]: j.puntos } : {};
+      const puntosAnualesCat = (j.puntos > 0 && j.catTorneo)
+        ? { [j.seccion === 'Damas' ? 'Damas' : 'Caballeros']: { [anio]: j.puntos } }
+        : {};
+      await setDoc(doc(db,'jugadores',j.id), {
+        nombreDisplay: j.nombre,
+        seccion: j.seccion,
+        categoria: j.catTorneo || '',
+        categoriaTorneo: j.catTorneo || '',
+        notas: '',
+        puntos: j.puntos || 0,
+        puntosAnuales,
+        puntosAnualesCat,
+        fechaAlta: new Date().toISOString().split('T')[0]
+      });
       ok++;
     } catch(e) { console.error(e); }
   }
-  cerrarCsv(); showToast(`✓ ${ok} jugadores importados`); await cargar();
+  cerrarCsv();
+  showToast(`✓ ${ok} jugadores importados`);
+  await cargar();
 };
 
 async function recalcularPuntos() {
