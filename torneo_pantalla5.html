@@ -547,11 +547,11 @@ async function init() {
         `${torneoData.nombre} · ${torneoData.dias?.[0]?.fecha || ''}`;
 
       // Mostrar/ocultar botones según acreditaPuntos
-      const acredita = torneoData.acreditaPuntos !== false; // default true
+      const acredita = torneoData.acreditaPuntos !== false;
       const btnAcreditar = document.querySelector('[onclick="cerrarTorneo()"]');
       const btnSinPuntos = document.getElementById('btnCerrarSinPuntos');
-      if (btnAcreditar) btnAcreditar.style.display = acredita ? 'block' : 'none';
-      if (btnSinPuntos) btnSinPuntos.style.display = !acredita ? 'block' : 'none';
+      if (btnAcreditar) btnAcreditar.style.display = 'block';
+      if (btnSinPuntos) btnSinPuntos.style.display = 'block';
 
       // Leer resultados reales de Firebase
       await cargarResultados();
@@ -677,12 +677,13 @@ async function cargarResultados() {
 // ── ETAPAS DE SCORING ────────────────────────────────────
 function getEtapas(n) {
   const etapas = [];
-  if (n >= 8)  etapas.push({ label:'🥇 Campeón (1°)',        pos:1,  default:100 });
-  if (n >= 4)  etapas.push({ label:'🥈 Finalista (2°)',      pos:2,  default:90  });
-  if (n >= 4)  etapas.push({ label:'🥉 Semifinal (3° y 4°)', pos:3,  default:80  });
-  if (n >= 8)  etapas.push({ label:'Cuartos (5° al 8°)',     pos:5,  default:70  });
-  if (n >= 16) etapas.push({ label:'Octavos (9° al 16°)',    pos:9,  default:60  });
-                etapas.push({ label:'Eliminado en zona',      pos:99, default:50  });
+  if (n >= 8)  etapas.push({ label:'🥇 Campeón (1°)',                    pos:1,  default:100 });
+  if (n >= 4)  etapas.push({ label:'🥈 Finalista (2°)',                  pos:2,  default:90  });
+  if (n >= 4)  etapas.push({ label:'🥉 Semi — perdió con campeón (3°)',  pos:3,  default:80  });
+  if (n >= 4)  etapas.push({ label:'Semi — perdió con finalista (4°)',   pos:4,  default:75  });
+  if (n >= 8)  etapas.push({ label:'Cuartos (5° al 8°)',                 pos:5,  default:60  });
+  if (n >= 16) etapas.push({ label:'Octavos (9° al 16°)',                pos:9,  default:50  });
+               etapas.push({ label:'Eliminado en zona',                  pos:99, default:35  });
   return etapas;
 }
 

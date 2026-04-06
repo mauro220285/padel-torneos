@@ -689,23 +689,25 @@ async function recalcularPuntos() {
 
   for (const j of JUGADORES) {
     try {
-      // Buscar el objeto de historial anidado — tiene torneoNombre, puntos, fecha
-      // Puede estar en cualquier campo que sea un objeto con esas propiedades
+      // Reconstruir puntosAnualesCat por categoriaTorneo (Sexta, Séptima, etc.)
+      // Estructura objetivo: { Sexta: { 2026: 80 }, Séptima: { 2026: 100 } }
+      const puntosAnualesCatNuevo = {};
       const puntosAnualesNuevo = {};
       let totalPuntos = 0;
-      let categoriaTorneoReal = j.categoriaTorneo || '';
-      let categoriaReal = j.categoria || j.seccion || '';
 
-      // Recorrer todos los campos buscando objetos de historial
+      // Buscar objetos de historial anidados (tienen torneoNombre y puntos)
       Object.entries(j).forEach(([key, val]) => {
         if (val && typeof val === 'object' && !Array.isArray(val) && val.puntos && val.torneoNombre) {
           const pts = Number(val.puntos) || 0;
           const fecha = val.fecha || '';
-          const anio = fecha.split('-')[0] || '2026';
+          const anio = fecha.split('-')[0] || new Date().getFullYear().toString();
+          const catT = val.categoriaTorneo || val.categoria || j.categoriaTorneo || 'General';
+          // Acumular por categoría torneo
+          if (!puntosAnualesCatNuevo[catT]) puntosAnualesCatNuevo[catT] = {};
+          puntosAnualesCatNuevo[catT][anio] = (puntosAnualesCatNuevo[catT][anio] || 0) + pts;
+          // Acumular total anual
           puntosAnualesNuevo[anio] = (puntosAnualesNuevo[anio] || 0) + pts;
           totalPuntos += pts;
-          if (val.categoriaTorneo) categoriaTorneoReal = val.categoriaTorneo;
-          if (val.categoria) categoriaReal = val.categoria;
         }
       });
 
@@ -713,22 +715,20 @@ async function recalcularPuntos() {
       if (Array.isArray(j.historial)) {
         j.historial.forEach(h => {
           const pts = Number(h.puntos) || 0;
-          const anio = (h.fecha||'').split('-')[0] || '2026';
+          const anio = (h.fecha||'').split('-')[0] || new Date().getFullYear().toString();
+          const catT = h.categoriaTorneo || h.categoria || j.categoriaTorneo || 'General';
+          if (!puntosAnualesCatNuevo[catT]) puntosAnualesCatNuevo[catT] = {};
+          puntosAnualesCatNuevo[catT][anio] = (puntosAnualesCatNuevo[catT][anio] || 0) + pts;
           puntosAnualesNuevo[anio] = (puntosAnualesNuevo[anio] || 0) + pts;
           totalPuntos += pts;
         });
       }
 
-      if (Object.keys(puntosAnualesNuevo).length > 0) {
-        // Reconstruir puntosAnualesCat correctamente
-        const seccion = j.seccion || categoriaReal || 'Caballeros';
-        const puntosAnualesCatNuevo = { [seccion]: { ...puntosAnualesNuevo } };
-
+      if (Object.keys(puntosAnualesCatNuevo).length > 0) {
         await updateDoc(doc(db,'jugadores',j.id), {
           puntosAnuales: puntosAnualesNuevo,
           puntosAnualesCat: puntosAnualesCatNuevo,
-          puntos: totalPuntos,
-          ...(categoriaTorneoReal ? { categoriaTorneo: categoriaTorneoReal } : {})
+          puntos: totalPuntos
         });
         ok++;
       }
