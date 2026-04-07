@@ -189,7 +189,8 @@ body {
       <div class="loading-dots"><span></span><span></span><span></span></div>
     </div>
   </div>
-  <button class="btn-nuevo" onclick="window.location.href='jugadores.html'" style="margin-top:8px;border-color:var(--azul);color:var(--azul);">👤 GESTIÓN DE JUGADORES</button>
+  <button class="btn-nuevo" onclick="irACrear()">+ CREAR NUEVO TORNEO</button>
+  <button class="btn-nuevo" onclick="window.open('ranking_publico.html','_blank')" style="margin-top:6px;border-color:var(--azul);color:var(--azul);">📊 VER RANKING PÚBLICO</button>
 </div>
 
 <!-- BTN CONTINUAR -->
@@ -335,8 +336,8 @@ function elegirTorneo(id, data, card) {
   // Mostrar accesos rápidos relevantes
   if (data.estado === 'activo') {
     document.getElementById('btn-resultados-rapido').style.display = '';
-    document.getElementById('btn-informes-rapido').style.display   = '';
-    document.getElementById('btn-configuracion').style.display = 'none';
+    const btnInf = document.getElementById('btn-informes-rapido');
+    if (btnInf) btnInf.style.display = '';
   }
 }
 
@@ -406,8 +407,9 @@ window.irAInformes = function() {
   if (torneoSeleccionadoId) {
     sessionStorage.setItem('torneoId', torneoSeleccionadoId);
     sessionStorage.setItem('torneoNombre', torneoSeleccionadoData?.nombre || '');
-    window.location.href = 'torneo_pantalla5.html';
   }
+  // Ir a P5 aunque no haya torneo seleccionado (usa el que ya está en sessionStorage)
+  window.location.href = 'torneo_pantalla5.html';
 };
 
 window.seleccionarTorneo = function() {
