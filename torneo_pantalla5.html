@@ -312,20 +312,6 @@ body {
   </div>
 
   <!-- 3. LLAVE -->
-  <div class="informe-card" id="card-llave">
-    <div class="informe-header" onclick="toggleCard('llave')">
-      <span class="informe-icon">⚡</span>
-      <div>
-        <div class="informe-titulo">LLAVE ELIMINATORIA</div>
-        <div class="informe-desc">Cruces de la fase final</div>
-      </div>
-      <span class="informe-chevron">▼</span>
-    </div>
-    <div class="informe-body" id="llave-body">
-      <div style="padding:16px;color:var(--muted);font-size:13px;text-align:center;">Cargando llave...</div>
-    </div>
-  </div>
-
   <!-- 4. PROGRAMA DEL DÍA -->
   <div class="informe-card" id="card-programa">
     <div class="informe-header" onclick="toggleCard('programa')">
@@ -393,6 +379,13 @@ body {
     </div>
   </div>
 
+  <!-- RANKING PÚBLICO -->
+  <div style="width:100%;max-width:500px;padding:8px 20px 0;">
+    <button onclick="window.open('ranking_publico.html','_blank')" style="width:100%;padding:14px;background:rgba(74,158,255,0.08);border:1px solid var(--azul);border-radius:12px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;">
+      📊 VER RANKING PÚBLICO
+    </button>
+  </div>
+
   <!-- IMAGEN DE CAMPEONES -->
   <div class="informe-card" id="card-campeones">
     <div class="informe-header" onclick="toggleCard('campeones')">
@@ -427,20 +420,6 @@ body {
   </div>
 
   <!-- 7. TABLA ANUAL DE JUGADORES -->
-  <div class="informe-card" id="card-ranking">
-    <div class="informe-header" onclick="toggleCard('ranking')">
-      <span class="informe-icon">📊</span>
-      <div>
-        <div class="informe-titulo">RANKING ANUAL</div>
-        <div class="informe-desc">Puntaje acumulado por jugador en el año</div>
-      </div>
-      <span class="informe-chevron">▼</span>
-    </div>
-    <div class="informe-body">
-      <div id="ranking-content"></div>
-    </div>
-  </div>
-
   <!-- 8. PUNTOS EXTERNOS -->
   <div class="informe-card" id="card-externos">
     <div class="informe-header" onclick="toggleCard('externos')">
@@ -463,74 +442,7 @@ body {
 
         <!-- MANUAL -->
         <div class="ext-panel visible" id="ext-manual">
-          <div class="field-ext">
-            <label>Nombre del torneo externo</label>
-            <input type="text" id="ext-torneo" placeholder="Ej: 7° Torneo Caballeros">
-          </div>
-          <div class="field-ext" style="margin-bottom:8px;">
-            <label>Club / Cancha</label>
-            <input type="text" id="ext-cancha" placeholder="Ej: Club Rivadavia · Cancha Los Pinos">
-          </div>
-          <div class="field-ext">
-            <label>Fecha</label>
-            <input type="date" id="ext-fecha">
-          </div>
-          <div id="ext-jugadores-lista"></div>
-          <button class="btn-add-ext" onclick="agregarJugadorExt()">+ AGREGAR PAREJA</button>
-          <button class="btn-share btn-share-wa" style="margin-top:8px;" onclick="guardarExterno()">💾 Guardar puntos externos</button>
-        </div>
-
-        <!-- CSV -->
-        <div class="ext-panel" id="ext-csv">
-          <div class="csv-info">
-            <div class="csv-info-titulo">📄 Formato CSV esperado</div>
-            <div class="csv-info-ejemplo">jugador,torneo,cancha,fecha,puntos<br>Juan García,7° Torneo Caballeros,Club Rivadavia,2026-03-10,80<br>Carlos López,7° Torneo Caballeros,Club Rivadavia,2026-03-10,80</div>
-          </div>
-          <label class="btn-upload" for="csvInput">📂 Seleccionar archivo CSV</label>
-          <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="leerCSV(this)">
-          <div id="csv-preview"></div>
-          <button class="btn-share btn-share-wa" style="margin-top:8px;display:none;" id="btn-importar" onclick="importarCSV()">💾 Importar puntos</button>
-          <div class="csv-nota">💡 También podés mandarme una foto del Excel o PDF y te genero el CSV listo para subir acá.</div>
-        </div>
-
-        <!-- ELIMINAR -->
-        <div class="ext-panel" id="ext-eliminar">
-          <div id="torneos-externos-lista"><div style="color:var(--muted);font-size:13px;padding:8px 0;">Cargando torneos...</div></div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="divider"></div>
-<div class="toast" id="toast"></div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc,
-         collection, query, orderBy, serverTimestamp }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
-  authDomain: "padel-team-76749.firebaseapp.com",
-  projectId: "padel-team-76749",
-  storageBucket: "padel-team-76749.firebasestorage.app",
-  messagingSenderId: "449257104174",
-  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
-};
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
-
-// ── ESTADO ───────────────────────────────────────────────
-let torneoId      = null;
-let torneoData    = null;
-let RESULTADOS    = [];
-let TOTAL_PAREJAS = 8;
-let scoring       = {};
-let externosGuardados = [];
-let csvDatos      = [];
+          <div c [];
 
 // ── INIT ─────────────────────────────────────────────────
 async function init() {
