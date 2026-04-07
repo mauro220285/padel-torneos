@@ -1,29 +1,366 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Padel Team - Puntos Externos</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--azul:#4a9eff;--cyan:#00d4ff;--bg:#0a0a0f;--bg2:#111118;--bg3:#18181f;--border:#222230;--text:#e0e0f0;--muted:#555570;--label:#7a7a99;--verde:#4caf50;--rojo:#e63946;--amarillo:#f0b429;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding-bottom:60px;}
+.app-header{width:100%;background:linear-gradient(180deg,#0d0d16,var(--bg));border-bottom:1px solid var(--border);padding:18px 20px 14px;display:flex;align-items:center;justify-content:center;position:relative;}
+.app-header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--azul),var(--cyan),var(--azul),transparent);}
+.btn-back{position:absolute;left:16px;background:none;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer;}
+.header-logo{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:6px;color:#fff;}
+.header-logo span{color:var(--azul);}
+.page-title{width:100%;max-width:500px;padding:20px 20px 6px;}
+.page-title h2{font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:4px;color:#fff;}
+.page-title p{font-size:13px;color:var(--label);letter-spacing:1px;margin-top:4px;}
+.section{width:100%;max-width:500px;padding:12px 20px 0;}
+.ext-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.ext-tab{flex:1;padding:9px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;text-align:center;}
+.ext-tab.activa{background:rgba(74,158,255,0.12);border-color:var(--azul);color:var(--azul);}
+.ext-panel{display:none;}
+.ext-panel.visible{display:block;}
+.field-ext{margin-bottom:10px;}
+.field-ext label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--label);margin-bottom:4px;font-family:'Oswald',sans-serif;}
+.field-ext input{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;outline:none;}
+.field-ext input:focus{border-color:var(--azul);}
+.ext-jugador-row{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;}
+.ext-jugador-row input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-family:'Oswald',sans-serif;font-size:13px;outline:none;margin-bottom:4px;}
+.ext-jugador-del{background:rgba(230,57,70,0.1);border:1px solid var(--rojo);border-radius:6px;padding:6px 10px;color:var(--rojo);cursor:pointer;font-size:14px;}
+.ext-fase-sel{width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-family:'Oswald',sans-serif;font-size:12px;outline:none;margin-top:4px;}
+.btn-add-ext{width:100%;padding:10px;background:rgba(74,158,255,0.08);border:1px dashed var(--azul);border-radius:8px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;margin-bottom:8px;}
+.btn-guardar-ext{width:100%;padding:13px;background:var(--azul);border:none;border-radius:10px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;margin-top:4px;}
+.csv-info{background:rgba(74,158,255,0.06);border:1px solid rgba(74,158,255,0.15);border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+.csv-info-titulo{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;}
+.csv-info-ejemplo{font-family:monospace;font-size:11px;color:var(--muted);line-height:1.6;}
+.btn-upload{display:block;width:100%;padding:12px;background:var(--bg2);border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1px;cursor:pointer;text-align:center;margin-bottom:8px;}
+.btn-importar{width:100%;padding:13px;background:rgba(76,175,80,0.1);border:1px solid var(--verde);border-radius:10px;color:var(--verde);font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;margin-top:8px;display:none;}
+.csv-preview-row{display:flex;gap:8px;font-size:12px;padding:6px 0;border-bottom:1px solid var(--border);font-family:'Oswald',sans-serif;letter-spacing:1px;}
+.csv-preview-row:last-child{border-bottom:none;}
+.torneo-ext-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;}
+.btn-eliminar-ext{margin-top:8px;padding:8px 16px;background:rgba(230,57,70,0.1);border:1px solid #e63946;border-radius:6px;color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--azul);color:#fff;font-family:'Oswald',sans-serif;font-size:14px;padding:10px 28px;border-radius:30px;letter-spacing:1px;transition:transform 0.3s;z-index:9999;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="app-header">
+  <button class="btn-back" onclick="window.location.href='index.html'">&#8592; INICIO</button>
+  <div class="header-logo">PADEL <span>TEAM</span></div>
+</div>
+<div class="page-title">
+  <h2>PUNTOS EXTERNOS</h2>
+  <p>Torneos de otras canchas</p>
+</div>
+<div class="section">
+  <div class="ext-tabs">
+    <button class="ext-tab activa" onclick="selExtTab(this,'manual')">&#9998; Manual</button>
+    <button class="ext-tab" onclick="selExtTab(this,'csv')">&#128196; CSV</button>
+    <button class="ext-tab" onclick="selExtTab(this,'eliminar');cargarTorneosExternos()">&#128465; Eliminar</button>
+  </div>
+
+  <div class="ext-panel visible" id="ext-manual">
+    <div class="field-ext"><label>Nombre del torneo</label><input type="text" id="ext-torneo" placeholder="Ej: 7 Torneo Caballeros"></div>
+    <div class="field-ext"><label>Club / Cancha</label><input type="text" id="ext-cancha" placeholder="Ej: Club Rivadavia"></div>
+    <div class="field-ext"><label>Fecha</label><input type="date" id="ext-fecha"></div>
+    <div class="field-ext"><label>Categoria del torneo (Sexta, Septima, etc)</label><input type="text" id="ext-catTorneo" placeholder="Ej: Septima"></div>
+    <div class="field-ext"><label>Seccion</label>
+      <select id="ext-seccion" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
+        <option value="Caballeros">Caballeros</option>
+        <option value="Damas">Damas</option>
+        <option value="Menores">Menores</option>
+      </select>
+    </div>
+    <div id="ext-jugadores-lista"></div>
+    <button class="btn-add-ext" onclick="agregarJugadorExt()">+ AGREGAR PAREJA</button>
+    <button class="btn-guardar-ext" onclick="guardarExterno()">GUARDAR PUNTOS</button>
+  </div>
+
+  <div class="ext-panel" id="ext-csv">
+    <div class="csv-info">
+      <div class="csv-info-titulo">Formato CSV esperado</div>
+      <div class="csv-info-ejemplo">jugador,torneo,cancha,fecha,puntos,categoria,categoria_torneo</div>
+    </div>
+    <label class="btn-upload" for="csvInput">Seleccionar archivo CSV</label>
+    <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="leerCSV(this)">
+    <div id="csv-preview"></div>
+    <button class="btn-importar" id="btn-importar" onclick="importarCSV()">IMPORTAR PUNTOS</button>
+  </div>
+
+  <div class="ext-panel" id="ext-eliminar">
+    <div id="torneos-externos-lista"><div style="color:var(--muted);font-size:13px;padding:8px 0;">Cargando...</div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const fbConf = {
+  apiKey:"AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain:"padel-team-76749.firebaseapp.com",
+  projectId:"padel-team-76749",
+  storageBucket:"padel-team-76749.firebasestorage.app",
+  messagingSenderId:"449257104174",
+  appId:"1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = getApps().find(a=>a.name==='ext-app') || initializeApp(fbConf,'ext-app');
+const db  = getFirestore(app);
+
+let csvDatos = [];
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+window.selExtTab = function(btn, panel) {
+  document.querySelectorAll('.ext-tab').forEach(b => b.classList.remove('activa'));
+  document.querySelectorAll('.ext-panel').forEach(p => p.classList.remove('visible'));
+  btn.classList.add('activa');
+  document.getElementById('ext-' + panel).classList.add('visible');
+};
+
+window.agregarJugadorExt = function() {
+  const lista = document.getElementById('ext-jugadores-lista');
+  const row = document.createElement('div');
+  row.className = 'ext-jugador-row';
+  const inp1 = document.createElement('input');
+  inp1.type = 'text'; inp1.placeholder = 'Jugador 1...';
+  const inp2 = document.createElement('input');
+  inp2.type = 'text'; inp2.placeholder = 'Jugador 2...';
+  const top = document.createElement('div');
+  top.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;';
+  const del = document.createElement('button');
+  del.className = 'ext-jugador-del';
+  del.textContent = 'X';
+  del.onclick = function() { row.remove(); };
+  top.appendChild(inp1); top.appendChild(inp2); top.appendChild(del);
+  const sel = document.createElement('select');
+  sel.className = 'ext-fase-sel';
+  const fases = [
+    ['100','Campeon (100 pts)'],['90','Finalista (90 pts)'],
+    ['80','Semi perdio con campeon (80 pts)'],['75','Semi perdio con subcampeon (75 pts)'],
+    ['60','Cuartos de final (60 pts)'],['50','Octavos de final (50 pts)'],
+    ['40','Dieciseisavos (40 pts)'],['35','Fase de grupos (35 pts)']
+  ];
+  fases.forEach(([val, txt]) => {
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = txt;
+    if (val === '35') opt.selected = true;
+    sel.appendChild(opt);
+  });
+  row.appendChild(top); row.appendChild(sel);
+  lista.appendChild(row);
+};
+
+window.guardarExterno = async function() {
+  const torneoNombre = document.getElementById('ext-torneo').value.trim();
+  const cancha = document.getElementById('ext-cancha').value.trim();
+  const fecha = document.getElementById('ext-fecha').value;
+  const catTorneo = document.getElementById('ext-catTorneo').value.trim();
+  const seccion = document.getElementById('ext-seccion').value;
+  if (!torneoNombre) { showToast('Ingresa el nombre del torneo'); return; }
+  if (!fecha) { showToast('Ingresa la fecha'); return; }
+  const filas = document.querySelectorAll('#ext-jugadores-lista .ext-jugador-row');
+  if (!filas.length) { showToast('Agrega al menos una pareja'); return; }
+  const anio = fecha.slice(0, 4);
+  let agregados = 0;
+  for (const row of filas) {
+    const inputs = row.querySelectorAll('input[type="text"]');
+    const j1 = inputs[0] ? inputs[0].value.trim() : '';
+    const j2 = inputs[1] ? inputs[1].value.trim() : '';
+    const pts = parseInt(row.querySelector('.ext-fase-sel').value) || 35;
+    if (!j1 || !j2) continue;
+    for (const jugador of [j1, j2]) {
+      const id = jugador.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+      const ref = doc(db, 'jugadores', id);
+      const snap = await getDoc(ref);
+      const data = snap.exists() ? snap.data() : { nombreDisplay:jugador, historial:[], puntosAnuales:{}, puntosAnualesCat:{}, seccion, categoriaTorneo:catTorneo };
+      if (!Array.isArray(data.historial)) data.historial = [];
+      const yaExiste = data.historial.some(h => h.torneoNombre === torneoNombre && h.fecha === fecha && h.externo);
+      if (!yaExiste) {
+        data.historial.push({ torneoNombre, canchaExterna:cancha, fecha, puntos:pts, externo:true, categoriaTorneo:catTorneo, categoria:seccion });
+        if (!data.puntosAnualesCat) data.puntosAnualesCat = {};
+        if (!data.puntosAnualesCat[catTorneo]) data.puntosAnualesCat[catTorneo] = {};
+        data.puntosAnualesCat[catTorneo][anio] = (data.puntosAnualesCat[catTorneo][anio] || 0) + pts;
+        if (!data.puntosAnuales || typeof data.puntosAnuales !== 'object') data.puntosAnuales = {};
+        data.puntosAnuales[anio] = (data.puntosAnuales[anio] || 0) + pts;
+        await setDoc(ref, data);
+      }
+    }
+    agregados++;
+  }
+  if (!agregados) { showToast('Completa los datos'); return; }
+  document.getElementById('ext-torneo').value = '';
+  document.getElementById('ext-cancha').value = '';
+  document.getElementById('ext-fecha').value = '';
+  document.getElementById('ext-catTorneo').value = '';
+  document.getElementById('ext-jugadores-lista').innerHTML = '';
+  showToast(agregados + ' pareja(s) guardada(s)');
+};
+
+// CSV
+const NOMBRES_COMUNES = ['juan','carlos','luis','pedro','jose','jorge','miguel','roberto','daniel','martin','pablo','diego','alejandro','andres','sebastian','nicolas','gabriel','fernando','ricardo','marcos','mario','gustavo','eduardo','alberto','oscar','hugo','ramon','santiago','ezequiel','guillermo','hernan','mateo','thiago','lautaro','agustin','facundo','leandro','franco','ivan','riky','dario','lazaro','teo','ariel','fermin','bernabe','kevin','ciro','xanti','elian','mariano'];
+
+function normalizarNombre(str) {
+  const palabras = str.trim().split(/\s+/);
+  if (palabras.length < 2) return str.trim();
+  const primera = palabras[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if (NOMBRES_COMUNES.includes(primera)) {
+    return palabras.slice(1).concat(palabras[0]).join(' ');
+  }
+  return str.trim();
+}
+
+window.leerCSV = function(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const lines = e.target.result.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').filter(l => l.trim());
+    csvDatos = [];
+    let html = '';
+    let invertidos = 0;
+    lines.forEach(function(line, i) {
+      if (i === 0 && line.toLowerCase().includes('jugador')) return;
+      const cols = line.split(',').map(c => c.trim());
+      if (cols.length >= 4) {
+        const jugadorRaw = cols[0];
+        const jugador = normalizarNombre(jugadorRaw);
+        const inv = jugador !== jugadorRaw;
+        if (inv) invertidos++;
+        const torneo = cols[1] || '';
+        const cancha = cols[2] || '';
+        const fecha = cols[3] || '';
+        const puntos = parseInt(cols[4]) || 0;
+        const categoria = cols[5] || 'Caballeros';
+        const categoria_torneo = cols[6] || '';
+        if (jugador && puntos > 0) {
+          csvDatos.push({ jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo });
+          html += '<div class="csv-preview-row"><span style="color:var(--verde)">OK</span><span style="flex:1">' + jugador + (inv ? ' <span style="color:var(--amarillo);font-size:10px;">(inv)</span>' : '') + '</span><span style="font-size:11px;color:var(--muted);margin-right:4px;">' + categoria_torneo + '</span><span style="color:var(--azul);font-family:Bebas Neue,sans-serif;font-size:18px;">' + puntos + '</span></div>';
+        }
+      }
+    });
+    const preview = document.getElementById('csv-preview');
+    let aviso = invertidos > 0 ? '<div style="font-family:Oswald,sans-serif;font-size:11px;color:var(--amarillo);margin-bottom:6px;">' + invertidos + ' nombres corregidos automaticamente</div>' : '';
+    preview.innerHTML = html ? '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:8px;">' + aviso + html + '</div>' : '';
+    const btn = document.getElementById('btn-importar');
+    if (btn) btn.style.display = csvDatos.length > 0 ? 'block' : 'none';
+    if (csvDatos.length > 0) showToast(csvDatos.length + ' registros listos');
+  };
+  reader.readAsText(file, 'UTF-8');
+};
+
+window.importarCSV = async function() {
+  if (!csvDatos.length) return;
+  showToast('Importando...');
+  let ok = 0;
+  const anioActual = new Date().getFullYear().toString();
+  for (const r of csvDatos) {
+    try {
+      const id = r.jugador.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
+      const ref = doc(db, 'jugadores', id);
+      const snap = await getDoc(ref);
+      const anio = (r.fecha || '').slice(0, 4) || anioActual;
+      const catT = r.categoria_torneo || 'General';
+      const sec = r.categoria || 'Caballeros';
+      let data;
+      if (snap.exists()) {
+        data = snap.data();
+        if (!Array.isArray(data.historial)) data.historial = [];
+        const yaExiste = data.historial.some(h => h.torneoNombre === r.torneo && h.fecha === r.fecha && h.externo);
+        if (yaExiste) continue;
+        data.historial.push({ torneoNombre:r.torneo, canchaExterna:r.cancha, fecha:r.fecha, puntos:r.puntos, externo:true, categoriaTorneo:catT, categoria:sec });
+        if (!data.puntosAnualesCat || typeof data.puntosAnualesCat !== 'object') data.puntosAnualesCat = {};
+        if (!data.puntosAnualesCat[catT]) data.puntosAnualesCat[catT] = {};
+        data.puntosAnualesCat[catT][anio] = (data.puntosAnualesCat[catT][anio] || 0) + r.puntos;
+        if (!data.puntosAnuales || typeof data.puntosAnuales !== 'object') data.puntosAnuales = {};
+        data.puntosAnuales[anio] = (data.puntosAnuales[anio] || 0) + r.puntos;
+      } else {
+        const pac = {}; pac[catT] = {}; pac[catT][anio] = r.puntos;
+        const pa = {}; pa[anio] = r.puntos;
+        data = { nombreDisplay:r.jugador, seccion:sec, categoria:sec, categoriaTorneo:catT, notas:'', puntos:r.puntos, puntosAnuales:pa, puntosAnualesCat:pac, historial:[{ torneoNombre:r.torneo, canchaExterna:r.cancha, fecha:r.fecha, puntos:r.puntos, externo:true, categoriaTorneo:catT, categoria:sec }], fechaAlta:new Date().toISOString().split('T')[0] };
+      }
+      await setDoc(ref, data);
+      ok++;
+    } catch(e) { console.error(e); }
+  }
+  document.getElementById('csv-preview').innerHTML = '';
+  document.getElementById('btn-importar').style.display = 'none';
+  document.getElementById('csvInput').value = '';
+  csvDatos = [];
+  showToast(ok + ' jugadores importados');
+};
+
 window.cargarTorneosExternos = async function() {
   const wrap = document.getElementById('torneos-externos-lista');
   wrap.innerHTML = '<div style="color:var(--muted);font-size:13px;">Cargando...</div>';
-  const snap = await getDocs(collection(db,'jugadores'));
+  const snap = await getDocs(collection(db, 'jugadores'));
   const torneos = {};
-  snap.docs.forEach(d => {
+  snap.docs.forEach(function(d) {
     const j = d.data();
-    (j.historial||[]).filter(h=>h.externo).forEach(h => {
+    (j.historial || []).filter(function(h) { return h.externo; }).forEach(function(h) {
       const key = h.torneoNombre + '||' + h.fecha;
-      if (!torneos[key]) torneos[key] = { nombre:h.torneoNombre, fecha:h.fecha, cancha:h.canchaExterna, jugadores:0 };
+      if (!torneos[key]) torneos[key] = { nombre:h.torneoNombre, fecha:h.fecha, cancha:h.canchaExterna||'', jugadores:0 };
       torneos[key].jugadores++;
     });
   });
   const lista = Object.entries(torneos);
   wrap.innerHTML = '';
-  if (!lista.length) { wrap.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No hay torneos externos</div>'; return; }
-  lista.sort((a,b)=>(b[1].fecha||'').localeCompare(a[1].fecha||'')).forEach(function(entry) {
-    var key = entry[0]; var t = entry[1];
-    var div = document.createElement('div');
+  if (!lista.length) {
+    wrap.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No hay torneos externos</div>';
+    return;
+  }
+  lista.sort(function(a,b) { return (b[1].fecha||'').localeCompare(a[1].fecha||''); }).forEach(function(entry) {
+    const key = entry[0]; const t = entry[1];
+    const div = document.createElement('div');
     div.className = 'torneo-ext-card';
-    div.innerHTML = '<div style="font-family:Oswald,sans-serif;font-size:14px;color:#fff;letter-spacing:1px;">'+t.nombre+'</div><div style="font-size:11px;color:var(--muted);margin:4px 0;">'+(t.cancha||'')+' - '+(t.fecha||'')+' - '+t.jugadores+' jugadores</div>';
-    var btn = document.createElement('button');
+    const titulo = document.createElement('div');
+    titulo.style.cssText = 'font-family:Oswald,sans-serif;font-size:14px;color:#fff;letter-spacing:1px;';
+    titulo.textContent = t.nombre;
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px;color:var(--muted);margin:4px 0;';
+    sub.textContent = (t.cancha||'') + ' - ' + (t.fecha||'') + ' - ' + t.jugadores + ' jugadores';
+    const btn = document.createElement('button');
+    btn.className = 'btn-eliminar-ext';
     btn.textContent = 'ELIMINAR';
-    btn.setAttribute('style','margin-top:8px;padding:8px 16px;background:rgba(230,57,70,0.1);border:1px solid #e63946;border-radius:6px;color:#e63946;font-family:Oswald,sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;');
-    (function(k){ btn.addEventListener('click', function(){ window.eliminarTorneoExterno(k); }); })(key);
-    div.appendChild(btn);
+    btn.addEventListener('click', (function(k) { return function() { window.eliminarTorneoExterno(k); }; })(key));
+    div.appendChild(titulo); div.appendChild(sub); div.appendChild(btn);
     wrap.appendChild(div);
   });
 };
+
+window.eliminarTorneoExterno = async function(key) {
+  const parts = key.split('||');
+  const torneoNombre = parts[0]; const fecha = parts[1];
+  if (!confirm('Eliminar todos los puntos de "' + torneoNombre + '"? Esta accion no se puede deshacer.')) return;
+  showToast('Eliminando...');
+  const snap = await getDocs(collection(db, 'jugadores'));
+  for (const d of snap.docs) {
+    const j = d.data();
+    const histFiltrado = (j.historial||[]).filter(function(h) { return !(h.externo && h.torneoNombre === torneoNombre && h.fecha === fecha); });
+    if (histFiltrado.length === (j.historial||[]).length) continue;
+    const puntosAnualesCat = {};
+    const puntosAnuales = {};
+    histFiltrado.forEach(function(h) {
+      const a = (h.fecha||'').slice(0,4);
+      const catT = h.categoriaTorneo || h.categoria || 'General';
+      if (!puntosAnualesCat[catT]) puntosAnualesCat[catT] = {};
+      puntosAnualesCat[catT][a] = (puntosAnualesCat[catT][a]||0) + (h.puntos||0);
+      puntosAnuales[a] = (puntosAnuales[a]||0) + (h.puntos||0);
+    });
+    await setDoc(doc(db,'jugadores',d.id), Object.assign({},j,{historial:histFiltrado,puntosAnuales,puntosAnualesCat}));
+  }
+  showToast('Torneo eliminado');
+  await cargarTorneosExternos();
+};
+</script>
+</body>
+</html>
