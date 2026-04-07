@@ -173,9 +173,9 @@ body {
       <span class="accion-icon">📥</span>
       <span class="accion-label">Pts externos</span>
     </div>
-    <div class="accion-btn" onclick="irAInformes()">
-      <span class="accion-icon">📋</span>
-      <span class="accion-label">Informes</span>
+    <div class="accion-btn" onclick="irAImagenCampeones()">
+      <span class="accion-icon">🥇</span>
+      <span class="accion-label">Campeones</span>
     </div>
   </div>
 </div>
@@ -401,6 +401,12 @@ window.irAResultados = function() {
     sessionStorage.setItem('torneoNombre', torneoSeleccionadoData?.nombre || '');
     window.location.href = 'torneo_resultados.html';
   }
+};
+
+window.irAImagenCampeones = function() {
+  // Limpiar torneoId para que P5 abra sin torneo pero con campeones disponible
+  sessionStorage.removeItem('torneoId');
+  window.location.href = 'torneo_pantalla5.html#campeones';
 };
 
 window.irAInformes = function() {

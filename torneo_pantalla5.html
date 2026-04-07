@@ -380,10 +380,15 @@ body {
   </div>
 
   <!-- RANKING PÚBLICO -->
-  <div style="width:100%;max-width:500px;padding:8px 20px 0;">
-    <button onclick="window.open('ranking_publico.html','_blank')" style="width:100%;padding:14px;background:rgba(74,158,255,0.08);border:1px solid var(--azul);border-radius:12px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;">
-      📊 VER RANKING PÚBLICO
-    </button>
+  <div class="informe-card" id="card-ranking-pub" onclick="window.open('ranking_publico.html','_blank')" style="cursor:pointer;">
+    <div class="informe-header">
+      <span class="informe-icon">📊</span>
+      <div>
+        <div class="informe-titulo">VER RANKING PÚBLICO</div>
+        <div class="informe-desc">Abre el ranking en una pestaña nueva</div>
+      </div>
+      <span style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--azul);letter-spacing:1px;">ABRIR &#8594;</span>
+    </div>
   </div>
 
   <!-- IMAGEN DE CAMPEONES -->
@@ -457,6 +462,11 @@ async function init() {
     if (btnAcreditar) btnAcreditar.style.display = 'none';
     if (btnSinPuntos) btnSinPuntos.style.display = 'none';
     document.querySelector('.page-title p').textContent = 'Sin torneo seleccionado';
+    // Si viene desde botón Campeones, abrir esa card automáticamente
+    if (window.location.hash === '#campeones') {
+      const card = document.getElementById('card-campeones');
+      if (card) { card.classList.add('open'); setTimeout(()=>card.scrollIntoView({behavior:'smooth'}),300); }
+    }
     renderScoring();
     return;
   }
