@@ -260,7 +260,6 @@ body {
 <body>
 
 <div class="app-header">
-  <a class="header-back" href="index.html">← INICIO</a>
   <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
   <a class="header-right" href="torneo_publico.html">👁️ PÚBLICA</a>
 </div>
@@ -380,10 +379,16 @@ body {
   </div>
 
   <!-- RANKING PÚBLICO -->
-  <div style="width:100%;max-width:500px;padding:8px 20px 0;">
-    <button onclick="window.open('ranking_publico.html','_blank')" style="width:100%;padding:14px;background:rgba(74,158,255,0.08);border:1px solid var(--azul);border-radius:12px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;">
-      📊 VER RANKING PÚBLICO
-    </button>
+  <!-- RANKING PÚBLICO -->
+  <div class="informe-card" id="card-ranking-pub" onclick="window.open('ranking_publico.html','_blank')" style="cursor:pointer;">
+    <div class="informe-header">
+      <span class="informe-icon">📊</span>
+      <div>
+        <div class="informe-titulo">VER RANKING PÚBLICO</div>
+        <div class="informe-desc">Abre el ranking en una pestaña nueva</div>
+      </div>
+      <span style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--azul);letter-spacing:1px;">ABRIR →</span>
+    </div>
   </div>
 
   <!-- IMAGEN DE CAMPEONES -->
@@ -420,16 +425,7 @@ body {
   </div>
 
   <!-- 7. TABLA ANUAL DE JUGADORES -->
-  <!-- 8. PUNTOS EXTERNOS -->
-  <div class="informe-card" id="card-externos">
-    <div class="informe-header" onclick="toggleCard('externos')">
-      <span class="informe-icon">➕</span>
-      <div>
-        <div class="informe-titulo">SUMAR PUNTOS EXTERNOS</div>
-        <div class="informe-desc">Torneos de otras canchas</div>
-      </div>
-      <span class="informe-chevron">▼</span>
-    </div>
+
     <div class="informe-body">
       <div style="padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
 
