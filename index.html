@@ -413,9 +413,10 @@ window.irAInformes = function() {
   if (torneoSeleccionadoId) {
     sessionStorage.setItem('torneoId', torneoSeleccionadoId);
     sessionStorage.setItem('torneoNombre', torneoSeleccionadoData?.nombre || '');
+    window.location.href = 'torneo_pantalla5.html?id=' + torneoSeleccionadoId;
+  } else {
+    window.location.href = 'torneo_pantalla5.html';
   }
-  // Ir a P5 aunque no haya torneo seleccionado (usa el que ya está en sessionStorage)
-  window.location.href = 'torneo_pantalla5.html';
 };
 
 window.seleccionarTorneo = function() {

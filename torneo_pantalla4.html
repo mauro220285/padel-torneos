@@ -967,7 +967,7 @@ window.irAResultados = function() {
 window.irAInformes = function() {
   const tid = sessionStorage.getItem('torneoId');
   if (!tid) { alert('No hay torneo activo'); return; }
-  window.location.href = 'torneo_pantalla5.html';
+  window.location.href = 'torneo_pantalla5.html?id=' + tid;
 };
 </script>
 </body>

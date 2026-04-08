@@ -1012,7 +1012,7 @@ init();
 
 window.irAInformes = function() {
   const tid = sessionStorage.getItem('torneoId');
-  if (tid) window.location.href = 'torneo_pantalla5.html';
+  if (tid) window.location.href = 'torneo_pantalla5.html?id=' + tid;
   else alert('No hay torneo activo');
 };
 </script>
