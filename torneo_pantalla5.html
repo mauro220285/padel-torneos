@@ -380,15 +380,10 @@ body {
   </div>
 
   <!-- RANKING PÚBLICO -->
-  <div class="informe-card" id="card-ranking-pub" onclick="window.open('ranking_publico.html','_blank')" style="cursor:pointer;">
-    <div class="informe-header">
-      <span class="informe-icon">📊</span>
-      <div>
-        <div class="informe-titulo">VER RANKING PÚBLICO</div>
-        <div class="informe-desc">Abre el ranking en una pestaña nueva</div>
-      </div>
-      <span style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--azul);letter-spacing:1px;">ABRIR &#8594;</span>
-    </div>
+  <div style="width:100%;max-width:500px;padding:8px 20px 0;">
+    <button onclick="window.open('ranking_publico.html','_blank')" style="width:100%;padding:14px;background:rgba(74,158,255,0.08);border:1px solid var(--azul);border-radius:12px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;">
+      📊 VER RANKING PÚBLICO
+    </button>
   </div>
 
   <!-- IMAGEN DE CAMPEONES -->
@@ -426,7 +421,15 @@ body {
 
   <!-- 7. TABLA ANUAL DE JUGADORES -->
   <!-- 8. PUNTOS EXTERNOS -->
-
+  <div class="informe-card" id="card-externos">
+    <div class="informe-header" onclick="toggleCard('externos')">
+      <span class="informe-icon">➕</span>
+      <div>
+        <div class="informe-titulo">SUMAR PUNTOS EXTERNOS</div>
+        <div class="informe-desc">Torneos de otras canchas</div>
+      </div>
+      <span class="informe-chevron">▼</span>
+    </div>
     <div class="informe-body">
       <div style="padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
 
@@ -439,41 +442,73 @@ body {
 
         <!-- MANUAL -->
         <div class="ext-panel visible" id="ext-manual">
-          <div c [];
+          <label>Nombre del torneo externo</label>
+          <input type="text" id="ext-torneo" placeholder="Ej: 7° Torneo Caballeros">
+        </div>
+        <div class="field-ext" style="margin-bottom:8px;">
+          <label>Club / Cancha</label>
+          <input type="text" id="ext-cancha" placeholder="Ej: Club Rivadavia">
+        </div>
+        <div class="field-ext">
+          <label>Fecha</label>
+          <input type="date" id="ext-fecha">
+        </div>
+        <div id="ext-jugadores-lista"></div>
+        <button class="btn-add-ext" onclick="agregarJugadorExt()">+ AGREGAR PAREJA</button>
+        <button class="btn-share btn-share-wa" style="margin-top:8px;" onclick="guardarExterno()">💾 Guardar puntos externos</button>
+      </div>
+
+      <!-- CSV -->
+      <div class="ext-panel" id="ext-csv">
+        <label class="btn-upload" for="csvInput">📂 Seleccionar archivo CSV</label>
+        <input type="file" id="csvInput" accept=".csv" style="display:none" onchange="leerCSV(this)">
+        <div id="csv-preview"></div>
+        <button class="btn-share btn-share-wa" style="margin-top:8px;display:none;" id="btn-importar" onclick="importarCSV()">💾 Importar puntos</button>
+      </div>
+
+      <!-- ELIMINAR -->
+      <div class="ext-panel" id="ext-eliminar">
+        <div id="torneos-externos-lista"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, query, orderBy, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+  authDomain: "padel-team-76749.firebaseapp.com",
+  projectId: "padel-team-76749",
+  storageBucket: "padel-team-76749.firebasestorage.app",
+  messagingSenderId: "449257104174",
+  appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+};
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let torneoId      = null;
+let torneoData    = null;
+let TOTAL_PAREJAS = 8;
+let scoring       = {};
+let RESULTADOS    = [];
+let llaveTemp     = null;
+let externosGuardados = [];
+let csvDatos      = [];
 
 // ── INIT ─────────────────────────────────────────────────
 async function init() {
-  // Intentar leer torneoId de sessionStorage o URL param
   const urlParams = new URLSearchParams(window.location.search);
   const idFromUrl = urlParams.get('id');
   if (idFromUrl) sessionStorage.setItem('torneoId', idFromUrl);
   torneoId = sessionStorage.getItem('torneoId');
-
-  if (!torneoId) {
-    // Sin torneo — deshabilitar cards que lo necesitan
-    const cardsSoloTorneo = ['card-zonas','card-fixture','card-programa','card-puntajes','card-scoring'];
-    cardsSoloTorneo.forEach(id => {
-      const card = document.getElementById(id);
-      if (!card) return;
-      card.style.opacity = '0.4';
-      card.style.pointerEvents = 'none';
-      const desc = card.querySelector('.informe-desc');
-      if (desc) desc.textContent = 'Seleccioná un torneo desde Inicio';
-    });
-    // Ocultar botones de cierre
-    const btnAcreditar = document.querySelector('[onclick="cerrarTorneo()"]');
-    const btnSinPuntos = document.getElementById('btnCerrarSinPuntos');
-    if (btnAcreditar) btnAcreditar.style.display = 'none';
-    if (btnSinPuntos) btnSinPuntos.style.display = 'none';
-    document.querySelector('.page-title p').textContent = 'Sin torneo seleccionado';
-    // Si viene desde botón Campeones, abrir esa card automáticamente
-    if (window.location.hash === '#campeones') {
-      const card = document.getElementById('card-campeones');
-      if (card) { card.classList.add('open'); setTimeout(()=>card.scrollIntoView({behavior:'smooth'}),300); }
-    }
-    renderScoring();
-    return;
-  }
 
   if (torneoId) {
     // Leer torneo desde Firebase
@@ -482,7 +517,7 @@ async function init() {
       torneoData    = tSnap.data();
       TOTAL_PAREJAS = torneoData.totalParejas || 8;
       scoring       = torneoData.escalaPuntos || {};
-      document.querySelector('.page-title p').textContent =
+      document.getElementById('p5-subtitulo').textContent =
         `${torneoData.nombre} · ${torneoData.dias?.[0]?.fecha || ''}`;
 
       // Mostrar/ocultar botones según acreditaPuntos
@@ -646,8 +681,8 @@ function renderScoring() {
   wrap.innerHTML = etapas.map(e => `
     <div class="scoring-row">
       <span class="scoring-etapa">${e.label}</span>
-      <input class="scoring-input" type="number" value="${scoring[e.pos]||0}" min="0" max="999"
-        data-pos="${e.pos}" onchange="scoring[parseInt(this.dataset.pos)]=parseInt(this.value)||0; renderPuntajesResultados(); renderRanking();">
+      <input class="scoring-input" type="number" value="${scoring[e.pos]}" min="0" max="999"
+        onchange="scoring[${e.pos}]=parseInt(this.value)||0; renderPuntajesResultados(); renderRanking();">
       <span style="font-size:11px;color:var(--muted);letter-spacing:1px;">pts</span>
     </div>`).join('');
 }
@@ -730,7 +765,7 @@ async function renderZonas() {
 
 // ── CALCULAR CLASIFICADOS Y GENERAR LLAVE ────────────────
 // ── ESTADO TEMPORAL PARA AJUSTE DE LLAVE ────────────────
-let llaveTemp = null; // { primeros: [], segundos: [], previa: [], cuartos: [], semis: [], final: [] }
+// llaveTemp declarado arriba
 
 async function calcularClasificadosYGenerarLlave() {
   if (!torneoId) return;
