@@ -277,7 +277,7 @@ body {
 
 <div class="page-title">
   <h2>Informes del torneo</h2>
-  <p>7° Torneo Caballeros · 14 y 15 de marzo 2026</p>
+  <p id="p5-subtitulo">Cargando...</p>
 </div>
 
 <!-- 1. ZONAS -->
@@ -646,8 +646,8 @@ function renderScoring() {
   wrap.innerHTML = etapas.map(e => `
     <div class="scoring-row">
       <span class="scoring-etapa">${e.label}</span>
-      <input class="scoring-input" type="number" value="${scoring[e.pos]}" min="0" max="999"
-        onchange="scoring[${e.pos}]=parseInt(this.value)||0; renderPuntajesResultados(); renderRanking();">
+      <input class="scoring-input" type="number" value="${scoring[e.pos]||0}" min="0" max="999"
+        data-pos="${e.pos}" onchange="scoring[parseInt(this.dataset.pos)]=parseInt(this.value)||0; renderPuntajesResultados(); renderRanking();">
       <span style="font-size:11px;color:var(--muted);letter-spacing:1px;">pts</span>
     </div>`).join('');
 }
