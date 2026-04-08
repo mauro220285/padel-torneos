@@ -604,14 +604,24 @@ function procesarCsvTexto(text) {
     const nombre = normalizarNombreCSV(nombreRaw);
     const invertido = nombre !== nombreOriginal;
 
-    // Leer columnas según formato
-    // jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo
-    const torneo       = cols[1] || '';
-    const cancha       = cols[2] || '';
-    const fecha        = cols[3] || '';
-    const puntos       = parseInt(cols[4]) || 0;
-    const seccionCSV   = cols[5] || ''; // Caballeros/Damas
-    const catTorneo    = cols[6] || ''; // Séptima, Sexta, etc.
+    // Leer columnas — detectar formato automáticamente
+    // Formato colección (3 cols): jugador, seccion, categoria_torneo
+    // Formato completo (7 cols): jugador, torneo, cancha, fecha, puntos, categoria, categoria_torneo
+    let torneo, cancha, fecha, puntos, seccionCSV, catTorneo;
+    if (cols.length <= 3) {
+      // Formato colección
+      torneo = ''; cancha = ''; fecha = ''; puntos = 0;
+      seccionCSV = cols[1] || '';
+      catTorneo  = cols[2] || '';
+    } else {
+      // Formato completo
+      torneo     = cols[1] || '';
+      cancha     = cols[2] || '';
+      fecha      = cols[3] || '';
+      puntos     = parseInt(cols[4]) || 0;
+      seccionCSV = cols[5] || '';
+      catTorneo  = cols[6] || '';
+    }
 
     // Determinar sección
     const seccionNorm = seccionCSV.toLowerCase();
@@ -620,8 +630,9 @@ function procesarCsvTexto(text) {
                     seccionCSV ? 'Caballeros' : seccionDefault;
 
     const id = generarId(nombre);
-    const existeExacto = JUGADORES.find(j => j.id === id);
-    const similares = buscarSimilares(nombre).filter(j => j.id !== id);
+    // Buscar existente por ID exacto O por palabras ordenadas (para detectar nombre invertido)
+    const existeExacto = JUGADORES.find(j => j.id === id || similitud(nombre, j.nombreDisplay||j.id) >= 0.99);
+    const similares = buscarSimilares(nombre).filter(j => j.id !== id && similitud(nombre, j.nombreDisplay||j.id) < 0.99);
     const status = existeExacto ? 'skip' : similares.length ? 'dup' : 'nuevo';
     const avisos = [];
     if (invertido) avisos.push('⚠️ nombre invertido');
