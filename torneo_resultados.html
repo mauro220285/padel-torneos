@@ -160,7 +160,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   <div class="step done" onclick="window.location.href='torneo_pantalla3.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Parejas</div></div>
   <div class="step done" onclick="window.location.href='torneo_pantalla4.html'" style="cursor:pointer"><div class="step-num">✓</div><div class="step-label">Revisión</div></div>
   <div class="step active"><div class="step-num">R</div><div class="step-label">Resultados</div></div>
-  <div class="step" onclick="window.location.href='torneo_pantalla5.html'" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
+  <div class="step" onclick="irAInformes()" style="cursor:pointer"><div class="step-num">5</div><div class="step-label">Informes</div></div>
 </div>
 
 <div class="page-title">
@@ -1009,6 +1009,12 @@ window.resetearLlave = async function() {
 };
 
 init();
+
+window.irAInformes = function() {
+  const tid = sessionStorage.getItem('torneoId');
+  if (tid) window.location.href = 'torneo_pantalla5.html';
+  else alert('No hay torneo activo');
+};
 </script>
 </body>
 </html>

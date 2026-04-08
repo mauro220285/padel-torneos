@@ -443,6 +443,10 @@ body {
 
 // ── INIT ─────────────────────────────────────────────────
 async function init() {
+  // Intentar leer torneoId de sessionStorage o URL param
+  const urlParams = new URLSearchParams(window.location.search);
+  const idFromUrl = urlParams.get('id');
+  if (idFromUrl) sessionStorage.setItem('torneoId', idFromUrl);
   torneoId = sessionStorage.getItem('torneoId');
 
   if (!torneoId) {
