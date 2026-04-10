@@ -790,30 +790,42 @@ window.abrirModal = function(id) {
 
   const nombre1 = nombrePareja(partidoSeleccionado.pareja1Id);
   const nombre2 = nombrePareja(partidoSeleccionado.pareja2Id);
-  document.getElementById('modalSub').textContent = `${nombre1} vs ${nombre2} · ${partidoSeleccionado.hora||'--:--'}`;
+  document.getElementById('modalSub').textContent = `${nombre1} vs ${nombre2} · ${partidoSeleccionado.dia||''} ${partidoSeleccionado.hora||'--:--'}`;
   document.getElementById('modal-title').textContent = 'INTERCAMBIAR HORARIO';
 
   const opciones = document.getElementById('modalOpciones');
   opciones.innerHTML = '<div style="font-family:Oswald,sans-serif;font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">SELECCIONÁ EL PARTIDO CON EL QUE QUERÉS INTERCAMBIAR</div>';
 
-  // Mostrar todos los partidos del día actual para intercambiar
-  const partidosDia = fixture.filter(p =>
-    p.dia === DIAS[diaActivo]?.fecha &&
+  // Mostrar TODOS los partidos de TODOS los días
+  const todosPartidos = fixture.filter(p =>
     !p.esLlave &&
     (p.id||p.orden) !== (partidoSeleccionado.id||partidoSeleccionado.orden)
-  ).sort((a,b) => (a.hora||'').localeCompare(b.hora||''));
+  ).sort((a,b) => {
+    if (a.dia !== b.dia) return (a.dia||'').localeCompare(b.dia||'');
+    return (a.hora||'').localeCompare(b.hora||'');
+  });
 
-  if (partidosDia.length === 0) {
-    opciones.innerHTML += '<div style="color:var(--muted);font-size:13px;padding:12px;">No hay otros partidos este día para intercambiar.</div>';
+  if (todosPartidos.length === 0) {
+    opciones.innerHTML += '<div style="color:var(--muted);font-size:13px;padding:12px;">No hay otros partidos para intercambiar.</div>';
   }
 
-  partidosDia.forEach(p => {
+  let diaActualMostrado = null;
+  todosPartidos.forEach(p => {
     const n1 = nombrePareja(p.pareja1Id);
     const n2 = nombrePareja(p.pareja2Id);
+
+    // Separador de día
+    if (p.dia !== diaActualMostrado) {
+      diaActualMostrado = p.dia;
+      const sep = document.createElement('div');
+      sep.style.cssText = 'font-family:Bebas Neue,sans-serif;font-size:13px;letter-spacing:3px;color:var(--azul);padding:8px 0 4px;border-top:1px solid var(--border);margin-top:4px;';
+      sep.textContent = p.dia === partidoSeleccionado.dia ? `📅 ${p.dia} (mismo día)` : `📅 ${p.dia}`;
+      opciones.appendChild(sep);
+    }
+
     const div = document.createElement('div');
     div.className = 'modal-opcion';
 
-    // Verificar si el intercambio sería válido (restricciones)
     const p1sel = parejaMap[partidoSeleccionado.pareja1Id];
     const p2sel = parejaMap[partidoSeleccionado.pareja2Id];
     const p1otro = parejaMap[p.pareja1Id];
@@ -827,7 +839,7 @@ window.abrirModal = function(id) {
     div.innerHTML = `
       <div class="modal-opcion-hora">${p.hora||'--'}</div>
       <div style="flex:1;font-family:'Oswald',sans-serif;font-size:12px;color:#fff;letter-spacing:1px;">${n1} vs ${n2}</div>
-      <div class="modal-opcion-estado" style="color:${conflicto?'var(--rojo)':'var(--verde)'}">${conflicto?'⚠ CONFLICTO':'✓ OK'}</div>`;
+      <div class="modal-opcion-estado" style="color:${conflicto?'var(--rojo)':'var(--verde)'}">${conflicto?'⚠':'✓'}</div>`;
     div.onclick = () => intercambiarHorario(p.id||p.orden, conflicto);
     opciones.appendChild(div);
   });
