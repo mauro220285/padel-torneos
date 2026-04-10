@@ -1623,7 +1623,10 @@ window.generarImagenFixture = async function() {
   function nombreMostrar(id) {
     const p = parejas[id];
     if (!p) return id;
-    return `${inicial(p.j1Nombre)} ${apellido(p.j1Nombre)} / ${inicial(p.j2Nombre)} ${apellido(p.j2Nombre)}`;
+    // Nombre completo
+    const n1 = p.j1Nombre?.trim() || '?';
+    const n2 = p.j2Nombre?.trim() || '?';
+    return `${n1} / ${n2}`;
   }
   function numP(id) {
     const p = parejas[id];
@@ -1869,9 +1872,9 @@ window.generarImagenLlave = async function() {
   pSnap.docs.forEach(d => {
     const p = d.data();
     const num = p.numFixture ? `P${p.numFixture}` : '';
-    const ap1 = p.j1Nombre?.trim().split(' ').pop() || '';
-    const ap2 = p.j2Nombre?.trim().split(' ').pop() || '';
-    parejasData[d.id] = { short: `${num} · ${ap1}/${ap2}`, num };
+    const n1 = p.j1Nombre?.trim() || '';
+    const n2 = p.j2Nombre?.trim() || '';
+    parejasData[d.id] = { short: `${num} · ${n1} / ${n2}`, num };
   });
 
   const snap = await getDocs(query(collection(db,'torneos',torneoId,'partidos'), orderBy('orden')));
