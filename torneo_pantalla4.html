@@ -391,20 +391,25 @@ function asignarHorarios(partidos, slots, pMap) {
   const resultado = [];
   const slotsLibres = slots.map(s => ({...s}));
   const ocupCancha = {};
-  // Guarda los slots usados por cada pareja para calcular descanso
-  const ultimoSlotPareja = {}; // parejaId -> { dia, horaMin }
+  const ultimoSlotPareja = {};
   const slotMins = (torneoConfig.duracion || 60) + (torneoConfig.intervalo || 0);
-  const DESCANSO_IDEAL = 3; // slots de descanso ideal (3 * slotMins)
-  const DESCANSO_MIN   = 1; // slots de descanso mínimo
+  const DESCANSO_IDEAL = 3;
+  const DESCANSO_MIN   = 1;
 
-  // Ordenar partidos: primero los que involucran parejas más restringidas
-  const partidosOrdenados = [...partidos].sort((a, b) => {
+  // Separar partidos de ronda 1 (o normales) y ronda 2 (dependientes)
+  const partidosR1 = partidos.filter(p => p.subfase !== 'r2' && !p.esDefinicion);
+  const partidosR2 = partidos.filter(p => p.subfase === 'r2' || p.esDefinicion);
+
+  // Ordenar R1 por restricción (más restringidos primero)
+  const ordenarPorRestriccion = (arr) => [...arr].sort((a, b) => {
     const p1a = pMap[a.pareja1Id], p1b = pMap[b.pareja1Id];
     const p2a = pMap[a.pareja2Id], p2b = pMap[b.pareja2Id];
     const slotsA = slotsDisponiblesPareja(p1a, slots) + slotsDisponiblesPareja(p2a, slots);
     const slotsB = slotsDisponiblesPareja(p1b, slots) + slotsDisponiblesPareja(p2b, slots);
-    return slotsA - slotsB; // los más restringidos primero
+    return slotsA - slotsB;
   });
+
+  const partidosOrdenadosR1 = ordenarPorRestriccion(partidosR1);
 
   function horaAMin(hora) {
     const [h, m] = hora.split(':').map(Number);
@@ -419,44 +424,36 @@ function asignarHorarios(partidos, slots, pMap) {
     return diff >= minSlots;
   }
 
-  function intentarAsignar(partido, descansoRequerido) {
-    const p1 = pMap[partido.pareja1Id], p2 = pMap[partido.pareja2Id];
-    
-    for (const slot of slotsLibres) {
-      if (slot.ocupado) continue;
-      const clave = `${slot.dia}|${slot.hora}`;
-      const cc = `${clave}|${slot.cancha}`;
-      if (ocupCancha[cc]) continue;
-      // Verificar que ninguna pareja ya juega en ese día+hora
-      const claveBase = `${slot.dia}|${slot.hora}`;
-      if (Object.keys(ultimoSlotPareja).some(pid => 
-        (pid === partido.pareja1Id || pid === partido.pareja2Id) && 
-        ultimoSlotPareja[pid]?.clave === claveBase)) continue;
-      
-      if (!descansoSuficiente(partido.pareja1Id, slot, descansoRequerido)) continue;
-      if (!descansoSuficiente(partido.pareja2Id, slot, descansoRequerido)) continue;
-      
-      const disp1 = parejaDisponible(p1, slot);
-      const disp2 = parejaDisponible(p2, slot);
-      if (!disp1 || !disp2) continue;
-      
-      return { slot, conflicto: false };
-    }
-    return null;
-  }
-
-  partidosOrdenados.forEach(partido => {
+  function procesarPartido(partido, slotsDesde = 0) {
     const p1 = pMap[partido.pareja1Id], p2 = pMap[partido.pareja2Id];
     let asignacion = null;
-    let conflicto = false;
 
-    // Intentar con descanso ideal primero, luego mínimo, luego sin restricción
-    asignacion = intentarAsignar(partido, DESCANSO_IDEAL);
-    if (!asignacion) asignacion = intentarAsignar(partido, DESCANSO_MIN);
-    
-    // Si no hay slot con descanso, buscar cualquier slot disponible respetando restricciones
+    // Filtrar slots disponibles desde un índice mínimo (para r2)
+    const slotsValidos = slotsLibres.slice(slotsDesde);
+
+    function intentarDesde(descansoRequerido) {
+      for (const slot of slotsValidos) {
+        if (slot.ocupado) continue;
+        const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
+        if (ocupCancha[cc]) continue;
+        const claveBase = `${slot.dia}|${slot.hora}`;
+        if (Object.keys(ultimoSlotPareja).some(pid =>
+          (pid === partido.pareja1Id || pid === partido.pareja2Id) &&
+          ultimoSlotPareja[pid]?.clave === claveBase)) continue;
+        if (!descansoSuficiente(partido.pareja1Id, slot, descansoRequerido)) continue;
+        if (!descansoSuficiente(partido.pareja2Id, slot, descansoRequerido)) continue;
+        const disp1 = parejaDisponible(p1, slot);
+        const disp2 = parejaDisponible(p2, slot);
+        if (!disp1 || !disp2) continue;
+        return { slot, conflicto: false };
+      }
+      return null;
+    }
+
+    asignacion = intentarDesde(DESCANSO_IDEAL);
+    if (!asignacion) asignacion = intentarDesde(DESCANSO_MIN);
     if (!asignacion) {
-      for (const slot of slotsLibres) {
+      for (const slot of slotsValidos) {
         if (slot.ocupado) continue;
         const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
         if (ocupCancha[cc]) continue;
@@ -465,11 +462,8 @@ function asignarHorarios(partidos, slots, pMap) {
         if (disp1 && disp2) { asignacion = { slot, conflicto: false }; break; }
       }
     }
-
-    // Último recurso: slot con conflicto — solo si no hay NINGÚN slot disponible
     if (!asignacion) {
-      console.warn('Sin slot disponible para:', nombrePareja(partido.pareja1Id), 'vs', nombrePareja(partido.pareja2Id));
-      for (const slot of slotsLibres) {
+      for (const slot of slotsValidos) {
         if (slot.ocupado) continue;
         const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
         if (ocupCancha[cc]) continue;
@@ -477,18 +471,41 @@ function asignarHorarios(partidos, slots, pMap) {
         break;
       }
     }
+    return asignacion;
+  }
 
+  // Procesar primero todos los partidos de ronda 1
+  let ultimoSlotUsadoIdx = 0;
+  partidosOrdenadosR1.forEach(partido => {
+    const asignacion = procesarPartido(partido, 0);
     if (asignacion) {
       const { slot } = asignacion;
       slot.ocupado = true;
-      const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
-      ocupCancha[cc] = true;
+      ocupCancha[`${slot.dia}|${slot.hora}|${slot.cancha}`] = true;
       const horaMin = horaAMin(slot.hora);
-      ultimoSlotPareja[partido.pareja1Id] = { dia: slot.dia, horaMin, clave: `${slot.dia}|${slot.hora}` };
-      ultimoSlotPareja[partido.pareja2Id] = { dia: slot.dia, horaMin, clave: `${slot.dia}|${slot.hora}` };
-      resultado.push({...partido, dia: slot.dia, hora: slot.hora, cancha: slot.cancha, conflicto: asignacion.conflicto });
+      ultimoSlotPareja[partido.pareja1Id] = { dia:slot.dia, horaMin, clave:`${slot.dia}|${slot.hora}` };
+      ultimoSlotPareja[partido.pareja2Id] = { dia:slot.dia, horaMin, clave:`${slot.dia}|${slot.hora}` };
+      // Guardar el índice del último slot usado
+      const idx = slotsLibres.indexOf(slot);
+      if (idx > ultimoSlotUsadoIdx) ultimoSlotUsadoIdx = idx;
+      resultado.push({...partido, dia:slot.dia, hora:slot.hora, cancha:slot.cancha, conflicto:asignacion.conflicto});
     } else {
-      resultado.push({...partido, dia: null, hora: null, cancha: null, conflicto: true});
+      resultado.push({...partido, dia:null, hora:null, cancha:null, conflicto:true});
+    }
+  });
+
+  // Procesar partidos de ronda 2 — deben ir DESPUÉS de los de ronda 1
+  // Buscar desde el slot siguiente al último usado en r1
+  const slotInicioR2 = Math.min(ultimoSlotUsadoIdx + 1, slotsLibres.length - 1);
+  partidosR2.forEach(partido => {
+    const asignacion = procesarPartido(partido, slotInicioR2);
+    if (asignacion) {
+      const { slot } = asignacion;
+      slot.ocupado = true;
+      ocupCancha[`${slot.dia}|${slot.hora}|${slot.cancha}`] = true;
+      resultado.push({...partido, dia:slot.dia, hora:slot.hora, cancha:slot.cancha, conflicto:asignacion.conflicto});
+    } else {
+      resultado.push({...partido, dia:null, hora:null, cancha:null, conflicto:true});
     }
   });
 
@@ -967,7 +984,7 @@ window.irAResultados = function() {
 window.irAInformes = function() {
   const tid = sessionStorage.getItem('torneoId');
   if (!tid) { alert('No hay torneo activo'); return; }
-  window.location.href = 'torneo_pantalla5.html?id=' + tid;
+  window.location.href = 'torneo_pantalla5.html';
 };
 </script>
 </body>
