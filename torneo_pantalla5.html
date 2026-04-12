@@ -2334,14 +2334,7 @@ window.generarImagenLlave = async function() {
       drawPartidoDosColores(cx, y, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, color2, color);
     }
   });
-      // Final centrada entre semi1 y semi2
-      const semi1Y = bodyTop + 16 + 1 * unitH - (36 + 22);
-      const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22;
-      const slotY = (semi1Y + semi2Y) / 2;
-      const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
-      const g1 = p.resultado?.ganadorId === p.pareja1Id;
-      const g2 = p.resultado?.ganadorId === p.pareja2Id;
-      // Final: borde dorado si hay campeón, sino degradado turquesa
+
   // Footer
   ctx.fillStyle=color;
   ctx.fillRect(0,H-footerH,W,footerH);
