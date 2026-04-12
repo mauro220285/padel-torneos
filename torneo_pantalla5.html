@@ -1915,7 +1915,7 @@ window.generarImagenLlave = async function() {
   // Armar estructura de rondas
   const rondasOrden = ['dieciseis','octavos','previa','cuartos','semis','final'];
   const fasesLabels = {
-    previa:'CUARTOS DE FINAL', cuartos:'CUARTOS DE FINAL',
+    previa:'RONDA PREVIA', cuartos:'CUARTOS DE FINAL',
     octavos:'OCTAVOS DE FINAL', dieciseis:'DIECISEISAVOS',
     semis:'SEMIFINALES', final:'FINAL'
   };
@@ -1934,10 +1934,14 @@ window.generarImagenLlave = async function() {
   const colPad = 50; // padding entre columnas
   const roundW = Math.floor((W - 40 - colPad * (rondasPresentes.length - 1)) / rondasPresentes.length);
 
-  // Para 3 cuartos + 1 directo a semis: necesitamos 4 "slots" de partido
+  // Calcular altura basada en la ronda con más partidos
   const primerRonda = rondasPresentes.find(r => elim.some(p=>p.fase===r));
-  const nCuartos = primerRonda ? elim.filter(p=>p.fase===primerRonda).length : 3;
-  const totalSlots = nCuartos + 1; // +1 por el directo a semis arriba
+  const nPrimerRonda = primerRonda ? elim.filter(p=>p.fase===primerRonda).length : 3;
+  // Si hay previa Y cuartos, la columna más alta es cuartos (previas + cuartos con BYE)
+  const nPrevia = elim.filter(p=>p.fase==='previa').length;
+  const nCuartos = elim.filter(p=>p.fase==='cuartos').length;
+  const maxSlots = Math.max(nPrimerRonda, nPrevia + nCuartos, 4);
+  const totalSlots = maxSlots + 1;
   const bodyH = totalSlots * (94 + 14) + 20;
   const H = headerH + padTop + bodyH + footerH;
 
