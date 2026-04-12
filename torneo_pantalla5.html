@@ -2205,7 +2205,7 @@ window.generarImagenLlave = async function() {
     const label = fasesLabels[fase] || fase.toUpperCase();
     const unitH = partidoH + partidoGap;
 
-    // Título columna con contorno
+    // Título columna
     ctx.fillStyle=color2;
     ctx.font='bold 17px Bebas Neue, Arial';
     ctx.textAlign='center';
@@ -2217,85 +2217,123 @@ window.generarImagenLlave = async function() {
     ctx.moveTo(cx+20,bodyTop+2); ctx.lineTo(cx+roundW-20,bodyTop+2); ctx.stroke();
     ctx.textAlign='left';
 
-    if (fase === 'previa' || fase === 'cuartos' || fase === 'octavos' || fase === 'dieciseis') {
-      rps.forEach((p, pIdx) => {
-        const slotY = bodyTop + 16 + (pIdx + 1) * unitH;
-        const g1 = p.resultado?.ganadorId === p.pareja1Id;
-        const g2 = p.resultado?.ganadorId === p.pareja2Id;
-        const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id) : '?';
-        const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id) : '?';
-        // Cuarto 1 → turquesa (mitad superior), cuartos 2+ → azul (mitad inferior)
-        const bordeColor = pIdx === 0 ? color2 : color;
-        drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
+    // Calcular total de slots = nPrevia + nCuartos (o solo nCuartos si no hay previa)
+    const nPrev = elim.filter(p=>p.fase==='previa').length;
+    const nCto  = elim.filter(p=>p.fase==='cuartos').length;
+    const totalSlotsLlave = Math.max(nPrev + nCto, nCto, 4);
 
-        // Línea conectora hacia semis en el color del borde
+    // Helper: posición Y de un slot
+    const slotY = (slotIdx) => bodyTop + 20 + slotIdx * unitH;
+
+    if (fase === 'previa') {
+      // Las 2 previas van en los primeros slots
+      rps.forEach((p, pIdx) => {
+        const y = slotY(pIdx);
+        const g1=p.resultado?.ganadorId===p.pareja1Id;
+        const g2=p.resultado?.ganadorId===p.pareja2Id;
+        const n1=p.pareja1Id?nombreCorto(p.pareja1Id):'?';
+        const n2=p.pareja2Id?nombreCorto(p.pareja2Id):'?';
+        drawPartidoColored(cx, y, roundW, n1, n2, g1, g2, p.hora||null, false, false, color2);
+        // Línea conectora al cuarto correspondiente
         if (colIdx < rondasPresentes.length-1) {
-          // Centro del partido de cuartos
-          const midY = slotY + partidoH/2;
-          // Semi 1: GAN.CTO1 al nivel de P5 → semi1Y = slot1 - (36+22)
-          const semi1Mid = bodyTop + 16 + 1 * unitH - (36+22) + partidoH/2;
-          // Semi 2: arranca en slot2+(36+22)
-          const semi2Mid = bodyTop + 16 + 2 * unitH + (36+22) + partidoH/2;
-          const semiTargetY = pIdx === 0 ? semi1Mid : semi2Mid;
+          const midY = y + partidoH/2;
+          // Cuarto que espera a este ganador: cuartos con p1 o p2 null
+          const cuartosConNull = elim.filter(p=>p.fase==='cuartos'&&(!p.pareja1Id||!p.pareja2Id))
+            .sort((a,b)=>(a.orden||0)-(b.orden||0));
+          const cuartoTarget = cuartosConNull[pIdx];
+          if (cuartoTarget) {
+            const cuartoIdx = elim.filter(p=>p.fase==='cuartos').sort((a,b)=>(a.orden||0)-(b.orden||0)).indexOf(cuartoTarget);
+            const targetY = slotY(nPrev + cuartoIdx) + partidoH/2;
+            const xRight = cx + roundW - 4;
+            const xNext  = cx + roundW + colPad + 4;
+            ctx.strokeStyle=color2; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+            ctx.beginPath();
+            ctx.moveTo(xRight, midY);
+            ctx.lineTo(xRight+8, midY);
+            ctx.lineTo(xRight+8, targetY);
+            ctx.lineTo(xNext, targetY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+      });
+
+    } else if (fase === 'cuartos' || fase === 'octavos' || fase === 'dieciseis') {
+      const cuartosSorted = rps;
+      cuartosSorted.forEach((p, pIdx) => {
+        // Cuartos empiezan después de las previas
+        const offsetSlot = (nPrev > 0 && fase === 'cuartos') ? nPrev : 0;
+        const y = slotY(offsetSlot + pIdx);
+        const g1=p.resultado?.ganadorId===p.pareja1Id;
+        const g2=p.resultado?.ganadorId===p.pareja2Id;
+        const n1=p.pareja1Id?nombreCorto(p.pareja1Id):'?';
+        const n2=p.pareja2Id?nombreCorto(p.pareja2Id):'?';
+        const bordeColor = pIdx === 0 ? color2 : color;
+        drawPartidoColored(cx, y, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
+
+        // Línea conectora hacia semis
+        if (colIdx < rondasPresentes.length-1) {
+          const midY = y + partidoH/2;
+          // Agrupar cuartos de a 2 para cada semi
+          const semiIdx = Math.floor(pIdx / Math.ceil(cuartosSorted.length/2));
+          const nSemis = 2;
+          const semiSlotH = totalSlotsLlave * unitH / nSemis;
+          const semiMidY = bodyTop + 20 + semiIdx * semiSlotH + semiSlotH/2;
           const xRight = cx + roundW - 4;
           const xNext  = cx + roundW + colPad + 4;
-          ctx.strokeStyle = bordeColor; ctx.lineWidth = 2;
-          ctx.lineJoin = 'round';
+          ctx.strokeStyle=bordeColor; ctx.lineWidth=2;
+          ctx.setLineDash([]);
           ctx.beginPath();
           ctx.moveTo(xRight, midY);
-          ctx.lineTo(xRight + 8, midY);
-          ctx.lineTo(xRight + 8, semiTargetY);
-          ctx.lineTo(xNext, semiTargetY);
+          ctx.lineTo(xRight+8, midY);
+          ctx.lineTo(xRight+8, semiMidY);
+          ctx.lineTo(xNext, semiMidY);
           ctx.stroke();
         }
       });
 
     } else if (fase === 'semis') {
-      // Semi 1: GAN.CUARTO 1 (cuadro inferior) a la altura de P5/Maku
-      // P3/Lara (cuadro superior) queda por encima de P5
-      // nameH=36, sepH=22 → semi1 arranca nameH+sepH antes del slot 1
-      const semi1Y = bodyTop + 16 + 1 * unitH - (36 + 22); // sube para que GAN.CTO1 quede al nivel de P5
-      // Semi 2: cuadro superior al nivel de P2/Martina
-      const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22;
-
-      const semiPositions = [semi1Y, semi2Y];
+      const nSemis = 2;
+      const semiSlotH = totalSlotsLlave * unitH / nSemis;
       const semisToShow = rps.length > 0 ? rps : [
         {pareja1Id:null,pareja2Id:null,hora:null,resultado:null},
         {pareja1Id:null,pareja2Id:null,hora:null,resultado:null}
       ];
       semisToShow.forEach((p, pIdx) => {
-        const slotY = semiPositions[pIdx];
-        const g1 = p.resultado?.ganadorId === p.pareja1Id;
-        const g2 = p.resultado?.ganadorId === p.pareja2Id;
-        const n1 = p.pareja1Id ? nombreCorto(p.pareja1Id)
-          : (pIdx===0 ? (primeroZonaA ? nombreCorto(primeroZonaA) : '1° ZONA A') : 'GAN. CUARTO 2');
-        const n2 = p.pareja2Id ? nombreCorto(p.pareja2Id)
-          : (pIdx===0 ? 'GAN. CUARTO 1' : 'GAN. CUARTO 3');
-        // Semi 1: turquesa, Semi 2: azul
-        const bordeColor = pIdx===0 ? color2 : color;
-        drawPartidoColored(cx, slotY, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
+        const y = bodyTop + 20 + pIdx * semiSlotH + semiSlotH/2 - partidoH/2;
+        const g1=p.resultado?.ganadorId===p.pareja1Id;
+        const g2=p.resultado?.ganadorId===p.pareja2Id;
+        const n1=p.pareja1Id?nombreCorto(p.pareja1Id):`GAN. SEMI ${pIdx+1}`;
+        const n2=p.pareja2Id?nombreCorto(p.pareja2Id):`GAN. CUARTO ${pIdx*2+2}`;
+        const bordeColor = pIdx===0?color2:color;
+        drawPartidoColored(cx, y, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bordeColor);
 
-        // Línea conectora hacia final en el color del borde
+        // Línea a final
         if (colIdx < rondasPresentes.length-1) {
-          const midY = slotY + partidoH/2;
-          // Final centrada entre semi1 y semi2
-          const semi1Y2 = bodyTop + 16 + 1 * unitH - (36+22);
-          const semi2Y2 = bodyTop + 16 + 2 * unitH + (36+22);
-          const finalMid = (semi1Y2 + semi2Y2) / 2 + partidoH/2;
-          const xRight = cx + roundW - 4;
-          const xNext  = cx + roundW + colPad + 4;
-          ctx.strokeStyle = bordeColor; ctx.lineWidth = 2;
-          ctx.lineJoin = 'round';
+          const midY = y + partidoH/2;
+          const finalY = bodyTop + 20 + totalSlotsLlave*unitH/2 - partidoH/2 + partidoH/2;
+          const xRight = cx+roundW-4;
+          const xNext  = cx+roundW+colPad+4;
+          ctx.strokeStyle=bordeColor; ctx.lineWidth=2;
           ctx.beginPath();
-          ctx.moveTo(xRight, midY);
-          ctx.lineTo(xRight + 8, midY);
-          ctx.lineTo(xRight + 8, finalMid);
-          ctx.lineTo(xNext, finalMid);
+          ctx.moveTo(xRight,midY);
+          ctx.lineTo(xRight+8,midY);
+          ctx.lineTo(xRight+8,finalY);
+          ctx.lineTo(xNext,finalY);
           ctx.stroke();
         }
       });
 
     } else if (fase === 'final') {
+      const y = bodyTop + 20 + totalSlotsLlave*unitH/2 - partidoH/2;
+      const p = rps[0] || {pareja1Id:null,pareja2Id:null,hora:null,resultado:null};
+      const g1=p.resultado?.ganadorId===p.pareja1Id;
+      const g2=p.resultado?.ganadorId===p.pareja2Id;
+      const n1=p.pareja1Id?nombreCorto(p.pareja1Id):'GAN. SEMI 1';
+      const n2=p.pareja2Id?nombreCorto(p.pareja2Id):'GAN. SEMI 2';
+      drawPartidoDosColores(cx, y, roundW, n1, n2, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, color2, color);
+    }
+  });
       // Final centrada entre semi1 y semi2
       const semi1Y = bodyTop + 16 + 1 * unitH - (36 + 22);
       const semi2Y = bodyTop + 16 + 2 * unitH + 36 + 22;
@@ -2304,15 +2342,6 @@ window.generarImagenLlave = async function() {
       const g1 = p.resultado?.ganadorId === p.pareja1Id;
       const g2 = p.resultado?.ganadorId === p.pareja2Id;
       // Final: borde dorado si hay campeón, sino degradado turquesa
-      // Final: cuadro superior turquesa, inferior azul
-      const n1f = p.pareja1Id ? nombreCorto(p.pareja1Id) : 'GAN. SEMI 1';
-      const n2f = p.pareja2Id ? nombreCorto(p.pareja2Id) : 'GAN. SEMI 2';
-      const bc1f = (g1) ? 'rgba(255,215,0,0.6)' : color2; // turquesa arriba
-      const bc2f = (g2) ? 'rgba(255,215,0,0.6)' : color;  // azul abajo
-      drawPartidoDosColores(cx, slotY, roundW, n1f, n2f, g1, g2, p.hora||null, !p.pareja1Id, !p.pareja2Id, bc1f, bc2f);
-    }
-  });
-
   // Footer
   ctx.fillStyle=color;
   ctx.fillRect(0,H-footerH,W,footerH);
