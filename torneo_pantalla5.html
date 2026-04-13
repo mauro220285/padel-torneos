@@ -2061,7 +2061,7 @@ window.generarImagenLlave = async function() {
   // ── HELPER: dibujar partido completo centrado en cy ──
   function drawPartidoCentrado(cx, cy, w, n1, n2, g1, g2, hora, ph1, ph2, bc) {
     const y1 = cy - partidoH/2;
-    const y2 = cy + sepH/2 + nameH/2;
+    const y2 = y1 + nameH + sepH;
     const midY = y1 + nameH + sepH/2;
     // Cuadro P1
     drawBox(cx, y1 + nameH/2, w, n1, g1, ph1, bc);
@@ -2175,8 +2175,8 @@ window.generarImagenLlave = async function() {
       previas.forEach((p, pIdx) => {
         const targetCY = previaCY[pIdx] || slotCY(pIdx === 0 ? 0.5 : 6.5);
         // Las dos parejas de la previa: slot superior e inferior del par
-        const cy1 = targetCY - slotH/2;
-        const cy2 = targetCY + slotH/2;
+        const cy1 = targetCY - slotH/2 + nameH/2;
+        const cy2 = targetCY + slotH/2 - nameH/2;
         const n1 = nombreConPos(p.pareja1Id) || (p.pareja1Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
         const n2 = nombreConPos(p.pareja2Id) || (p.pareja2Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
