@@ -1951,7 +1951,7 @@ window.generarImagenLlave = async function() {
   const nameH  = 34;   // altura de cada cuadro de nombre
   const sepH   = 20;   // espacio VS entre los dos cuadros
   const partidoH = nameH + sepH + nameH; // 88px
-  const slotH  = 130;  // altura de cada slot (partido + espacio)
+  const slotH  = 108;  // altura de cada slot (partido + espacio)
   const bodyTopPad = 30;
 
   const W = Math.max(1080, columnas.length * 280);
@@ -2174,7 +2174,7 @@ window.generarImagenLlave = async function() {
       previas.forEach((p, pIdx) => {
         const targetCY = previaCY[pIdx] || slotCY(pIdx === 0 ? 0.5 : 6.5);
         // Las dos parejas de la previa: slot superior e inferior del par
-        const cy1 = targetCY - nameH - sepH/2;
+        const cy1 = targetCY - nameH/2 - sepH/2;
         const cy2 = targetCY + nameH/2 + sepH/2;
         const n1 = nombreConPos(p.pareja1Id) || (p.pareja1Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
         const n2 = nombreConPos(p.pareja2Id) || (p.pareja2Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
