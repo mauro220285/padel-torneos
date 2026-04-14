@@ -2108,8 +2108,7 @@ window.generarImagenLlave = async function() {
   const cuartosConPrevia = [];
   const cuartosSinPrevia = [];
   cuartos.forEach((p, i) => {
-    const tienePrevia = (p.pareja1Id?.startsWith('G_prev') || p.pareja2Id?.startsWith('G_prev') ||
-                        !p.pareja1Id || !p.pareja2Id);
+    const tienePrevia = p.esBye === true;
     if (tienePrevia) cuartosConPrevia.push(i);
     else cuartosSinPrevia.push(i);
   });
@@ -2209,8 +2208,8 @@ window.generarImagenLlave = async function() {
         const n2 = nombreConPos(p.pareja2Id) || (p.pareja2Id?.startsWith('G_') ? `GAN. PREVIA ${previaEnCuarto.indexOf(pIdx)+1}` : '?');
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
         const g2 = p.resultado?.ganadorId === p.pareja2Id;
-        const ph1 = !p.pareja1Id || p.pareja1Id.startsWith('G_prev');
-        const ph2 = !p.pareja2Id || p.pareja2Id.startsWith('G_prev');
+        const ph1 = p.esBye === true && !p.resultado;
+        const ph2 = p.esBye === true && !p.resultado;
         const bc = isConPrevia ? color2 : color;
         drawPartidoCentrado(cx, cy, roundW, n1, n2, g1, g2, p.hora||null, ph1, ph2, bc);
 
