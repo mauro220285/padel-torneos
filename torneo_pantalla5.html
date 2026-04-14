@@ -2174,8 +2174,8 @@ window.generarImagenLlave = async function() {
       previas.forEach((p, pIdx) => {
         const targetCY = previaCY[pIdx] || slotCY(pIdx === 0 ? 0.5 : 6.5);
         // Las dos parejas de la previa: slot superior e inferior del par
-        const cy1 = targetCY - slotH/2 + nameH/2;
-        const cy2 = targetCY + slotH/2 - nameH/2;
+        const cy1 = targetCY - nameH - sepH/2;
+        const cy2 = targetCY + nameH/2 + sepH/2;
         const n1 = nombreConPos(p.pareja1Id) || (p.pareja1Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
         const n2 = nombreConPos(p.pareja2Id) || (p.pareja2Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
@@ -2208,8 +2208,8 @@ window.generarImagenLlave = async function() {
         const n2 = nombreConPos(p.pareja2Id) || (p.pareja2Id?.startsWith('G_') ? `GAN. PREVIA ${previaEnCuarto.indexOf(pIdx)+1}` : '?');
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
         const g2 = p.resultado?.ganadorId === p.pareja2Id;
-        const ph1 = p.esBye === true && !p.resultado;
-        const ph2 = p.esBye === true && !p.resultado;
+        const ph1 = false;
+        const ph2 = false;
         const bc = isConPrevia ? color2 : color;
         drawPartidoCentrado(cx, cy, roundW, n1, n2, g1, g2, p.hora||null, ph1, ph2, bc);
 
