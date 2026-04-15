@@ -1949,8 +1949,8 @@ window.generarImagenLlave = async function() {
   // Grilla: 8 slots en la columna de primera ronda eliminatoria
   const TOTAL_SLOTS = 8;
   const nameH  = 34;   // altura de cada cuadro de nombre
-  const sepH   = 20;   // espacio VS entre los dos cuadros
-  const partidoH = nameH + sepH + nameH; // 88px
+  const sepH   = 36;   // espacio VS/hora entre los dos cuadros
+  const partidoH = nameH + sepH + nameH; // 104px
   const slotH  = 108;  // altura de cada slot (partido + espacio)
   const bodyTopPad = 30;
 
@@ -2176,12 +2176,24 @@ window.generarImagenLlave = async function() {
         // Las dos parejas de la previa: slot superior e inferior del par
         const cy1 = targetCY - nameH/2 - sepH/2;
         const cy2 = targetCY + nameH/2 + sepH/2;
-        const n1 = nombreConPos(p.pareja1Id) || (p.pareja1Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
-        const n2 = nombreConPos(p.pareja2Id) || (p.pareja2Id?.startsWith('G_') ? 'GAN. PREV.' : '?');
+        const n1 = nombreConPos(p.pareja1Id) || '?';
+        const n2 = nombreConPos(p.pareja2Id) || '?';
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
         const g2 = p.resultado?.ganadorId === p.pareja2Id;
         drawBox(cx, cy1, roundW, n1, g1, false, color2);
         drawBox(cx, cy2, roundW, n2, g2, false, color2);
+        // Hora en el medio
+        ctx.textAlign='center';
+        if (p.hora) {
+          ctx.font='bold 11px Oswald, Arial';
+          ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1.5;
+          ctx.strokeText(`⏰ ${p.hora}hs`, cx+roundW/2, targetCY+4);
+          ctx.fillStyle=color2; ctx.fillText(`⏰ ${p.hora}hs`, cx+roundW/2, targetCY+4);
+        } else {
+          ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 10px Oswald, Arial';
+          ctx.fillText('VS', cx+roundW/2, targetCY+4);
+        }
+        ctx.textAlign='left';
 
         // Línea en L que une las dos cajas y llega al borde derecho al nivel targetCY
         const bx = cx + 8;
