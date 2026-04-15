@@ -2063,26 +2063,26 @@ window.generarImagenLlave = async function() {
     const y1 = cy - partidoH/2;
     const y2 = y1 + nameH + sepH;
     const midY = y1 + nameH + sepH/2;
-    // Cuadro P1
-    drawBox(cx, y1 + nameH/2, w, n1, g1, ph1, bc);
-    // Cuadro P2
-    drawBox(cx, y2, w, n2, g2, ph2, bc);
-    // Hora / VS — con fondo para no pisarse con los bordes
+    // Hora arriba de la caja P1
     ctx.textAlign='center';
     if (hora) {
       ctx.font='bold 11px Oswald, Arial';
       const tw = ctx.measureText(`⏰ ${hora}hs`).width;
-      ctx.fillStyle='rgba(0,0,0,0.55)';
-      ctx.fillRect(cx+w/2 - tw/2 - 4, midY - 8, tw + 8, 16);
-      ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1.5;
-      ctx.strokeText(`⏰ ${hora}hs`, cx+w/2, midY+4);
-      ctx.fillStyle=bc||color2; ctx.fillText(`⏰ ${hora}hs`, cx+w/2, midY+4);
-    } else {
-      ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 10px Oswald, Arial';
-      ctx.fillText('VS', cx+w/2, midY+4);
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.fillRect(cx+w/2 - tw/2 - 4, y1 - 16, tw + 8, 15);
+      ctx.fillStyle=bc||color2;
+      ctx.fillText(`⏰ ${hora}hs`, cx+w/2, y1 - 5);
     }
     ctx.textAlign='left';
-    // Retorna cy para conexión
+    // Cuadro P1
+    drawBox(cx, y1 + nameH/2, w, n1, g1, ph1, bc);
+    // VS en el medio (sin hora)
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 10px Oswald, Arial';
+    ctx.fillText('VS', cx+w/2, midY+4);
+    ctx.textAlign='left';
+    // Cuadro P2
+    drawBox(cx, y2 + nameH/2, w, n2, g2, ph2, bc);
     return cy;
   }
 
@@ -2177,25 +2177,27 @@ window.generarImagenLlave = async function() {
       previas.forEach((p, pIdx) => {
         const targetCY = previaCY[pIdx] || slotCY(pIdx === 0 ? 0.5 : 6.5);
         // Las dos parejas de la previa: slot superior e inferior del par
-        const cy1 = targetCY - partidoH/2 + nameH/2;
-        const cy2 = targetCY + partidoH/2 - nameH/2;
+        const cy1 = targetCY - nameH/2 - sepH/2;
+        const cy2 = targetCY + nameH/2 + sepH/2;
         const n1 = nombreConPos(p.pareja1Id) || '?';
         const n2 = nombreConPos(p.pareja2Id) || '?';
         const g1 = p.resultado?.ganadorId === p.pareja1Id;
         const g2 = p.resultado?.ganadorId === p.pareja2Id;
         drawBox(cx, cy1, roundW, n1, g1, false, color2);
         drawBox(cx, cy2, roundW, n2, g2, false, color2);
-        // Hora en el medio
+        // Hora arriba de caja P1
         ctx.textAlign='center';
         if (p.hora) {
           ctx.font='bold 11px Oswald, Arial';
-          ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1.5;
-          ctx.strokeText(`⏰ ${p.hora}hs`, cx+roundW/2, targetCY+4);
-          ctx.fillStyle=color2; ctx.fillText(`⏰ ${p.hora}hs`, cx+roundW/2, targetCY+4);
-        } else {
-          ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 10px Oswald, Arial';
-          ctx.fillText('VS', cx+roundW/2, targetCY+4);
+          const tw = ctx.measureText(`⏰ ${p.hora}hs`).width;
+          ctx.fillStyle='rgba(0,0,0,0.5)';
+          ctx.fillRect(cx+roundW/2 - tw/2 - 4, cy1 - nameH/2 - 16, tw + 8, 15);
+          ctx.fillStyle=color2;
+          ctx.fillText(`⏰ ${p.hora}hs`, cx+roundW/2, cy1 - nameH/2 - 5);
         }
+        // VS en el medio
+        ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 10px Oswald, Arial';
+        ctx.fillText('VS', cx+roundW/2, targetCY+4);
         ctx.textAlign='left';
 
         // Línea en L que une las dos cajas y llega al borde derecho al nivel targetCY
