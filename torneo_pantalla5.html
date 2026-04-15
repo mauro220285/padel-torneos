@@ -2067,16 +2067,19 @@ window.generarImagenLlave = async function() {
     drawBox(cx, y1 + nameH/2, w, n1, g1, ph1, bc);
     // Cuadro P2
     drawBox(cx, y2, w, n2, g2, ph2, bc);
-    // Hora / VS
+    // Hora / VS — con fondo para no pisarse con los bordes
     ctx.textAlign='center';
     if (hora) {
       ctx.font='bold 11px Oswald, Arial';
+      const tw = ctx.measureText(`⏰ ${hora}hs`).width;
+      ctx.fillStyle='rgba(0,0,0,0.55)';
+      ctx.fillRect(cx+w/2 - tw/2 - 4, midY - 8, tw + 8, 16);
       ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=1.5;
-      ctx.strokeText(`⏰ ${hora}hs`, cx+w/2, midY+5);
-      ctx.fillStyle=bc||color2; ctx.fillText(`⏰ ${hora}hs`, cx+w/2, midY+5);
+      ctx.strokeText(`⏰ ${hora}hs`, cx+w/2, midY+4);
+      ctx.fillStyle=bc||color2; ctx.fillText(`⏰ ${hora}hs`, cx+w/2, midY+4);
     } else {
       ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 10px Oswald, Arial';
-      ctx.fillText('VS', cx+w/2, midY+5);
+      ctx.fillText('VS', cx+w/2, midY+4);
     }
     ctx.textAlign='left';
     // Retorna cy para conexión
