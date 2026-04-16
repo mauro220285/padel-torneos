@@ -391,25 +391,20 @@ function asignarHorarios(partidos, slots, pMap) {
   const resultado = [];
   const slotsLibres = slots.map(s => ({...s}));
   const ocupCancha = {};
-  const ultimoSlotPareja = {};
+  // Guarda los slots usados por cada pareja para calcular descanso
+  const ultimoSlotPareja = {}; // parejaId -> { dia, horaMin }
   const slotMins = (torneoConfig.duracion || 60) + (torneoConfig.intervalo || 0);
-  const DESCANSO_IDEAL = 3;
-  const DESCANSO_MIN   = 1;
+  const DESCANSO_IDEAL = 3; // slots de descanso ideal (3 * slotMins)
+  const DESCANSO_MIN   = 1; // slots de descanso mínimo
 
-  // Separar partidos de ronda 1 (o normales) y ronda 2 (dependientes)
-  const partidosR1 = partidos.filter(p => p.subfase !== 'r2' && !p.esDefinicion);
-  const partidosR2 = partidos.filter(p => p.subfase === 'r2' || p.esDefinicion);
-
-  // Ordenar R1 por restricción (más restringidos primero)
-  const ordenarPorRestriccion = (arr) => [...arr].sort((a, b) => {
+  // Ordenar partidos: primero los que involucran parejas más restringidas
+  const partidosOrdenados = [...partidos].sort((a, b) => {
     const p1a = pMap[a.pareja1Id], p1b = pMap[b.pareja1Id];
     const p2a = pMap[a.pareja2Id], p2b = pMap[b.pareja2Id];
     const slotsA = slotsDisponiblesPareja(p1a, slots) + slotsDisponiblesPareja(p2a, slots);
     const slotsB = slotsDisponiblesPareja(p1b, slots) + slotsDisponiblesPareja(p2b, slots);
-    return slotsA - slotsB;
+    return slotsA - slotsB; // los más restringidos primero
   });
-
-  const partidosOrdenadosR1 = ordenarPorRestriccion(partidosR1);
 
   function horaAMin(hora) {
     const [h, m] = hora.split(':').map(Number);
@@ -424,36 +419,44 @@ function asignarHorarios(partidos, slots, pMap) {
     return diff >= minSlots;
   }
 
-  function procesarPartido(partido, slotsDesde = 0) {
+  function intentarAsignar(partido, descansoRequerido) {
+    const p1 = pMap[partido.pareja1Id], p2 = pMap[partido.pareja2Id];
+    
+    for (const slot of slotsLibres) {
+      if (slot.ocupado) continue;
+      const clave = `${slot.dia}|${slot.hora}`;
+      const cc = `${clave}|${slot.cancha}`;
+      if (ocupCancha[cc]) continue;
+      // Verificar que ninguna pareja ya juega en ese día+hora
+      const claveBase = `${slot.dia}|${slot.hora}`;
+      if (Object.keys(ultimoSlotPareja).some(pid => 
+        (pid === partido.pareja1Id || pid === partido.pareja2Id) && 
+        ultimoSlotPareja[pid]?.clave === claveBase)) continue;
+      
+      if (!descansoSuficiente(partido.pareja1Id, slot, descansoRequerido)) continue;
+      if (!descansoSuficiente(partido.pareja2Id, slot, descansoRequerido)) continue;
+      
+      const disp1 = parejaDisponible(p1, slot);
+      const disp2 = parejaDisponible(p2, slot);
+      if (!disp1 || !disp2) continue;
+      
+      return { slot, conflicto: false };
+    }
+    return null;
+  }
+
+  partidosOrdenados.forEach(partido => {
     const p1 = pMap[partido.pareja1Id], p2 = pMap[partido.pareja2Id];
     let asignacion = null;
+    let conflicto = false;
 
-    // Filtrar slots disponibles desde un índice mínimo (para r2)
-    const slotsValidos = slotsLibres.slice(slotsDesde);
-
-    function intentarDesde(descansoRequerido) {
-      for (const slot of slotsValidos) {
-        if (slot.ocupado) continue;
-        const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
-        if (ocupCancha[cc]) continue;
-        const claveBase = `${slot.dia}|${slot.hora}`;
-        if (Object.keys(ultimoSlotPareja).some(pid =>
-          (pid === partido.pareja1Id || pid === partido.pareja2Id) &&
-          ultimoSlotPareja[pid]?.clave === claveBase)) continue;
-        if (!descansoSuficiente(partido.pareja1Id, slot, descansoRequerido)) continue;
-        if (!descansoSuficiente(partido.pareja2Id, slot, descansoRequerido)) continue;
-        const disp1 = parejaDisponible(p1, slot);
-        const disp2 = parejaDisponible(p2, slot);
-        if (!disp1 || !disp2) continue;
-        return { slot, conflicto: false };
-      }
-      return null;
-    }
-
-    asignacion = intentarDesde(DESCANSO_IDEAL);
-    if (!asignacion) asignacion = intentarDesde(DESCANSO_MIN);
+    // Intentar con descanso ideal primero, luego mínimo, luego sin restricción
+    asignacion = intentarAsignar(partido, DESCANSO_IDEAL);
+    if (!asignacion) asignacion = intentarAsignar(partido, DESCANSO_MIN);
+    
+    // Si no hay slot con descanso, buscar cualquier slot disponible respetando restricciones
     if (!asignacion) {
-      for (const slot of slotsValidos) {
+      for (const slot of slotsLibres) {
         if (slot.ocupado) continue;
         const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
         if (ocupCancha[cc]) continue;
@@ -462,8 +465,11 @@ function asignarHorarios(partidos, slots, pMap) {
         if (disp1 && disp2) { asignacion = { slot, conflicto: false }; break; }
       }
     }
+
+    // Último recurso: slot con conflicto — solo si no hay NINGÚN slot disponible
     if (!asignacion) {
-      for (const slot of slotsValidos) {
+      console.warn('Sin slot disponible para:', nombrePareja(partido.pareja1Id), 'vs', nombrePareja(partido.pareja2Id));
+      for (const slot of slotsLibres) {
         if (slot.ocupado) continue;
         const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
         if (ocupCancha[cc]) continue;
@@ -471,41 +477,18 @@ function asignarHorarios(partidos, slots, pMap) {
         break;
       }
     }
-    return asignacion;
-  }
 
-  // Procesar primero todos los partidos de ronda 1
-  let ultimoSlotUsadoIdx = 0;
-  partidosOrdenadosR1.forEach(partido => {
-    const asignacion = procesarPartido(partido, 0);
     if (asignacion) {
       const { slot } = asignacion;
       slot.ocupado = true;
-      ocupCancha[`${slot.dia}|${slot.hora}|${slot.cancha}`] = true;
+      const cc = `${slot.dia}|${slot.hora}|${slot.cancha}`;
+      ocupCancha[cc] = true;
       const horaMin = horaAMin(slot.hora);
-      ultimoSlotPareja[partido.pareja1Id] = { dia:slot.dia, horaMin, clave:`${slot.dia}|${slot.hora}` };
-      ultimoSlotPareja[partido.pareja2Id] = { dia:slot.dia, horaMin, clave:`${slot.dia}|${slot.hora}` };
-      // Guardar el índice del último slot usado
-      const idx = slotsLibres.indexOf(slot);
-      if (idx > ultimoSlotUsadoIdx) ultimoSlotUsadoIdx = idx;
-      resultado.push({...partido, dia:slot.dia, hora:slot.hora, cancha:slot.cancha, conflicto:asignacion.conflicto});
+      ultimoSlotPareja[partido.pareja1Id] = { dia: slot.dia, horaMin, clave: `${slot.dia}|${slot.hora}` };
+      ultimoSlotPareja[partido.pareja2Id] = { dia: slot.dia, horaMin, clave: `${slot.dia}|${slot.hora}` };
+      resultado.push({...partido, dia: slot.dia, hora: slot.hora, cancha: slot.cancha, conflicto: asignacion.conflicto });
     } else {
-      resultado.push({...partido, dia:null, hora:null, cancha:null, conflicto:true});
-    }
-  });
-
-  // Procesar partidos de ronda 2 — deben ir DESPUÉS de los de ronda 1
-  // Buscar desde el slot siguiente al último usado en r1
-  const slotInicioR2 = Math.min(ultimoSlotUsadoIdx + 1, slotsLibres.length - 1);
-  partidosR2.forEach(partido => {
-    const asignacion = procesarPartido(partido, slotInicioR2);
-    if (asignacion) {
-      const { slot } = asignacion;
-      slot.ocupado = true;
-      ocupCancha[`${slot.dia}|${slot.hora}|${slot.cancha}`] = true;
-      resultado.push({...partido, dia:slot.dia, hora:slot.hora, cancha:slot.cancha, conflicto:asignacion.conflicto});
-    } else {
-      resultado.push({...partido, dia:null, hora:null, cancha:null, conflicto:true});
+      resultado.push({...partido, dia: null, hora: null, cancha: null, conflicto: true});
     }
   });
 
@@ -581,6 +564,14 @@ function generarFixture(parejas) {
   const slotsZonas = ultimoDia ? slots.filter(s => s.dia !== ultimoDia) : slots;
   const slotsLlave = ultimoDia ? slots.filter(s => s.dia === ultimoDia) : slots;
   let partidos = [];
+
+  if (formato === 'llave_sola') {
+    // Sin partidos de zona — la llave se genera en torneo_resultados
+    zonasData = [];
+    fixture = [];
+    renderFixture();
+    return;
+  }
 
   if (formato === 'zonas_llave') {
     const zonasConfig = torneoConfig.zonasConfig;
@@ -725,6 +716,23 @@ window.renderFixture = function() {
   const wrap = document.getElementById('fixtureWrap');
   if (!wrap) return;
 
+  if (torneoConfig.formato === 'llave_sola') {
+    document.getElementById('res-partidos').textContent = `${parejas.length} parejas`;
+    document.getElementById('res-conflictos').textContent = '0';
+    const el = document.getElementById('res-estado');
+    el.textContent = '✓ LISTO'; el.className = 'resumen-val ok';
+    wrap.innerHTML = `<div style="padding:24px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:12px;">⚡</div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#fff;margin-bottom:10px;">LLAVE SOLA</div>
+      <div style="font-size:13px;color:var(--muted);letter-spacing:1px;line-height:1.8;">
+        ${parejas.length} parejas registradas.<br>
+        La llave eliminatoria se genera desde<br>
+        <strong style="color:var(--azul)">Resultados → Eliminación → Generar Llave</strong>
+      </div>
+    </div>`;
+    return;
+  }
+
   const conflictos = fixture.filter(p => p.conflicto && !p.esLlave).length;
   const partLlave  = fixture.filter(p => p.esLlave).length;
   const partRR     = fixture.length - partLlave;
@@ -790,42 +798,30 @@ window.abrirModal = function(id) {
 
   const nombre1 = nombrePareja(partidoSeleccionado.pareja1Id);
   const nombre2 = nombrePareja(partidoSeleccionado.pareja2Id);
-  document.getElementById('modalSub').textContent = `${nombre1} vs ${nombre2} · ${partidoSeleccionado.dia||''} ${partidoSeleccionado.hora||'--:--'}`;
+  document.getElementById('modalSub').textContent = `${nombre1} vs ${nombre2} · ${partidoSeleccionado.hora||'--:--'}`;
   document.getElementById('modal-title').textContent = 'INTERCAMBIAR HORARIO';
 
   const opciones = document.getElementById('modalOpciones');
   opciones.innerHTML = '<div style="font-family:Oswald,sans-serif;font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">SELECCIONÁ EL PARTIDO CON EL QUE QUERÉS INTERCAMBIAR</div>';
 
-  // Mostrar TODOS los partidos de TODOS los días
-  const todosPartidos = fixture.filter(p =>
+  // Mostrar todos los partidos del día actual para intercambiar
+  const partidosDia = fixture.filter(p =>
+    p.dia === DIAS[diaActivo]?.fecha &&
     !p.esLlave &&
     (p.id||p.orden) !== (partidoSeleccionado.id||partidoSeleccionado.orden)
-  ).sort((a,b) => {
-    if (a.dia !== b.dia) return (a.dia||'').localeCompare(b.dia||'');
-    return (a.hora||'').localeCompare(b.hora||'');
-  });
+  ).sort((a,b) => (a.hora||'').localeCompare(b.hora||''));
 
-  if (todosPartidos.length === 0) {
-    opciones.innerHTML += '<div style="color:var(--muted);font-size:13px;padding:12px;">No hay otros partidos para intercambiar.</div>';
+  if (partidosDia.length === 0) {
+    opciones.innerHTML += '<div style="color:var(--muted);font-size:13px;padding:12px;">No hay otros partidos este día para intercambiar.</div>';
   }
 
-  let diaActualMostrado = null;
-  todosPartidos.forEach(p => {
+  partidosDia.forEach(p => {
     const n1 = nombrePareja(p.pareja1Id);
     const n2 = nombrePareja(p.pareja2Id);
-
-    // Separador de día
-    if (p.dia !== diaActualMostrado) {
-      diaActualMostrado = p.dia;
-      const sep = document.createElement('div');
-      sep.style.cssText = 'font-family:Bebas Neue,sans-serif;font-size:13px;letter-spacing:3px;color:var(--azul);padding:8px 0 4px;border-top:1px solid var(--border);margin-top:4px;';
-      sep.textContent = p.dia === partidoSeleccionado.dia ? `📅 ${p.dia} (mismo día)` : `📅 ${p.dia}`;
-      opciones.appendChild(sep);
-    }
-
     const div = document.createElement('div');
     div.className = 'modal-opcion';
 
+    // Verificar si el intercambio sería válido (restricciones)
     const p1sel = parejaMap[partidoSeleccionado.pareja1Id];
     const p2sel = parejaMap[partidoSeleccionado.pareja2Id];
     const p1otro = parejaMap[p.pareja1Id];
@@ -839,7 +835,7 @@ window.abrirModal = function(id) {
     div.innerHTML = `
       <div class="modal-opcion-hora">${p.hora||'--'}</div>
       <div style="flex:1;font-family:'Oswald',sans-serif;font-size:12px;color:#fff;letter-spacing:1px;">${n1} vs ${n2}</div>
-      <div class="modal-opcion-estado" style="color:${conflicto?'var(--rojo)':'var(--verde)'}">${conflicto?'⚠':'✓'}</div>`;
+      <div class="modal-opcion-estado" style="color:${conflicto?'var(--rojo)':'var(--verde)'}">${conflicto?'⚠ CONFLICTO':'✓ OK'}</div>`;
     div.onclick = () => intercambiarHorario(p.id||p.orden, conflicto);
     opciones.appendChild(div);
   });
@@ -894,8 +890,8 @@ window.resetearFixture = async function() {
     // Volver el torneo a borrador
     await updateDoc(doc(db, 'torneos', torneoId), { estado: 'borrador', actualizadoEn: serverTimestamp() });
 
-    showToast('✓ Fixture reseteado');
-    setTimeout(() => location.reload(), 1200);
+    showToast('✓ Fixture reseteado — redirigiendo a configuración...');
+    setTimeout(() => { window.location.href = 'torneo_pantalla2.html'; }, 1200);
   } catch(e) {
     console.error(e);
     showToast('❌ Error al resetear');
@@ -904,6 +900,28 @@ window.resetearFixture = async function() {
 
 // ── CONFIRMAR ────────────────────────────────────────────
 window.confirmarFixture = async function() {
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
+
+  // Para llave sola: solo guardar parejas con número y activar torneo
+  if (torneoConfig.formato === 'llave_sola') {
+    showToast('Guardando...');
+    try {
+      // Asignar números a parejas
+      await Promise.all(parejas.map((p, i) =>
+        updateDoc(doc(db,'torneos',torneoId,'parejas',p.id), { numFixture: i+1 })
+      ));
+      await setDoc(doc(db,'torneos',torneoId,'fixture','meta'), {
+        confirmado: true, confirmadoEn: serverTimestamp(),
+        formato: 'llave_sola', totalZonas: 0
+      });
+      await updateDoc(doc(db,'torneos',torneoId), { estado:'activo', actualizadoEn: serverTimestamp() });
+      showToast('✓ Confirmado');
+      setTimeout(() => { window.location.href = 'torneo_resultados.html'; }, 1200);
+    } catch(e) { console.error(e); showToast('❌ Error: ' + e.message); }
+    return;
+  }
+
   // Validación 1: verificar slots suficientes
   const totalPartidos = fixture.filter(p => !p.esLlave).length;
   const totalSlots = generarSlots(torneoConfig).length;
@@ -922,9 +940,6 @@ window.confirmarFixture = async function() {
   // Validación 3: conflictos de horario
   const conflictos = fixture.filter(p => p.conflicto && !p.esLlave).length;
   if (conflictos > 0 && !confirm(`Hay ${conflictos} conflicto(s) de horario con restricciones de parejas. ¿Confirmar igual?`)) return;
-
-  const torneoId = sessionStorage.getItem('torneoId');
-  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
 
   showToast('Guardando fixture...');
   try {
@@ -996,7 +1011,7 @@ window.irAResultados = function() {
 window.irAInformes = function() {
   const tid = sessionStorage.getItem('torneoId');
   if (!tid) { alert('No hay torneo activo'); return; }
-  window.location.href = 'torneo_pantalla5.html';
+  window.location.href = 'torneo_pantalla5.html?id=' + tid;
 };
 </script>
 </body>
