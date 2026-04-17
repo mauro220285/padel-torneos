@@ -2421,11 +2421,11 @@ window.generarImagenCampeones = async function() {
   const fg=ctx.createLinearGradient(0,fotoY+fotoH-120,0,fotoY+fotoH+20);
   fg.addColorStop(0,'rgba(8,12,20,0)'); fg.addColorStop(1,'rgba(8,12,20,1)');
   ctx.fillStyle=fg; ctx.fillRect(0,fotoY+fotoH-120,W,140);
-  let y=fotoY+fotoH+20;
-  ctx.textAlign='center'; ctx.fillStyle=color2; ctx.font='22px Oswald, Arial';
-  ctx.fillText('· '+(nombreTorneo+categoriaLabel).toUpperCase()+' ·',W/2,y); y+=50;
+  let y=fotoY+fotoH+28;
+  ctx.textAlign='center'; ctx.fillStyle=color2; ctx.font='bold 30px Oswald, Arial';
+  ctx.fillText('· '+(nombreTorneo+categoriaLabel).toUpperCase()+' ·',W/2,y); y+=62;
   ctx.fillStyle='#fff'; ctx.font='bold 72px Bebas Neue, Arial';
-  ctx.fillText('\u00a1Felicitaciones',W/2,y); y+=70;
+  ctx.fillText('¡Felicitaciones',W/2,y); y+=70;
   ctx.fillText('Campeones!',W/2,y); y+=50;
   const boxY=y, boxH=120, boxW=(W-80-60)/2;
   ctx.fillStyle='rgba(212,170,0,0.15)'; ctx.beginPath(); ctx.roundRect(40,boxY,boxW,boxH,10); ctx.fill();
