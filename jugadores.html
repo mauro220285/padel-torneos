@@ -134,10 +134,21 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
     <input type="text" id="inputBuscar" placeholder="Buscar jugador..." oninput="filtrar()">
   </div>
   <div class="filtros">
-    <button class="filtro-btn active" onclick="setFiltro('todos',this)">TODOS</button>
-    <button class="filtro-btn" onclick="setFiltro('Caballeros',this)">CABALLEROS</button>
-    <button class="filtro-btn" onclick="setFiltro('Damas',this)">DAMAS</button>
-    <button class="filtro-btn" onclick="setFiltro('Menores',this)">MENORES</button>
+    <button class="filtro-btn active" onclick="setFiltro('seccion','todos',this)">TODOS</button>
+    <button class="filtro-btn" onclick="setFiltro('seccion','Caballeros',this)">CABALLEROS</button>
+    <button class="filtro-btn" onclick="setFiltro('seccion','Damas',this)">DAMAS</button>
+    <button class="filtro-btn" onclick="setFiltro('seccion','Menores',this)">MENORES</button>
+  </div>
+  <div class="filtros" style="margin-top:4px;">
+    <button class="filtro-btn active" onclick="setFiltro('cat','todos',this)">TODAS LAS CAT.</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','1°',this)">1°</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','2°',this)">2°</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','3°',this)">3°</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','4°',this)">4°</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','5°',this)">5°</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','6°',this)">6°</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','7°',this)">7°</button>
+    <button class="filtro-btn" onclick="setFiltro('cat','8°',this)">8°</button>
   </div>
   <div class="acciones-admin">
     <button class="btn-admin" onclick="pedirPinYEjecutar('importar')">📥 IMPORTAR CSV</button>
@@ -289,6 +300,7 @@ const db  = getFirestore(app);
 
 let JUGADORES = [];
 let filtroActivo = 'todos';
+let filtroCatActivo = 'todos';
 let jugadorEditandoId = null;
 let modoFusion = false;
 let fusionSeleccionados = [];
@@ -324,7 +336,10 @@ window.filtrar = function() {
   const lista = JUGADORES.filter(j => {
     const nombre = normalizar(j.nombreDisplay||j.id);
     const sec = j.seccion||j.categoria||'Caballeros';
-    return (!q||nombre.includes(q)) && (filtroActivo==='todos'||sec===filtroActivo);
+    const cat = j.categoria||'';
+    const matchSeccion = filtroActivo==='todos' || sec===filtroActivo;
+    const matchCat = filtroCatActivo==='todos' || cat===filtroCatActivo;
+    return (!q||nombre.includes(q)) && matchSeccion && matchCat;
   });
   document.getElementById('contador').innerHTML = `Mostrando <span>${lista.length}</span> de <span>${JUGADORES.length}</span> jugadores`;
   const wrap = document.getElementById('listaJugadores');
@@ -356,9 +371,14 @@ window.filtrar = function() {
   }).join('');
 };
 
-window.setFiltro = function(val, btn) {
-  filtroActivo = val;
-  document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
+window.setFiltro = function(tipo, val, btn) {
+  if (tipo === 'seccion') {
+    filtroActivo = val;
+    document.querySelectorAll('.filtros:first-of-type .filtro-btn').forEach(b=>b.classList.remove('active'));
+  } else {
+    filtroCatActivo = val;
+    document.querySelectorAll('.filtros:last-of-type .filtro-btn').forEach(b=>b.classList.remove('active'));
+  }
   btn.classList.add('active');
   filtrar();
 };
