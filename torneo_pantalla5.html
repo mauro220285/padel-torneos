@@ -411,6 +411,11 @@ body {
         <input type="file" id="fotoInput" accept="image/*" style="display:none;">
       </div>
       <div style="margin-bottom:10px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">🏆 NOMBRE DEL TORNEO</div>
+        <input type="text" id="campeonesNombreTorneo" placeholder="Ej: Suma XIII" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
+        <input type="text" id="campeonesCategoria" placeholder="Ej: 7ma Caballeros" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
+      </div>
+      <div style="margin-bottom:10px;">
         <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">🥇 CAMPEONES</div>
         <input type="text" id="campeon1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
         <input type="text" id="campeon2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
@@ -505,6 +510,20 @@ async function init() {
   const idFromUrl = urlParams.get('id');
   if (idFromUrl) sessionStorage.setItem('torneoId', idFromUrl);
   torneoId = sessionStorage.getItem('torneoId');
+
+  // Si se abre desde el botón Campeones del index (sin torneo)
+  if (window.location.hash === '#campeones' && !torneoId) {
+    document.getElementById('p5-subtitulo').textContent = 'Imagen de Campeones';
+    // Abrir card de campeones automáticamente
+    const card = document.getElementById('card-campeones');
+    if (card) {
+      card.classList.add('open');
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    await cargarExternos();
+    renderScoring();
+    return;
+  }
 
   if (torneoId) {
     // Leer torneo desde Firebase
@@ -2337,12 +2356,15 @@ window.generarImagenCampeones = async function() {
   const campeon2 = document.getElementById('campeon2').value.trim();
   const final1   = document.getElementById('finalista1').value.trim();
   const final2   = document.getElementById('finalista2').value.trim();
-  if (!campeon1 || !campeon2) { showToast('\u26a0\ufe0f Ingres\u00e1 los nombres de los campeones'); return; }
+  if (!campeon1 || !campeon2) { showToast('⚠️ Ingresá los nombres de los campeones'); return; }
   showToast('Generando imagen...');
   const cancha = await cargarConfigCancha();
   const color  = cancha.colorPrincipal  || '#1a6abf';
   const color2 = cancha.colorSecundario || '#00d4ff';
-  const nombreTorneo = torneoData?.nombre || 'TORNEO';
+  const nombreManual = document.getElementById('campeonesNombreTorneo')?.value.trim();
+  const categoriaManual = document.getElementById('campeonesCategoria')?.value.trim();
+  const nombreTorneo = torneoData?.nombre || nombreManual || 'TORNEO';
+  const categoriaLabel = categoriaManual ? ` · ${categoriaManual}` : '';
   const W = 1080, H = 1350;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -2401,7 +2423,7 @@ window.generarImagenCampeones = async function() {
   ctx.fillStyle=fg; ctx.fillRect(0,fotoY+fotoH-120,W,140);
   let y=fotoY+fotoH+20;
   ctx.textAlign='center'; ctx.fillStyle=color2; ctx.font='22px Oswald, Arial';
-  ctx.fillText('\u00b7 '+nombreTorneo.toUpperCase()+' \u00b7',W/2,y); y+=50;
+  ctx.fillText('· '+(nombreTorneo+categoriaLabel).toUpperCase()+' ·',W/2,y); y+=50;
   ctx.fillStyle='#fff'; ctx.font='bold 72px Bebas Neue, Arial';
   ctx.fillText('\u00a1Felicitaciones',W/2,y); y+=70;
   ctx.fillText('Campeones!',W/2,y); y+=50;
