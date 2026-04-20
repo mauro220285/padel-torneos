@@ -191,6 +191,7 @@ body {
   </div>
   <button class="btn-nuevo" onclick="irACrear()">+ CREAR NUEVO TORNEO</button>
   <button class="btn-nuevo" onclick="window.open('ranking_publico.html','_blank')" style="margin-top:6px;border-color:var(--azul);color:var(--azul);">📊 VER RANKING PÚBLICO</button>
+  <button class="btn-nuevo" onclick="pedirPinCierre()" style="margin-top:6px;border-color:var(--rojo);color:var(--rojo);">🏁 CIERRE DE TEMPORADA</button>
 </div>
 
 <!-- BTN CONTINUAR -->
@@ -231,7 +232,7 @@ body {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, query, orderBy, getDocs, getDoc, doc, limit, deleteDoc }
+import { getFirestore, collection, query, orderBy, getDocs, getDoc, doc, limit, deleteDoc, updateDoc }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -441,6 +442,64 @@ function showToast(msg) {
   t.textContent = msg; t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
 }
+
+// ── CIERRE DE TEMPORADA ──────────────────────────────────
+window.pedirPinCierre = async function() {
+  const pin = prompt('🔒 PIN de administrador para cierre de temporada:');
+  if (!pin) return;
+  const snap = await getDoc(doc(db,'config','cancha'));
+  const pinGuardado = snap.exists() ? (snap.data().pinAdmin||'1234') : '1234';
+  if (pin !== pinGuardado) { showToast('❌ PIN incorrecto'); return; }
+  
+  const anioActual = new Date().getFullYear();
+  const confirmar = confirm(
+    `⚠️ CIERRE DE TEMPORADA ${anioActual}\n\n` +
+    `Esto va a:\n` +
+    `• Archivar todos los torneos del año\n` +
+    `• Resetear los puntos anuales de todos los jugadores\n\n` +
+    `Esta acción NO se puede deshacer.\n\n¿Confirmar cierre?`
+  );
+  if (!confirmar) return;
+
+  showToast('Procesando cierre...');
+  try {
+    // 1. Archivar torneos — marcar todos como archivados
+    const torneosSnap = await getDocs(collection(db,'torneos'));
+    const archivados = torneosSnap.docs.filter(d => {
+      const t = d.data();
+      const anioTorneo = t.dias?.[0]?.fecha?.split('-')[0];
+      return anioTorneo === String(anioActual);
+    });
+    await Promise.all(archivados.map(d => 
+      updateDoc(doc(db,'torneos',d.id), { archivado: true, temporada: anioActual })
+    ));
+
+    // 2. Reset puntos anuales jugadores — mover año actual a histórico
+    const jugSnap = await getDocs(collection(db,'jugadores'));
+    await Promise.all(jugSnap.docs.map(async d => {
+      const j = d.data();
+      const ptsAnuales = j.puntosAnuales || {};
+      const ptsCat = j.puntosAnualesCat || {};
+      // Guardar en historialTemporadas
+      const hist = j.historialTemporadas || {};
+      hist[anioActual] = { puntosAnuales: ptsAnuales, puntosAnualesCat: ptsCat };
+      // Resetear puntos del año actual
+      const nuevosPtsAnuales = { ...ptsAnuales };
+      delete nuevosPtsAnuales[anioActual];
+      return updateDoc(doc(db,'jugadores',d.id), {
+        historialTemporadas: hist,
+        puntosAnuales: nuevosPtsAnuales,
+        puntos: Object.values(nuevosPtsAnuales).reduce((s,v)=>s+(Number(v)||0),0)
+      });
+    }));
+
+    showToast(`✅ Temporada ${anioActual} cerrada — ${archivados.length} torneos archivados`);
+    await cargarTorneos();
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error en el cierre de temporada');
+  }
+};
 
 cargarTorneos();
 cargarConfigCancha();

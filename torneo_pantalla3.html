@@ -605,6 +605,41 @@ window.guardarYSeguir = async function() {
   const torneoId = sessionStorage.getItem('torneoId');
   if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
 
+  // Validar categoría de jugadores vs categoría del torneo
+  if (CONFIG.tipo && CONFIG.tipo !== 'libre') {
+    const ORDEN_CAT = {'1°':1,'2°':2,'3°':3,'4°':4,'5°':5,'6°':6,'7°':7,'8°':8};
+    const catTorneo = CONFIG.categoria || null;
+    if (catTorneo && ORDEN_CAT[catTorneo]) {
+      const catTorneoNum = ORDEN_CAT[catTorneo];
+      const erroresCat = [];
+      try {
+        const { getDocs: gd2, collection: col2 } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+        const jugSnap = await getDocs(collection(fbDb,'jugadores'));
+        const jugMap = {};
+        jugSnap.docs.forEach(d => { jugMap[(d.data().nombreDisplay||'').toLowerCase()] = d.data(); });
+        parejas.forEach((p,i) => {
+          const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value?.trim()?.toLowerCase() || '';
+          const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value?.trim()?.toLowerCase() || '';
+          [n1,n2].forEach(n => {
+            const jug = jugMap[n];
+            if (jug?.categoria && ORDEN_CAT[jug.categoria]) {
+              const catJugNum = ORDEN_CAT[jug.categoria];
+              // Jugador no puede jugar en categoría INFERIOR a la suya
+              if (catTorneoNum > catJugNum) {
+                erroresCat.push(`${jug.nombreDisplay||n}: es ${jug.categoria} y el torneo es ${catTorneo}`);
+              }
+            }
+          });
+        });
+      } catch(e) { console.warn('No se pudo validar categorías:', e); }
+      if (erroresCat.length > 0) {
+        showToast(`⚠️ ${erroresCat.length} jugador(es) no pueden jugar en esta categoría`);
+        alert(`⚠️ Los siguientes jugadores no pueden jugar en categoría ${catTorneo}:\n\n${erroresCat.map(e=>`• ${e}`).join('\n')}\n\nUn jugador no puede jugar en una categoría inferior a la suya.`);
+        return;
+      }
+    }
+  }
+
   // Validar disponibilidad horaria de cada pareja
   const slotMins = CONFIG.duracion + CONFIG.intervalo;
   const parejasConProblemas = [];
@@ -874,6 +909,11 @@ if (storedTorneoId) {
         document.getElementById('total').textContent = parejasTotal;
         document.querySelector('.page-title p').textContent =
           `${t.nombre} · ${t.dias?.[0]?.fecha || ''}`;
+        // Ocultar distribución de zonas para llave sola
+        if (CONFIG.formato === 'llave_sola') {
+          const distSection = document.querySelector('.section:has(#distContent)');
+          if (distSection) distSection.style.display = 'none';
+        }
       }
     } catch(e) { console.error('Error cargando torneo:', e); }
 

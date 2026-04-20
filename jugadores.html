@@ -154,6 +154,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
     <button class="btn-admin" onclick="pedirPinYEjecutar('importar')">📥 IMPORTAR CSV</button>
     <button class="btn-admin" onclick="pedirPinYEjecutar('fusion')" style="border-color:rgba(240,180,41,0.3);color:var(--amarillo);">🔗 FUSIONAR</button>
     <button class="btn-admin" onclick="pedirPinYEjecutar('recalcular')" style="border-color:rgba(76,175,80,0.3);color:var(--verde);">🔄 RECALCULAR PTS</button>
+    <button class="btn-admin" onclick="pedirPinYEjecutar('recategorizar')" style="border-color:rgba(74,158,255,0.3);color:var(--azul);">⬆️ RECATEGORIZAR</button>
   </div>
   <div class="fusion-banner" id="fusionBanner">
     <div class="fusion-banner-txt">🔗 MODO FUSIÓN ACTIVO</div>
@@ -466,10 +467,15 @@ window.pedirPinYEjecutar = async function(accion) {
     else if (accion==='importar') abrirCsv();
     else if (accion==='eliminar') ejecutarEliminar();
     else if (accion==='recalcular') recalcularPuntos();
+    else if (accion==='recategorizar') abrirPanelRecategorizacion();
   };
   document.getElementById('pinInput').value = '';
   document.getElementById('pinError').textContent = '';
-  document.getElementById('pinSub').textContent = accion==='eliminar'?'PIN requerido para eliminar':accion==='fusion'?'PIN requerido para fusionar':'PIN requerido para importar';
+  document.getElementById('pinSub').textContent = 
+    accion==='eliminar'    ? 'PIN requerido para eliminar' :
+    accion==='fusion'      ? 'PIN requerido para fusionar' :
+    accion==='recategorizar' ? 'PIN requerido para recategorizar' :
+    'PIN requerido para importar';
   document.getElementById('pinModal').classList.add('visible');
   setTimeout(()=>document.getElementById('pinInput').focus(),200);
 };
@@ -770,6 +776,115 @@ async function recalcularPuntos() {
 }
 
 function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+
+// ── RECATEGORIZACIÓN ──────────────────────────────────────
+const CATEGORIAS = ['1°','2°','3°','4°','5°','6°','7°','8°'];
+
+function abrirPanelRecategorizacion() {
+  // Crear panel si no existe
+  let panel = document.getElementById('panelRecategorizacion');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'panelRecategorizacion';
+    panel.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:400;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px;';
+    panel.innerHTML = `
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:480px;margin:auto;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;color:#fff;margin-bottom:4px;">⬆️ RECATEGORIZACIÓN</div>
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:16px;">Buscá un jugador y cambiá su categoría base</div>
+        
+        <input type="text" id="recatBuscar" placeholder="Buscar jugador..." autocomplete="off"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;margin-bottom:8px;"
+          oninput="buscarParaRecat(this.value)">
+        <div id="recatResultados" style="margin-bottom:12px;"></div>
+        
+        <div id="recatJugadorSeleccionado" style="display:none;background:var(--bg3);border:1px solid var(--azul);border-radius:10px;padding:14px;margin-bottom:14px;">
+          <div id="recatNombre" style="font-family:'Oswald',sans-serif;font-size:16px;color:#fff;letter-spacing:1px;margin-bottom:10px;"></div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--muted);letter-spacing:1px;">CATEGORÍA ACTUAL:</span>
+            <span id="recatCatActual" style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--amarillo);letter-spacing:2px;"></span>
+            <span style="color:var(--muted);">→</span>
+            <select id="recatNuevaCat" style="background:var(--bg2);border:1px solid var(--azul);border-radius:6px;padding:6px 10px;color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:2px;outline:none;">
+              ${CATEGORIAS.map(c=>`<option value="${c}">${c}</option>`).join('')}
+            </select>
+          </div>
+          <textarea id="recatMotivo" placeholder="Motivo (opcional)..." rows="2"
+            style="width:100%;margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:'Oswald',sans-serif;font-size:13px;outline:none;resize:none;"></textarea>
+        </div>
+        
+        <div style="display:flex;gap:8px;">
+          <button id="btnConfirmarRecat" onclick="confirmarRecategorizacion()" style="display:none;flex:1;padding:12px;background:rgba(74,158,255,0.12);border:1px solid var(--azul);border-radius:8px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">✓ CONFIRMAR</button>
+          <button onclick="cerrarPanelRecat()" style="flex:1;padding:12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
+  }
+  panel.style.display = 'flex';
+  document.getElementById('recatBuscar').value = '';
+  document.getElementById('recatResultados').innerHTML = '';
+  document.getElementById('recatJugadorSeleccionado').style.display = 'none';
+  document.getElementById('btnConfirmarRecat').style.display = 'none';
+  window._recatJugadorId = null;
+  setTimeout(()=>document.getElementById('recatBuscar').focus(), 200);
+}
+
+window.buscarParaRecat = function(q) {
+  const res = document.getElementById('recatResultados');
+  if (!q || q.length < 2) { res.innerHTML = ''; return; }
+  const norm = q.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const filtrados = JUGADORES.filter(j => 
+    normalizar(j.nombreDisplay||j.id).includes(norm)
+  ).slice(0,8);
+  if (!filtrados.length) { res.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:6px;">Sin resultados</div>'; return; }
+  res.innerHTML = filtrados.map(j => `
+    <div onclick="seleccionarParaRecat('${j.id}')" style="padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-family:'Oswald',sans-serif;font-size:13px;color:#fff;">${j.nombreDisplay||j.id}</span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:var(--amarillo);">${j.categoria||'—'}</span>
+    </div>`).join('');
+};
+
+window.seleccionarParaRecat = function(id) {
+  const j = JUGADORES.find(x=>x.id===id); if (!j) return;
+  window._recatJugadorId = id;
+  document.getElementById('recatResultados').innerHTML = '';
+  document.getElementById('recatBuscar').value = '';
+  document.getElementById('recatNombre').textContent = j.nombreDisplay||j.id;
+  document.getElementById('recatCatActual').textContent = j.categoria||'—';
+  const sel = document.getElementById('recatNuevaCat');
+  sel.value = j.categoria||'7°';
+  document.getElementById('recatMotivo').value = '';
+  document.getElementById('recatJugadorSeleccionado').style.display = 'block';
+  document.getElementById('btnConfirmarRecat').style.display = 'block';
+};
+
+window.confirmarRecategorizacion = async function() {
+  const id = window._recatJugadorId; if (!id) return;
+  const j = JUGADORES.find(x=>x.id===id); if (!j) return;
+  const catAnterior = j.categoria||'—';
+  const catNueva = document.getElementById('recatNuevaCat').value;
+  const motivo = document.getElementById('recatMotivo').value.trim();
+  if (catNueva === catAnterior) { showToast('⚠️ Elegí una categoría diferente'); return; }
+  try {
+    const histRecat = j.historialRecategorizacion || [];
+    histRecat.push({
+      fecha: new Date().toISOString().split('T')[0],
+      catAnterior, catNueva,
+      motivo: motivo || null
+    });
+    await updateDoc(doc(db,'jugadores',id), {
+      categoria: catNueva,
+      historialRecategorizacion: histRecat
+    });
+    showToast(`✓ ${j.nombreDisplay} recategorizado: ${catAnterior} → ${catNueva}`);
+    cerrarPanelRecat();
+    await cargar();
+  } catch(e) { console.error(e); showToast('❌ Error al recategorizar'); }
+};
+
+window.cerrarPanelRecat = function() {
+  const panel = document.getElementById('panelRecategorizacion');
+  if (panel) panel.style.display = 'none';
+  window._recatJugadorId = null;
+};
 document.getElementById('modalOverlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modalOverlay')) cerrarModal(); });
 
 cargar();
