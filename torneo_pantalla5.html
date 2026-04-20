@@ -335,7 +335,15 @@ body {
           </div>
           <input type="file" id="fondoLlaveInput" accept="image/*" style="display:none;">
         </div>
-        <button class="btn-share btn-share-img" style="margin-top:4px;" onclick="generarImagenLlave()">📸 Generar imagen Llave</button>
+        <button class="btn-share btn-share-img" style="margin-top:4px;" onclick="abrirPanelHorariosLlave()">📸 Generar imagen Llave</button>
+        <div id="panelHorariosLlave" style="display:none;margin-top:10px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;">
+          <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:3px;color:var(--azul);margin-bottom:10px;">HORARIOS — EDITABLES SOLO PARA LA IMAGEN</div>
+          <div id="horariosLlaveList"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button onclick="generarImagenLlave()" style="flex:1;padding:11px;background:rgba(74,158,255,0.1);border:1px solid var(--azul);border-radius:8px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">📸 GENERAR</button>
+            <button onclick="document.getElementById('panelHorariosLlave').style.display='none'" style="padding:11px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">✕</button>
+          </div>
+        </div>
         <button class="btn-share" style="background:rgba(240,180,41,0.08);border:1px solid var(--amarillo);color:var(--amarillo);margin-top:4px;" onclick="cerrarTorneo()">🏁 Cerrar torneo y acreditar puntos</button>
         <button class="btn-share" id="btnCerrarSinPuntos" style="background:rgba(85,85,112,0.1);border:1px solid var(--muted);color:var(--muted);margin-top:4px;" onclick="cerrarSinAcreditar()">🏁 Cerrar torneo SIN acreditar puntos</button>
       </div>
@@ -1880,6 +1888,40 @@ window.generarImagenFixture = async function() {
   showToast('✅ Imagen descargada');
 };
 
+// Horarios override para imagen de llave (solo afecta la imagen, no Firebase)
+let horariosLlaveOverride = {}; // partidoId → hora
+
+window.abrirPanelHorariosLlave = async function() {
+  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
+  const panel = document.getElementById('panelHorariosLlave');
+  const list  = document.getElementById('horariosLlaveList');
+  panel.style.display = 'block';
+  list.innerHTML = '<div style="color:var(--muted);font-size:12px;letter-spacing:1px;">Cargando...</div>';
+
+  const snap = await getDocs(query(collection(db,'torneos',torneoId,'partidos'), orderBy('orden')));
+  const ps = snap.docs.map(d=>({id:d.id,...d.data()}));
+  const elim = ps.filter(p=>p.fase!=='zona').sort((a,b)=>(a.orden||0)-(b.orden||0));
+
+  const fasesLabels = {
+    previa:'Previa', cuartos:'Cuarto', octavos:'Octavo',
+    semis:'Semifinal', final:'Final'
+  };
+  const contadores = {};
+
+  list.innerHTML = elim.map(p => {
+    const fase = p.fase || '';
+    contadores[fase] = (contadores[fase]||0) + 1;
+    const label = `${fasesLabels[fase]||fase} ${contadores[fase]}`;
+    const horaActual = horariosLlaveOverride[p.id] ?? (p.hora || '');
+    return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--text);letter-spacing:1px;flex:1;">${label}</span>
+      <input type="time" value="${horaActual}" data-pid="${p.id}"
+        style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;outline:none;width:110px;"
+        onchange="horariosLlaveOverride[this.dataset.pid]=this.value">
+    </div>`;
+  }).join('');
+};
+
 window.generarImagenLlave = async function() {
   showToast('Generando imagen llave...');
   const cancha = await cargarConfigCancha();
@@ -1895,6 +1937,11 @@ window.generarImagenLlave = async function() {
   const ps = snap.docs.map(d => ({id:d.id,...d.data()}));
   const elim = ps.filter(p => p.fase !== 'zona').sort((a,b)=>(a.orden||0)-(b.orden||0));
   if (elim.length === 0) { showToast('⚠️ No hay llave generada'); return; }
+
+  // Usar horario override si existe, sino el de Firebase
+  function getHora(p) {
+    return horariosLlaveOverride[p.id] !== undefined ? horariosLlaveOverride[p.id] : (p.hora || null);
+  }
 
   // ── RECONSTRUIR POSICIONES DE ZONA (1°A, 2°B, etc.) ──
   // Para cada pareja en llave, calcular su posición final en su zona
@@ -2206,13 +2253,14 @@ window.generarImagenLlave = async function() {
         drawBox(cx, cy2, roundW, n2, g2, false, color2);
         // Hora arriba de caja P1
         ctx.textAlign='center';
-        if (p.hora) {
+        const horaPrevia = getHora(p);
+        if (horaPrevia) {
           ctx.font='bold 11px Oswald, Arial';
-          const tw = ctx.measureText(`⏰ ${p.hora}hs`).width;
+          const tw = ctx.measureText(`⏰ ${horaPrevia}hs`).width;
           ctx.fillStyle='rgba(0,0,0,0.5)';
           ctx.fillRect(cx+roundW/2 - tw/2 - 4, cy1 - nameH/2 - 16, tw + 8, 15);
           ctx.fillStyle=color2;
-          ctx.fillText(`⏰ ${p.hora}hs`, cx+roundW/2, cy1 - nameH/2 - 5);
+          ctx.fillText(`⏰ ${horaPrevia}hs`, cx+roundW/2, cy1 - nameH/2 - 5);
         }
         // VS en el medio
         ctx.fillStyle='rgba(255,255,255,0.2)'; ctx.font='bold 10px Oswald, Arial';
@@ -2247,7 +2295,7 @@ window.generarImagenLlave = async function() {
         const ph1 = false;
         const ph2 = false;
         const bc = isConPrevia ? color2 : color;
-        drawPartidoCentrado(cx, cy, roundW, n1, n2, g1, g2, p.hora||null, ph1, ph2, bc);
+        drawPartidoCentrado(cx, cy, roundW, n1, n2, g1, g2, getHora(p), ph1, ph2, bc);
 
         // Conector → semis
         const semiIdx = pIdx < 2 ? 0 : 1;
@@ -2275,7 +2323,7 @@ window.generarImagenLlave = async function() {
         const ph1 = !p.pareja1Id || p.pareja1Id.startsWith('G_');
         const ph2 = !p.pareja2Id || p.pareja2Id.startsWith('G_');
         const bc = pIdx===0 ? color2 : color;
-        drawPartidoCentrado(cx, cy, roundW, n1, n2, g1, g2, p.hora||null, ph1, ph2, bc);
+        drawPartidoCentrado(cx, cy, roundW, n1, n2, g1, g2, getHora(p), ph1, ph2, bc);
 
         // Conector → final
         ctx.strokeStyle = bc; ctx.lineWidth = 2;
@@ -2297,7 +2345,7 @@ window.generarImagenLlave = async function() {
       const ph2 = !p.pareja2Id || p.pareja2Id.startsWith('G_');
       // Borde dorado para la final
       const bcFinal = g1||g2 ? 'rgba(255,215,0,0.8)' : 'rgba(255,215,0,0.4)';
-      drawPartidoCentrado(cx, finalCY, roundW, n1, n2, g1, g2, p.hora||null, ph1, ph2, bcFinal);
+      drawPartidoCentrado(cx, finalCY, roundW, n1, n2, g1, g2, getHora(p), ph1, ph2, bcFinal);
       // Estrella o trofeo sobre la final
       ctx.textAlign='center';
       ctx.font='28px Arial';

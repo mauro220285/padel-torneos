@@ -924,20 +924,32 @@ window.confirmarFixture = async function() {
 
   // Validación 1: verificar slots suficientes
   const totalPartidos = fixture.filter(p => !p.esLlave).length;
-  const totalSlots = generarSlots(torneoConfig).length;
   if (totalPartidos === 0) {
     showToast('⚠️ No hay partidos generados. Revisá la configuración en P2.');
     return;
   }
 
-  // Validación 2: verificar partidos sin horario asignado
+  // Validación 2: bloqueo duro — partidos sin horario asignado
   const sinHorario = fixture.filter(p => !p.esLlave && !p.dia).length;
   if (sinHorario > 0) {
-    const continuar = confirm(`⚠️ ${sinHorario} partido(s) no tienen horario asignado por falta de slots.\n\nPodés volver a P2 para agregar más slots, o confirmar igual.`);
-    if (!continuar) return;
+    // Mostrar mensaje de error prominente, no permite continuar
+    const wrap = document.getElementById('fixtureWrap');
+    if (wrap) {
+      wrap.insertAdjacentHTML('afterbegin', `
+        <div id="errorSlots" style="background:rgba(230,57,70,0.12);border:1.5px solid var(--rojo);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:var(--rojo);margin-bottom:6px;">⛔ NO SE PUEDE CONFIRMAR</div>
+          <div style="font-size:13px;color:#fff;letter-spacing:1px;line-height:1.6;">
+            <strong>${sinHorario} partido(s)</strong> no tienen horario asignado por falta de slots.<br>
+            Volvé a P2 y agregá más slots antes de continuar.
+          </div>
+          <button onclick="document.getElementById('errorSlots').remove()" style="margin-top:10px;background:none;border:1px solid var(--rojo);border-radius:8px;padding:6px 14px;color:var(--rojo);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer;">CERRAR</button>
+        </div>`);
+    }
+    showToast(`⛔ Faltan slots para ${sinHorario} partido(s)`);
+    return;
   }
 
-  // Validación 3: conflictos de horario
+  // Validación 3: conflictos de horario (sigue siendo advertencia, no bloqueo)
   const conflictos = fixture.filter(p => p.conflicto && !p.esLlave).length;
   if (conflictos > 0 && !confirm(`Hay ${conflictos} conflicto(s) de horario con restricciones de parejas. ¿Confirmar igual?`)) return;
 
