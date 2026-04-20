@@ -595,6 +595,12 @@ function distribuirZonas() {
 // ── GUARDAR Y SEGUIR ──
 window.guardarYSeguir = async function() {
   if (parejas.length < 4) { showToast('⚠️ Necesitás al menos 4 parejas'); return; }
+  // Verificar errores de categoría
+  const erroresCat = document.querySelectorAll('[id^="err-cat-"]');
+  if (erroresCat.length > 0) {
+    showToast(`⛔ Hay ${erroresCat.length} jugador(es) con categoría incorrecta`);
+    return;
+  }
   const incompletas = parejas.filter(p => {
     const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
     const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
@@ -812,6 +818,54 @@ window.buscarJugador = async function(input, catId) {
   lista.style.display = 'block';
 };
 
+const ORDEN_CAT = {'1°':1,'2°':2,'3°':3,'4°':4,'5°':5,'6°':6,'7°':7,'8°':8};
+
+function validarCategoriaJugador(nombre, catJugador, inputEl) {
+  const catTorneo = CONFIG.categoria;
+  if (!catTorneo || !catJugador || !ORDEN_CAT[catTorneo] || !ORDEN_CAT[catJugador]) return true;
+  const catTorneoNum = ORDEN_CAT[catTorneo];
+  const catJugNum = ORDEN_CAT[catJugador];
+  // Jugador no puede jugar en categoría INFERIOR a la suya
+  if (catTorneoNum > catJugNum) {
+    // Marcar input en rojo
+    if (inputEl) {
+      inputEl.style.borderColor = 'var(--rojo)';
+      inputEl.style.color = 'var(--rojo)';
+      // Agregar mensaje de error debajo
+      const errId = `err-cat-${inputEl.id}`;
+      let errEl = document.getElementById(errId);
+      if (!errEl) {
+        errEl = document.createElement('div');
+        errEl.id = errId;
+        errEl.style.cssText = 'color:var(--rojo);font-size:11px;letter-spacing:1px;margin-top:2px;';
+        inputEl.parentElement.appendChild(errEl);
+      }
+      errEl.textContent = `⛔ ${nombre} es ${catJugador} — no puede jugar en torneo de ${catTorneo}`;
+    }
+    verificarErroresCat();
+    return false;
+  }
+  // Limpiar error si estaba
+  if (inputEl) {
+    inputEl.style.borderColor = '';
+    inputEl.style.color = '';
+    const errEl = document.getElementById(`err-cat-${inputEl.id}`);
+    if (errEl) errEl.remove();
+  }
+  verificarErroresCat();
+  return true;
+}
+
+function verificarErroresCat() {
+  const hayErrores = document.querySelectorAll('[id^="err-cat-"]').length > 0;
+  const btnSig = document.querySelector('.btn-next');
+  if (btnSig) {
+    btnSig.disabled = hayErrores;
+    btnSig.style.opacity = hayErrores ? '0.4' : '1';
+    btnSig.style.cursor = hayErrores ? 'not-allowed' : 'pointer';
+  }
+}
+
 window.seleccionarJugador = function(item, inputId, catId) {
   const nombre = item.dataset.nombre;
   const cat = item.dataset.cat;
@@ -823,7 +877,6 @@ window.seleccionarJugador = function(item, inputId, catId) {
   if (cat && catId) {
     const catEl = document.getElementById(catId);
     if (catEl) {
-      // Intentar seleccionar la categoría que coincida
       const opts = Array.from(catEl.options);
       const match = opts.find(o => o.value.toLowerCase() === cat.toLowerCase());
       if (match) catEl.value = match.value;
@@ -832,6 +885,8 @@ window.seleccionarJugador = function(item, inputId, catId) {
   // Cerrar lista
   const lista = inp?.parentElement?.querySelector('.autocomplete-lista');
   if (lista) lista.style.display = 'none';
+  // Validar categoría
+  if (cat && inp) validarCategoriaJugador(nombre, cat, inp);
 };
 
 window.cerrarSugerencias = function(input) {
