@@ -904,6 +904,7 @@ if (storedTorneoId) {
           dia.horarios = calcularHorariosCorregido(dia, CONFIG.duracion, CONFIG.intervalo);
         });
         CONFIG.zonasConfig = t.zonasConfig || null;
+        CONFIG.categoria   = t.categoria || null;
         recalcularHorariosTodos();
         parejasTotal = CONFIG.totalParejas;
         document.getElementById('total').textContent = parejasTotal;

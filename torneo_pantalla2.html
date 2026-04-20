@@ -229,6 +229,22 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
       <input type="number" id="sumaMax" placeholder="Ej: 10">
     </div>
   </div>
+  <div class="suma-wrap" id="unicaWrap">
+    <div class="field">
+      <label>Categoría del torneo</label>
+      <select id="categoriaUnica">
+        <option value="">— Seleccioná —</option>
+        <option value="1°">1°</option>
+        <option value="2°">2°</option>
+        <option value="3°">3°</option>
+        <option value="4°">4°</option>
+        <option value="5°">5°</option>
+        <option value="6°">6°</option>
+        <option value="7°">7°</option>
+        <option value="8°">8°</option>
+      </select>
+    </div>
+  </div>
 </div>
 
 <!-- FORMATO -->
@@ -426,6 +442,7 @@ window.selTipo = function(card, tipo) {
   card.classList.add('selected');
   tipoActivo = tipo;
   document.getElementById('sumaWrap').classList.toggle('visible', tipo === 'suma');
+  document.getElementById('unicaWrap').classList.toggle('visible', tipo === 'unica');
 };
 
 window.toggleMixto = function(card) {
@@ -738,6 +755,7 @@ window.guardarYSeguir = async function() {
     tipo:               mixtoActivo && tipoActivo !== 'libre' ? `${tipoActivo}_mixto` : mixtoActivo ? 'mixto' : tipoActivo,
     mixto:              mixtoActivo,
     formato:            formatoActivo,
+    categoria:          tipoActivo === 'unica' ? (document.getElementById('categoriaUnica')?.value || null) : null,
     sumaMaxima:         tipoActivo === 'suma' ? parseInt(document.getElementById('sumaMax')?.value)||0 : null,
     canchasDisponibles: parseInt(document.getElementById('canchas').value),
     totalParejas,
@@ -801,7 +819,9 @@ calcular();
     const tipoCard = [...document.querySelectorAll('.tipo-card:not(#mixtoToggle)')].find(c => c.getAttribute('onclick')?.includes(`'${tipoBase}'`));
     if (tipoCard) { tipoCard.classList.add('selected'); tipoActivo = tipoBase; }
     document.getElementById('sumaWrap')?.classList.toggle('visible', tipoBase === 'suma');
+    document.getElementById('unicaWrap')?.classList.toggle('visible', tipoBase === 'unica');
     if (t.sumaMaxima) document.getElementById('sumaMax').value = t.sumaMaxima;
+    if (t.categoria) document.getElementById('categoriaUnica').value = t.categoria;
     if (esMixto) {
       mixtoActivo = true;
       const btn = document.getElementById('mixtoToggle');
