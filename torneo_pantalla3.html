@@ -882,6 +882,7 @@ window.seleccionarJugador = function(item, inputId, catId) {
   const lista = inp?.parentElement?.querySelector('.autocomplete-lista');
   if (lista) lista.style.display = 'none';
   // Validar categoría
+  console.log('Seleccionado:', nombre, 'cat:', cat, 'CONFIG.categoria:', CONFIG.categoria);
   if (cat && inp) window.validarCategoriaJugador(nombre, cat, inp);
 };
 
