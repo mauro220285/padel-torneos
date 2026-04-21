@@ -818,20 +818,17 @@ window.buscarJugador = async function(input, catId) {
   lista.style.display = 'block';
 };
 
-const ORDEN_CAT = {'1°':1,'2°':2,'3°':3,'4°':4,'5°':5,'6°':6,'7°':7,'8°':8};
+window.ORDEN_CAT = {'1°':1,'2°':2,'3°':3,'4°':4,'5°':5,'6°':6,'7°':7,'8°':8};
 
-function validarCategoriaJugador(nombre, catJugador, inputEl) {
+window.validarCategoriaJugador = function(nombre, catJugador, inputEl) {
   const catTorneo = CONFIG.categoria;
-  if (!catTorneo || !catJugador || !ORDEN_CAT[catTorneo] || !ORDEN_CAT[catJugador]) return true;
-  const catTorneoNum = ORDEN_CAT[catTorneo];
-  const catJugNum = ORDEN_CAT[catJugador];
-  // Jugador no puede jugar en categoría INFERIOR a la suya
+  if (!catTorneo || !catJugador || !window.ORDEN_CAT[catTorneo] || !window.ORDEN_CAT[catJugador]) return true;
+  const catTorneoNum = window.ORDEN_CAT[catTorneo];
+  const catJugNum = window.ORDEN_CAT[catJugador];
   if (catTorneoNum > catJugNum) {
-    // Marcar input en rojo
     if (inputEl) {
       inputEl.style.borderColor = 'var(--rojo)';
       inputEl.style.color = 'var(--rojo)';
-      // Agregar mensaje de error debajo
       const errId = `err-cat-${inputEl.id}`;
       let errEl = document.getElementById(errId);
       if (!errEl) {
@@ -842,21 +839,20 @@ function validarCategoriaJugador(nombre, catJugador, inputEl) {
       }
       errEl.textContent = `⛔ ${nombre} es ${catJugador} — no puede jugar en torneo de ${catTorneo}`;
     }
-    verificarErroresCat();
+    window.verificarErroresCat();
     return false;
   }
-  // Limpiar error si estaba
   if (inputEl) {
     inputEl.style.borderColor = '';
     inputEl.style.color = '';
     const errEl = document.getElementById(`err-cat-${inputEl.id}`);
     if (errEl) errEl.remove();
   }
-  verificarErroresCat();
+  window.verificarErroresCat();
   return true;
-}
+};
 
-function verificarErroresCat() {
+window.verificarErroresCat = function() {
   const hayErrores = document.querySelectorAll('[id^="err-cat-"]').length > 0;
   const btnSig = document.querySelector('.btn-next');
   if (btnSig) {
@@ -864,7 +860,7 @@ function verificarErroresCat() {
     btnSig.style.opacity = hayErrores ? '0.4' : '1';
     btnSig.style.cursor = hayErrores ? 'not-allowed' : 'pointer';
   }
-}
+};
 
 window.seleccionarJugador = function(item, inputId, catId) {
   const nombre = item.dataset.nombre;
@@ -886,7 +882,7 @@ window.seleccionarJugador = function(item, inputId, catId) {
   const lista = inp?.parentElement?.querySelector('.autocomplete-lista');
   if (lista) lista.style.display = 'none';
   // Validar categoría
-  if (cat && inp) validarCategoriaJugador(nombre, cat, inp);
+  if (cat && inp) window.validarCategoriaJugador(nombre, cat, inp);
 };
 
 window.cerrarSugerencias = function(input) {
