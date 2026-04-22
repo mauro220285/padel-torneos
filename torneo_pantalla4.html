@@ -500,6 +500,7 @@ function asignarHorarios(partidos, slots, pMap) {
 let DIAS = [], HORAS = [], CANCHAS = [];
 let fixture = [];
 let zonasData = [];
+let parejas = [];
 let parejaMap = {};  // mapa global id→pareja
 let diaActivo = 0;
 let partidoSeleccionado = null;
@@ -525,7 +526,7 @@ async function cargarYGenerar() {
   document.getElementById('res-formato').textContent = formatoLabel[torneoConfig.formato] || torneoConfig.formato?.toUpperCase() || '—';
 
   const pSnap = await getDocs(collection(db,'torneos',torneoId,'parejas'));
-  const parejas = pSnap.docs.map(d => ({id:d.id,...d.data()})).sort((a,b) => (a.seed||0)-(b.seed||0));
+  parejas = pSnap.docs.map(d => ({id:d.id,...d.data()})).sort((a,b) => (a.seed||0)-(b.seed||0));
   console.log('Parejas cargadas:', parejas.length, 'Formato:', torneoConfig.formato, 'ZonasConfig:', JSON.stringify(torneoConfig.zonasConfig));
 
   // Ver si ya hay fixture confirmado
