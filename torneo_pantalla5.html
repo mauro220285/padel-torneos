@@ -1889,7 +1889,7 @@ window.generarImagenFixture = async function() {
 };
 
 // Horarios override para imagen de llave (solo afecta la imagen, no Firebase)
-let horariosLlaveOverride = {}; // partidoId → hora
+window.horariosLlaveOverride = {}; // partidoId → hora
 
 window.abrirPanelHorariosLlave = async function() {
   if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
@@ -1900,7 +1900,8 @@ window.abrirPanelHorariosLlave = async function() {
 
   const snap = await getDocs(query(collection(db,'torneos',torneoId,'partidos'), orderBy('orden')));
   const ps = snap.docs.map(d=>({id:d.id,...d.data()}));
-  const elim = ps.filter(p=>p.fase!=='zona').sort((a,b)=>(a.orden||0)-(b.orden||0));
+  const FASES_LLAVE = ['previa','cuartos','octavos','dieciseis','treintadosavos','sesentaycuatroavos','semis','final'];
+  const elim = ps.filter(p => FASES_LLAVE.includes(p.fase)).sort((a,b)=>(a.orden||0)-(b.orden||0));
 
   const fasesLabels = {
     previa:'Previa', cuartos:'Cuarto', octavos:'Octavo',
@@ -1917,7 +1918,7 @@ window.abrirPanelHorariosLlave = async function() {
       <span style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--text);letter-spacing:1px;flex:1;">${label}</span>
       <input type="time" value="${horaActual}" data-pid="${p.id}"
         style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:1px;outline:none;width:110px;"
-        onchange="horariosLlaveOverride[this.dataset.pid]=this.value">
+        onchange="window.horariosLlaveOverride[this.dataset.pid]=this.value">
     </div>`;
   }).join('');
 };
@@ -1940,7 +1941,7 @@ window.generarImagenLlave = async function() {
 
   // Usar horario override si existe, sino el de Firebase
   function getHora(p) {
-    return horariosLlaveOverride[p.id] !== undefined ? horariosLlaveOverride[p.id] : (p.hora || null);
+    return window.horariosLlaveOverride[p.id] !== undefined ? window.horariosLlaveOverride[p.id] : (p.hora || null);
   }
 
   // ── RECONSTRUIR POSICIONES DE ZONA (1°A, 2°B, etc.) ──
