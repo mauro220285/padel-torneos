@@ -142,6 +142,22 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   <button onclick="resetearFixture()" style="width:100%;background:none;border:1px dashed var(--rojo);border-radius:10px;padding:10px;color:var(--rojo);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;">
     🔄 RESETEAR FIXTURE (mantiene las parejas)
   </button>
+  <button onclick="pedirPinEditarZonas()" style="width:100%;margin-top:6px;background:none;border:1px dashed var(--amarillo);border-radius:10px;padding:10px;color:var(--amarillo);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;cursor:pointer;transition:all 0.2s;">
+    ✏️ EDITAR ZONAS MANUALMENTE
+  </button>
+</div>
+
+<!-- PANEL EDITAR ZONAS -->
+<div id="panelEditarZonas" style="display:none;width:100%;max-width:500px;padding:16px 20px;">
+  <div style="background:var(--bg2);border:1px solid var(--amarillo);border-radius:12px;padding:16px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;color:var(--amarillo);margin-bottom:4px;">✏️ EDITAR ZONAS</div>
+    <div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:14px;">Tocá una pareja para moverla a otra zona</div>
+    <div id="editZonasContent"></div>
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button onclick="confirmarEditZonas()" style="flex:1;padding:12px;background:rgba(240,180,41,0.12);border:1px solid var(--amarillo);border-radius:8px;color:var(--amarillo);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">✓ REGENERAR FIXTURE</button>
+      <button onclick="cerrarEditZonas()" style="padding:12px 14px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">✕</button>
+    </div>
+  </div>
 </div>
 
 <!-- MODAL MOVER -->
@@ -868,7 +884,90 @@ window.moverPartido = function(hora, cancha) {
   cerrarModal(); renderFixture(); showToast('✓ Partido movido');
 };
 
-// ── RESETEAR FIXTURE ─────────────────────────────────────
+// ── EDITAR ZONAS ─────────────────────────────────────────
+let editZonasActivo = false;
+let editZonasSeleccionado = null; // {parejaId, zonaId}
+
+window.pedirPinEditarZonas = async function() {
+  const snap = await getDoc(doc(db,'config','cancha'));
+  const pinGuardado = snap.exists() ? (snap.data().pinAdmin||'1234') : '1234';
+  const pin = prompt('🔒 PIN de administrador:');
+  if (pin !== pinGuardado) { showToast('❌ PIN incorrecto'); return; }
+  abrirEditZonas();
+};
+
+function abrirEditZonas() {
+  if (zonasData.length === 0) { showToast('⚠️ Primero generá el fixture'); return; }
+  editZonasActivo = true;
+  editZonasSeleccionado = null;
+  document.getElementById('panelEditarZonas').style.display = 'block';
+  renderEditZonas();
+}
+
+window.cerrarEditZonas = function() {
+  editZonasActivo = false;
+  editZonasSeleccionado = null;
+  document.getElementById('panelEditarZonas').style.display = 'none';
+};
+
+function renderEditZonas() {
+  const wrap = document.getElementById('editZonasContent');
+  if (!wrap) return;
+  wrap.innerHTML = zonasData.map(z => {
+    const letra = z.nombre || z.id?.replace('zona_','') || '?';
+    const chips = (z.parejas || []).map(pid => {
+      const p = parejaMap[pid];
+      const nombre = p ? `${p.j1Nombre?.split(' ').pop()} / ${p.j2Nombre?.split(' ').pop()}` : pid;
+      const seleccionado = editZonasSeleccionado?.parejaId === pid;
+      return `<div onclick="seleccionarParaEditZona('${pid}','${z.id}')"
+        style="display:inline-block;padding:5px 10px;margin:3px;border-radius:6px;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;cursor:pointer;
+        background:${seleccionado?'rgba(240,180,41,0.2)':'rgba(255,255,255,0.06)'};
+        border:1px solid ${seleccionado?'var(--amarillo)':'var(--border)'};
+        color:${seleccionado?'var(--amarillo)':'var(--text)'};">
+        ${nombre}
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:12px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:3px;color:var(--azul);margin-bottom:6px;">ZONA ${letra}</div>
+      <div>${chips}</div>
+      ${editZonasSeleccionado && editZonasSeleccionado.zonaId !== z.id ? 
+        `<button onclick="moverAZona('${z.id}')" style="margin-top:6px;padding:5px 12px;background:rgba(74,158,255,0.1);border:1px solid var(--azul);border-radius:6px;color:var(--azul);font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;cursor:pointer;">
+          → MOVER A ZONA ${letra}
+        </button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+window.seleccionarParaEditZona = function(parejaId, zonaId) {
+  if (editZonasSeleccionado?.parejaId === parejaId) {
+    editZonasSeleccionado = null;
+  } else {
+    editZonasSeleccionado = { parejaId, zonaId };
+  }
+  renderEditZonas();
+};
+
+window.moverAZona = function(zonaDestino) {
+  if (!editZonasSeleccionado) return;
+  const { parejaId, zonaId: zonaOrigen } = editZonasSeleccionado;
+  // Quitar de zona origen
+  const zOrigen = zonasData.find(z => z.id === zonaOrigen);
+  const zDestino = zonasData.find(z => z.id === zonaDestino);
+  if (!zOrigen || !zDestino) return;
+  zOrigen.parejas = zOrigen.parejas.filter(p => p !== parejaId);
+  zDestino.parejas.push(parejaId);
+  editZonasSeleccionado = null;
+  renderEditZonas();
+  showToast('✓ Pareja movida');
+};
+
+window.confirmarEditZonas = function() {
+  cerrarEditZonas();
+  // Regenerar fixture con las zonas modificadas
+  generarFixture(parejas);
+  renderFixture();
+  showToast('✓ Fixture regenerado con zonas editadas');
+};
 window.resetearFixture = async function() {
   if (!confirm('¿Resetear el fixture? Las parejas y sus restricciones se mantienen. Solo se borran los partidos y zonas generados.')) return;
 
