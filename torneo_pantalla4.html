@@ -963,8 +963,33 @@ window.moverAZona = function(zonaDestino) {
 
 window.confirmarEditZonas = function() {
   cerrarEditZonas();
-  // Regenerar fixture con las zonas modificadas
-  generarFixture(parejas);
+  // Regenerar partidos respetando las zonas editadas (no redistribuir)
+  const slots = generarSlots(torneoConfig);
+  const dias = torneoConfig.dias || [];
+  const ultimoDia = dias.length > 1 ? dias[dias.length-1].fecha : null;
+  const slotsZonas = ultimoDia ? slots.filter(s=>s.dia!==ultimoDia) : slots;
+  
+  let partidos = [];
+  let slotIdx = 0;
+  
+  zonasData.forEach(zona => {
+    const parejasObj = zona.parejas.map(pid => parejaMap[pid]).filter(Boolean);
+    let partidosZona = [];
+    if (parejasObj.length === 4) {
+      partidosZona = generarZona4Especial(parejasObj, zona.id);
+    } else {
+      partidosZona = generarRoundRobin(parejasObj, zona.id);
+    }
+    // Asignar slots
+    partidosZona.forEach(p => {
+      const slot = slotsZonas[slotIdx++];
+      if (slot) { p.dia=slot.dia; p.hora=slot.hora; p.cancha=slot.cancha; }
+    });
+    partidos.push(...partidosZona);
+  });
+  
+  fixture = partidos;
+  renderTabs();
   renderFixture();
   showToast('✓ Fixture regenerado con zonas editadas');
 };
