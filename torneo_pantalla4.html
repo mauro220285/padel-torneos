@@ -875,17 +875,30 @@ window.abrirModal = function(id) {
 
 window.cerrarModal = function() { document.getElementById('modalOverlay').classList.remove('visible'); };
 
-window.intercambiarHorario = function(idOtro, tieneConflicto) {
+window.intercambiarHorario = async function(idOtro, tieneConflicto) {
   if (tieneConflicto && !confirm('Este intercambio genera un conflicto de restricción horaria. ¿Confirmar igual?')) return;
   const pSel   = fixture.find(x => (x.id||x.orden) === (partidoSeleccionado.id||partidoSeleccionado.orden));
   const pOtro  = fixture.find(x => (x.id||x.orden) == idOtro || String(x.id||x.orden) === String(idOtro));
   if (!pSel || !pOtro) return;
-  // Intercambiar día, hora y cancha
-  const tmpDia    = pSel.dia;    const tmpHora   = pSel.hora;   const tmpCancha = pSel.cancha;
-  pSel.dia    = pOtro.dia;   pSel.hora   = pOtro.hora;  pSel.cancha = pOtro.cancha;
-  pOtro.dia   = tmpDia;      pOtro.hora  = tmpHora;     pOtro.cancha = tmpCancha;
-  pSel.conflicto  = tieneConflicto;
-  pOtro.conflicto = tieneConflicto;
+  // Intercambiar día, hora y cancha en memoria
+  const tmpDia=pSel.dia; const tmpHora=pSel.hora; const tmpCancha=pSel.cancha;
+  pSel.dia=pOtro.dia; pSel.hora=pOtro.hora; pSel.cancha=pOtro.cancha;
+  pOtro.dia=tmpDia; pOtro.hora=tmpHora; pOtro.cancha=tmpCancha;
+  pSel.conflicto=tieneConflicto; pOtro.conflicto=tieneConflicto;
+  // Guardar en Firebase
+  try {
+    const torneoId = sessionStorage.getItem('torneoId');
+    if (torneoId && pSel.id && pOtro.id) {
+      await Promise.all([
+        updateDoc(doc(db,'torneos',torneoId,'partidos',pSel.id), {
+          dia:pSel.dia, hora:pSel.hora, cancha:pSel.cancha, conflicto:pSel.conflicto
+        }),
+        updateDoc(doc(db,'torneos',torneoId,'partidos',pOtro.id), {
+          dia:pOtro.dia, hora:pOtro.hora, cancha:pOtro.cancha, conflicto:pOtro.conflicto
+        })
+      ]);
+    }
+  } catch(e) { console.error('Error guardando intercambio:', e); }
   cerrarModal(); renderFixture(); showToast('✓ Horarios intercambiados');
 };
 
