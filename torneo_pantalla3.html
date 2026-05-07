@@ -413,7 +413,7 @@ function jugadorHTML(parejaId, num) {
     <div class="autocomplete-wrap">
       <input type="text" id="j${num}-nombre-${parejaId}" placeholder="Nombre del jugador..."
         autocomplete="off"
-        oninput="actualizarResumen('${parejaId}'); buscarJugador(this, 'j${num}-cat-${parejaId}')"
+        oninput="actualizarResumen('${parejaId}'); buscarJugador(this, 'j${num}-cat-${parejaId}'); window.detectarNombreSimilar(this)"
         onkeydown="navegarSugerencias(event, this)"
         onfocus="buscarJugador(this, 'j${num}-cat-${parejaId}')"
         onblur="setTimeout(()=>cerrarSugerencias(this), 200)">
@@ -788,6 +788,81 @@ window.buscarJugador = async function(input, catId) {
 window.ORDEN_CAT = {'1°':1,'2°':2,'3°':3,'4°':4,'5°':5,'6°':6,'7°':7,'8°':8,
   'primera':1,'segunda':2,'tercera':3,'cuarta':4,'quinta':5,'sexta':6,'séptima':7,'septima':7,'octava':8};
 
+// ── VALIDACIÓN DE NOMBRE SIMILAR ─────────────────────────
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i===0?j:j===0?i:0));
+  for (let i=1; i<=m; i++)
+    for (let j=1; j<=n; j++)
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function similitud(a, b) {
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  return 1 - levenshtein(a, b) / maxLen;
+}
+
+function normalizarNombre(n) {
+  return n.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar tildes
+    .replace(/\s+/g, ' ');
+}
+
+window.detectarNombreSimilar = function(inputEl) {
+  const nombre = normalizarNombre(inputEl.value);
+  if (nombre.length < 3) {
+    const errId = `err-sim-${inputEl.id}`;
+    const errEl = document.getElementById(errId);
+    if (errEl) errEl.remove();
+    return;
+  }
+
+  // Recolectar todos los nombres ya ingresados en OTROS inputs
+  const todosInputs = document.querySelectorAll('input[id^="j1-nombre-"], input[id^="j2-nombre-"]');
+  let similares = [];
+
+  todosInputs.forEach(inp => {
+    if (inp === inputEl) return; // no comparar consigo mismo
+    const otroNombre = normalizarNombre(inp.value);
+    if (otroNombre.length < 3) return;
+    const sim = similitud(nombre, otroNombre);
+    if (sim >= 0.80 && sim < 1.0) { // similar pero no idéntico
+      similares.push({ nombre: inp.value.trim(), sim: Math.round(sim * 100) });
+    }
+    if (sim === 1.0) { // idéntico
+      similares.push({ nombre: inp.value.trim(), sim: 100, duplicado: true });
+    }
+  });
+
+  const errId = `err-sim-${inputEl.id}`;
+  let errEl = document.getElementById(errId);
+
+  if (similares.length === 0) {
+    if (errEl) errEl.remove();
+    return;
+  }
+
+  if (!errEl) {
+    errEl = document.createElement('div');
+    errEl.id = errId;
+    errEl.style.cssText = 'font-size:11px;letter-spacing:1px;margin-top:3px;padding:4px 8px;border-radius:6px;';
+    inputEl.parentElement.appendChild(errEl);
+  }
+
+  const top = similares.sort((a,b) => b.sim - a.sim)[0];
+  if (top.duplicado) {
+    errEl.style.background = 'rgba(230,57,70,0.12)';
+    errEl.style.color = 'var(--rojo)';
+    errEl.textContent = `⛔ "${top.nombre}" ya está cargado`;
+  } else {
+    errEl.style.background = 'rgba(240,180,41,0.10)';
+    errEl.style.color = 'var(--amarillo)';
+    errEl.textContent = `⚠ Nombre similar a "${top.nombre}" — ¿es el mismo jugador?`;
+  }
+};
+
 function normalizarCat(cat) {
   if (!cat) return null;
   return window.ORDEN_CAT[cat.toLowerCase().trim()] || window.ORDEN_CAT[cat.trim()] || null;
@@ -858,6 +933,8 @@ window.seleccionarJugador = function(item, inputId, catId) {
   // Validar categoría
   console.log('Seleccionado:', nombre, 'cat:', cat, 'CONFIG.categoria:', CONFIG.categoria);
   if (cat && inp) window.validarCategoriaJugador(nombre, cat, inp);
+  // Validar nombre similar
+  if (inp) window.detectarNombreSimilar(inp);
 };
 
 window.cerrarSugerencias = function(input) {

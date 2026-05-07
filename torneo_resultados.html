@@ -425,8 +425,52 @@ function renderContenido() {
             ⚡ GENERAR LLAVE
           </button>
         </div>`;
+      } else if (TORNEO.formato === 'round_robin') {
+        // Round robin puro — no hay llave eliminatoria
+        wrap.innerHTML = '<div class="empty-state">Formato sin eliminatoria — los resultados se ven en la tabla de posiciones.</div>';
       } else {
-        wrap.innerHTML = '<div class="empty-state">Los cruces se generan al finalizar la fase de grupos</div>';
+        // Calcular estado de zonas para mostrar info útil
+        const zonaIds = [...new Set(partidos.filter(p=>p.fase==='zona').map(p=>p.zonaId))].sort();
+        const estadoZonas = zonaIds.map(zId => {
+          const ps = partidos.filter(p=>p.fase==='zona'&&p.zonaId===zId);
+          const jugados = ps.filter(p=>p.estado==='finalizado').length;
+          const total = ps.length;
+          return { zona: zId.replace('zona_',''), jugados, total, completa: jugados===total };
+        });
+        const completas = estadoZonas.filter(z=>z.completa).length;
+        const pendientes = estadoZonas.filter(z=>!z.completa);
+
+        if (pendientes.length === 0 && zonaIds.length > 0) {
+          // Todas completas pero la llave aún no se generó — botón manual
+          wrap.innerHTML = `<div style="padding:16px;">
+            <div style="background:rgba(76,175,80,0.1);border:1px solid var(--verde);border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+              <div style="color:var(--verde);font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1px;margin-bottom:4px;">✅ TODAS LAS ZONAS COMPLETADAS</div>
+              <div style="color:var(--muted);font-size:12px;">${zonaIds.length} zona(s) con todos los resultados cargados.</div>
+            </div>
+            <button onclick="forzarGenerarLlave()" style="width:100%;padding:14px;background:rgba(74,158,255,0.1);border:1px solid var(--azul);border-radius:10px;color:var(--azul);font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;cursor:pointer;">
+              ⚡ GENERAR LLAVE AHORA
+            </button>
+          </div>`;
+        } else {
+          // Hay zonas incompletas — mostrar estado detallado
+          const filas = estadoZonas.map(z =>
+            `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+              <span style="font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:1px;color:var(--text);">ZONA ${z.zona}</span>
+              <span style="font-size:12px;color:${z.completa?'var(--verde)':'var(--amarillo)'};">
+                ${z.completa ? '✅ Completa' : `⏳ ${z.jugados}/${z.total} partidos`}
+              </span>
+            </div>`
+          ).join('');
+          wrap.innerHTML = `<div style="padding:16px;">
+            <div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--muted);letter-spacing:2px;margin-bottom:10px;">ESTADO DE ZONAS</div>
+            ${filas}
+            <div style="margin-top:14px;background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.3);border-radius:10px;padding:12px 14px;">
+              <div style="color:var(--amarillo);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;">
+                ⏳ Faltan ${pendientes.length} zona(s) — la llave se genera automáticamente al completar todas.
+              </div>
+            </div>
+          </div>`;
+        }
       }
       return;
     }
@@ -1017,6 +1061,34 @@ async function generarLlave(clasificados, forzarFase) {
 }
 
 // ── GENERAR LLAVE SOLA ──────────────────────────────────
+// Generar llave manualmente cuando todas las zonas están completas
+window.forzarGenerarLlave = async function() {
+  const formato = TORNEO.formato;
+  if (formato === 'zonas_llave') {
+    const zonaIds = [...new Set(partidos.filter(p=>p.fase==='zona').map(p=>p.zonaId))].sort();
+    const pendientes = zonaIds.filter(zId =>
+      !partidos.filter(p=>p.zonaId===zId).every(p=>p.estado==='finalizado')
+    );
+    if (pendientes.length > 0) {
+      showToast(`⚠ Faltan resultados en ${pendientes.length} zona(s)`);
+      return;
+    }
+    showToast('Generando llave...');
+    await verificarYGenerarSiguienteRonda();
+  } else if (formato === 'round_robin_llave') {
+    const deZona = partidos.filter(p=>p.fase==='zona');
+    const pendientes = deZona.filter(p=>p.estado!=='finalizado');
+    if (pendientes.length > 0) {
+      showToast(`⚠ Faltan ${pendientes.length} resultado(s) de zona`);
+      return;
+    }
+    showToast('Generando llave...');
+    await verificarYGenerarSiguienteRonda();
+  } else {
+    showToast('⚠ Este formato no requiere generación manual');
+  }
+};
+
 window.generarLlaveSola = async function() {
   const parejasIds = Object.keys(PAREJAS);
   if (parejasIds.length < 2) { showToast('⚠️ Necesitás al menos 2 parejas'); return; }

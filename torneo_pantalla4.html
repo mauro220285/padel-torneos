@@ -893,24 +893,24 @@ window.renderFixture = function() {
       card.className = 'partido-card' + (p.conflicto?' conflicto':'') + (p.esLlave?' llave-placeholder':'');
       card.innerHTML = `
         <div class="partido-header">
-          <div class="partido-hora" style="${p.esLlave?'font-size:14px;color:var(--muted);padding-top:4px;':''}">
-            ${p.esLlave ? '⏳ S/H' : (p.hora||'--:--')}
+          <div class="partido-hora" style="${p.esLlave&&!p.hora?'font-size:14px;color:var(--muted);padding-top:4px;':''}">
+            ${p.esLlave && !p.hora ? '⏳ S/H' : (p.hora||'--:--')}
           </div>
           <div class="partido-info">
             <div class="partido-zona">${zonaLabel}</div>
-            <div class="partido-parejas" style="${p.esLlave?'color:var(--muted);font-style:italic;':''}">
+            <div class="partido-parejas" style="${p.esLlave&&!p.hora?'color:var(--muted);font-style:italic;':''}">
               ${p.label ? `<span style="color:var(--amarillo);font-size:12px;letter-spacing:1px;">${p.label}</span>` 
                 : `${nombrePareja(p.pareja1Id)} <span style="color:var(--muted)">vs</span> ${nombrePareja(p.pareja2Id)}`}
             </div>
           </div>
           <div class="partido-acciones">
-            ${p.esLlave ? '<span style="font-size:11px;color:var(--muted);font-family:Oswald,sans-serif;letter-spacing:1px;">SE ASIGNA<br>DESPUÉS</span>' 
+            ${p.esLlave && !p.hora ? '<span style="font-size:11px;color:var(--muted);font-family:Oswald,sans-serif;letter-spacing:1px;">SE ASIGNA<br>DESPUÉS</span>' 
               : '<button class="btn-mover" title="Cambiar horario">⇄</button>'}
           </div>
         </div>
         ${p.conflicto?'<span class="conflicto-badge">⚠ Restricción horaria</span>':''}`;
-      // Fix scope ES6: asignar listener al botón ⇄ después de crear el elemento
-      if (!p.esLlave) {
+      // Fix scope ES6: asignar listener al botón ⇄ (zona Y llave con hora asignada)
+      if (!p.esLlave || p.hora) {
         const btnMover = card.querySelector('.btn-mover');
         if (btnMover) {
           const pid = p.id || p.orden;
@@ -1130,15 +1130,18 @@ window.confirmarEditZonas = async function() {
     partidos.push(...partidosZona);
   });
 
-  fixture = partidos;
+  // Preservar partidos de llave existentes (no se tocan al editar zonas)
+  const partidosLlave = fixture.filter(p => p.esLlave);
+  fixture = [...partidos, ...partidosLlave];
 
-  // Guardar en Firebase: borrar partidos/zonas anteriores y reescribir
+  // Guardar en Firebase: borrar solo partidos de zona (preservar llave)
   if (torneoId) {
     try {
       showToast('Guardando cambios...');
-      // Borrar partidos de zona existentes (no llave)
+      // Borrar solo partidos de zona (no llave)
       const partidosSnap = await getDocs(collection(db,'torneos',torneoId,'partidos'));
-      await Promise.all(partidosSnap.docs.map(d => deleteDoc(d.ref)));
+      const soloZona = partidosSnap.docs.filter(d => !d.data().esLlave);
+      await Promise.all(soloZona.map(d => deleteDoc(d.ref)));
       // Borrar zonas existentes
       const zonasSnap = await getDocs(collection(db,'torneos',torneoId,'zonas'));
       await Promise.all(zonasSnap.docs.map(d => deleteDoc(d.ref)));
@@ -1148,13 +1151,16 @@ window.confirmarEditZonas = async function() {
           nombre: z.nombre, parejas: z.parejas
         })
       ));
-      // Guardar nuevos partidos
+      // Guardar nuevos partidos de zona
       await Promise.all(partidos.map((p, i) => {
         const id = `p${String(i+1).padStart(3,'0')}`;
         return setDoc(doc(db,'torneos',torneoId,'partidos',id), {...p, orden:i+1, id});
       }));
-      // Actualizar mapa de id en fixture
-      fixture = partidos.map((p,i) => ({...p, id:`p${String(i+1).padStart(3,'0')}`}));
+      // Actualizar ids en fixture (solo zona)
+      fixture = [
+        ...partidos.map((p,i) => ({...p, id:`p${String(i+1).padStart(3,'0')}`})),
+        ...partidosLlave
+      ];
     } catch(e) {
       console.error('Error guardando zonas editadas:', e);
       showToast('❌ Error al guardar en Firebase');

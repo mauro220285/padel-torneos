@@ -575,7 +575,11 @@ async function ejecutarEliminar() {
   if (!jugadorEditandoId) return;
   const j = JUGADORES.find(x=>x.id===jugadorEditandoId);
   const pts = j?.puntosAnuales||j?.puntos||0;
-  if (!confirm(pts>0?`⚠️ ${j?.nombreDisplay} tiene ${pts} puntos. ¿Eliminar igual?`:`¿Eliminar a ${j?.nombreDisplay}?`)) return;
+  const nombre = j?.nombreDisplay || 'este jugador';
+  const msg = pts > 0
+    ? `⚠️ ELIMINAR JUGADOR\n\n"${nombre}" tiene ${pts} puntos en el ranking.\n\nSi lo eliminás, se pierden todos sus puntos e historial.\nEsta acción NO se puede deshacer.\n\n¿Confirmás la eliminación?`
+    : `ELIMINAR JUGADOR\n\n¿Eliminár a "${nombre}" permanentemente?\n\nEsta acción NO se puede deshacer.`;
+  if (!confirm(msg)) return;
   try { await deleteDoc(doc(db,'jugadores',jugadorEditandoId)); showToast('✓ Eliminado'); cerrarModal(); await cargar(); }
   catch(e) { showToast('❌ Error'); }
 }
@@ -636,6 +640,9 @@ window.confirmarFusion = async function() {
   const conservar=fusionSeleccionados[fusionNombreElegido];
   const eliminar=fusionSeleccionados[fusionNombreElegido===0?1:0];
   const ptsTotal=(conservar.puntosAnuales||conservar.puntos||0)+(eliminar.puntosAnuales||eliminar.puntos||0);
+  const ptsEliminar = eliminar.puntosAnuales||eliminar.puntos||0;
+  const msg = `FUSIONAR JUGADORES\n\n"${eliminar.nombreDisplay}" (${ptsEliminar} pts) se fusionará con "${conservar.nombreDisplay}".\n\nResultado: "${conservar.nombreDisplay}" con ${ptsTotal} pts.\nEl registro de "${eliminar.nombreDisplay}" será eliminado.\n\nEsta acción NO se puede deshacer. ¿Confirmás?`;
+  if (!confirm(msg)) return;
   try {
     await updateDoc(doc(db,'jugadores',conservar.id), {puntosAnuales:ptsTotal, puntos:ptsTotal});
     await deleteDoc(doc(db,'jugadores',eliminar.id));
@@ -796,7 +803,7 @@ window.importarCsv = async function() {
 };
 
 async function recalcularPuntos() {
-  if (!confirm('¿Recalcular puntos desde el historial real de cada jugador?\nEsto corrige puntosAnuales y puntos para todos.')) return;
+  if (!confirm('RECALCULAR PUNTOS\n\nEsto va a recorrer el historial de TODOS los jugadores y recalcular sus puntos anuales y totales desde cero.\n\nLos valores actuales serán reemplazados.\nEsta acción NO se puede deshacer.\n\n¿Confirmás?')) return;
   let ok = 0, errores = 0;
 
   for (const j of JUGADORES) {
@@ -938,6 +945,7 @@ window.confirmarRecategorizacion = async function() {
   const catNueva = document.getElementById('recatNuevaCat').value;
   const motivo = document.getElementById('recatMotivo').value.trim();
   if (catNueva === catAnterior) { showToast('⚠️ Elegí una categoría diferente'); return; }
+  if (!confirm(`RECATEGORIZAR JUGADOR\n\n"${j.nombreDisplay}"\n${catAnterior} → ${catNueva}\n\n${motivo ? `Motivo: ${motivo}\n\n` : ''}¿Confirmás el cambio?`)) return;
   try {
     const histRecat = j.historialRecategorizacion || [];
     histRecat.push({
