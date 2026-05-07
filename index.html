@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Padel Team — Inicio</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
@@ -204,17 +206,21 @@ body {
   </button>
 </div>
 
-<!-- PIN ELIMINAR TORNEO -->
-<div id="pinOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:300;display:none;align-items:center;justify-content:center;">
+<!-- MODAL PIN UNIFICADO -->
+<div id="pinModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:center;justify-content:center;">
   <div style="background:#111118;border:1px solid #222230;border-radius:16px;padding:28px 24px;width:300px;text-align:center;">
-    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;color:#fff;margin-bottom:6px;">🔒 CONFIRMAR</div>
-    <div style="font-family:'Oswald',sans-serif;font-size:12px;color:#555570;letter-spacing:1px;margin-bottom:20px;">PIN requerido para eliminar torneo</div>
-    <input type="password" id="pinEliminarInput" maxlength="6" inputmode="numeric" placeholder="····"
-      style="width:100%;background:#18181f;border:1px solid #222230;border-radius:8px;padding:14px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none;margin-bottom:16px;">
-    <div id="pinEliminarError" style="color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;min-height:18px;margin-bottom:10px;"></div>
+    <div id="pinModalIcono" style="font-size:32px;margin-bottom:8px;">🔒</div>
+    <div id="pinModalTitulo" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;color:#fff;margin-bottom:4px;"></div>
+    <div id="pinModalSub" style="font-family:'Oswald',sans-serif;font-size:11px;color:#555570;letter-spacing:1px;margin-bottom:20px;"></div>
+    <input type="password" id="pinModalInput" maxlength="6" inputmode="numeric" placeholder="····"
+      style="width:100%;background:#18181f;border:1px solid #222230;border-radius:8px;padding:14px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none;margin-bottom:8px;">
+    <div id="pinModalError" style="color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;min-height:18px;margin-bottom:10px;"></div>
+    <div id="pinRecuperacionLink" style="display:none;margin-bottom:12px;">
+      <button onclick="window._pinModoRecuperacion()" style="background:none;border:none;color:#555570;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;cursor:pointer;text-decoration:underline;">¿Olvidaste el PIN admin? Usar PIN de recuperación</button>
+    </div>
     <div style="display:flex;gap:8px;">
-      <button onclick="cerrarPinEliminar()" style="flex:1;background:none;border:1px solid #222230;border-radius:8px;padding:12px;color:#555570;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
-      <button onclick="confirmarEliminar()" style="flex:1;background:#e63946;border:none;border-radius:8px;padding:12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">ELIMINAR</button>
+      <button onclick="window._cerrarPinModal()" style="flex:1;background:none;border:1px solid #222230;border-radius:8px;padding:12px;color:#555570;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
+      <button onclick="window._confirmarPin()" style="flex:1;background:#4a9eff;border:none;border-radius:8px;padding:12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CONFIRMAR</button>
     </div>
   </div>
 </div>
@@ -342,52 +348,107 @@ function elegirTorneo(id, data, card) {
   }
 }
 
-// ── ELIMINAR TORNEO ──
-let pinAdminGuardado = '1234';
-getDoc(doc(db,'config','cancha')).then(snap => {
-  if (snap.exists() && snap.data().pinAdmin) pinAdminGuardado = snap.data().pinAdmin;
-});
+// ── SISTEMA DE PINs ──────────────────────────────────────
+let _pinCallback = null;
+let _pinTipo = null;
+let _pinModoRecup = false;
 
-window.pedirPinEliminar = function() {
-  if (!torneoSeleccionadoId) return;
-  document.getElementById('pinEliminarInput').value = '';
-  document.getElementById('pinEliminarError').textContent = '';
-  const overlay = document.getElementById('pinOverlay');
+async function cargarPins() {
+  const snap = await getDoc(doc(db,'config','cancha'));
+  const d = snap.exists() ? snap.data() : {};
+  return {
+    admin:        d.pinAdmin        || '1234',
+    operador:     d.pinOperador     || '0000',
+    recuperacion: d.pinRecuperacion || '9999'
+  };
+}
+
+function pedirPin(tipo, titulo, subtitulo, callback) {
+  _pinCallback  = callback;
+  _pinTipo      = tipo;
+  _pinModoRecup = false;
+  document.getElementById('pinModalIcono').textContent  = tipo === 'admin' ? '🔐' : '🔑';
+  document.getElementById('pinModalTitulo').textContent = titulo;
+  document.getElementById('pinModalSub').textContent    = subtitulo;
+  document.getElementById('pinModalInput').value        = '';
+  document.getElementById('pinModalError').textContent  = '';
+  document.getElementById('pinRecuperacionLink').style.display = tipo === 'admin' ? 'block' : 'none';
+  const overlay = document.getElementById('pinModalOverlay');
   overlay.style.display = 'flex';
-  setTimeout(() => document.getElementById('pinEliminarInput').focus(), 200);
+  setTimeout(() => document.getElementById('pinModalInput').focus(), 150);
+}
+
+window._pinModoRecuperacion = function() {
+  _pinModoRecup = true;
+  document.getElementById('pinModalIcono').textContent  = '🆘';
+  document.getElementById('pinModalTitulo').textContent = 'PIN DE RECUPERACIÓN';
+  document.getElementById('pinModalSub').textContent    = 'Ingresá el PIN de recuperación para resetear el PIN admin';
+  document.getElementById('pinModalInput').value        = '';
+  document.getElementById('pinModalError').textContent  = '';
+  document.getElementById('pinRecuperacionLink').style.display = 'none';
+  document.getElementById('pinModalInput').focus();
 };
 
-window.cerrarPinEliminar = function() {
-  document.getElementById('pinOverlay').style.display = 'none';
+window._cerrarPinModal = function() {
+  document.getElementById('pinModalOverlay').style.display = 'none';
+  _pinCallback  = null;
+  _pinTipo      = null;
+  _pinModoRecup = false;
 };
 
-window.confirmarEliminar = async function() {
-  const ingresado = document.getElementById('pinEliminarInput').value.trim();
-  if (ingresado !== pinAdminGuardado) {
-    document.getElementById('pinEliminarError').textContent = '❌ PIN incorrecto';
-    document.getElementById('pinEliminarInput').value = '';
+window._confirmarPin = async function() {
+  const ingresado = document.getElementById('pinModalInput').value.trim();
+  const errEl = document.getElementById('pinModalError');
+  if (!ingresado) { errEl.textContent = 'Ingresá el PIN'; return; }
+  const pins = await cargarPins();
+  if (_pinModoRecup) {
+    if (ingresado !== pins.recuperacion) {
+      errEl.textContent = '❌ PIN de recuperación incorrecto';
+      document.getElementById('pinModalInput').value = '';
+      return;
+    }
+    await updateDoc(doc(db,'config','cancha'), { pinAdmin: '1234' });
+    window._cerrarPinModal();
+    showToast('✅ PIN admin reseteado a 1234 — cambialo en Configuración');
     return;
   }
-  const nombre = torneoSeleccionadoData?.nombre || torneoSeleccionadoId;
-  if (!confirm(`¿Eliminar "${nombre}" permanentemente? Esta acción no se puede deshacer.`)) return;
-  try {
-    // Eliminar subcolecciones primero
-    const subcols = ['parejas','partidos','zonas','fixture'];
-    for (const sub of subcols) {
-      const snap = await getDocs(collection(db,'torneos',torneoSeleccionadoId,sub));
-      await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
-    }
-    await deleteDoc(doc(db,'torneos',torneoSeleccionadoId));
-    cerrarPinEliminar();
-    document.getElementById('btnEliminarTorneo').style.display = 'none';
-    document.getElementById('btnSeleccionar').classList.remove('visible');
-    torneoSeleccionadoId = null;
-    showToast('✓ Torneo eliminado');
-    await cargarTorneos();
-  } catch(e) {
-    console.error(e);
-    showToast('❌ Error al eliminar');
+  const pinEsperado = _pinTipo === 'admin' ? pins.admin : pins.operador;
+  if (ingresado !== pinEsperado) {
+    errEl.textContent = '❌ PIN incorrecto';
+    document.getElementById('pinModalInput').value = '';
+    return;
   }
+  window._cerrarPinModal();
+  if (_pinCallback) _pinCallback();
+};
+
+document.getElementById('pinModalInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') window._confirmarPin();
+});
+
+// ── ELIMINAR TORNEO ──
+window.pedirPinEliminar = function() {
+  if (!torneoSeleccionadoId) return;
+  pedirPin('admin', 'ELIMINAR TORNEO', 'Solo el administrador puede eliminar torneos', async () => {
+    const nombre = torneoSeleccionadoData?.nombre || torneoSeleccionadoId;
+    if (!confirm(`¿Eliminar "${nombre}" permanentemente? Esta acción no se puede deshacer.`)) return;
+    try {
+      const subcols = ['parejas','partidos','zonas','fixture'];
+      for (const sub of subcols) {
+        const snap = await getDocs(collection(db,'torneos',torneoSeleccionadoId,sub));
+        await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+      }
+      await deleteDoc(doc(db,'torneos',torneoSeleccionadoId));
+      document.getElementById('btnEliminarTorneo').style.display = 'none';
+      document.getElementById('btnSeleccionar').classList.remove('visible');
+      torneoSeleccionadoId = null;
+      showToast('✓ Torneo eliminado');
+      await cargarTorneos();
+    } catch(e) {
+      console.error(e);
+      showToast('❌ Error al eliminar');
+    }
+  });
 };
 
 window.irACrear = function() {
@@ -444,13 +505,8 @@ function showToast(msg) {
 }
 
 // ── CIERRE DE TEMPORADA ──────────────────────────────────
-window.pedirPinCierre = async function() {
-  const pin = prompt('🔒 PIN de administrador para cierre de temporada:');
-  if (!pin) return;
-  const snap = await getDoc(doc(db,'config','cancha'));
-  const pinGuardado = snap.exists() ? (snap.data().pinAdmin||'1234') : '1234';
-  if (pin !== pinGuardado) { showToast('❌ PIN incorrecto'); return; }
-  
+window.pedirPinCierre = function() {
+  pedirPin('admin', 'CIERRE DE TEMPORADA', 'Solo el administrador puede cerrar la temporada', async () => {
   const anioActual = new Date().getFullYear();
   const confirmar = confirm(
     `⚠️ CIERRE DE TEMPORADA ${anioActual}\n\n` +
@@ -499,6 +555,7 @@ window.pedirPinCierre = async function() {
     console.error(e);
     showToast('❌ Error en el cierre de temporada');
   }
+  });
 };
 
 cargarTorneos();

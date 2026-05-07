@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Padel Team — Informes</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
@@ -485,6 +487,25 @@ body {
 </div>
 
 <div class="divider"></div>
+<!-- MODAL PIN UNIFICADO -->
+<div id="pinModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:#111118;border:1px solid #222230;border-radius:16px;padding:28px 24px;width:300px;text-align:center;">
+    <div id="pinModalIcono" style="font-size:32px;margin-bottom:8px;">🔒</div>
+    <div id="pinModalTitulo" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;color:#fff;margin-bottom:4px;"></div>
+    <div id="pinModalSub" style="font-family:'Oswald',sans-serif;font-size:11px;color:#555570;letter-spacing:1px;margin-bottom:20px;"></div>
+    <input type="password" id="pinModalInput" maxlength="6" inputmode="numeric" placeholder="····"
+      style="width:100%;background:#18181f;border:1px solid #222230;border-radius:8px;padding:14px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none;margin-bottom:8px;">
+    <div id="pinModalError" style="color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;min-height:18px;margin-bottom:10px;"></div>
+    <div id="pinRecuperacionLink" style="display:none;margin-bottom:12px;">
+      <button onclick="window._pinModoRecuperacion()" style="background:none;border:none;color:#555570;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;cursor:pointer;text-decoration:underline;">¿Olvidaste el PIN admin? Usar PIN de recuperación</button>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="window._cerrarPinModal()" style="flex:1;background:none;border:1px solid #222230;border-radius:8px;padding:12px;color:#555570;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
+      <button onclick="window._confirmarPin()" style="flex:1;background:#4a9eff;border:none;border-radius:8px;padding:12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -502,6 +523,67 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
+
+// ── SISTEMA DE PINs ──────────────────────────────────────
+let _pinCallback = null, _pinTipo = null, _pinModoRecup = false;
+
+async function cargarPins() {
+  const snap = await getDoc(doc(db,'config','cancha'));
+  const d = snap.exists() ? snap.data() : {};
+  return { admin: d.pinAdmin||'1234', operador: d.pinOperador||'0000', recuperacion: d.pinRecuperacion||'9999' };
+}
+
+function pedirPin(tipo, titulo, subtitulo, callback) {
+  _pinCallback = callback; _pinTipo = tipo; _pinModoRecup = false;
+  document.getElementById('pinModalIcono').textContent  = tipo === 'admin' ? '🔐' : '🔑';
+  document.getElementById('pinModalTitulo').textContent = titulo;
+  document.getElementById('pinModalSub').textContent    = subtitulo;
+  document.getElementById('pinModalInput').value        = '';
+  document.getElementById('pinModalError').textContent  = '';
+  document.getElementById('pinRecuperacionLink').style.display = tipo === 'admin' ? 'block' : 'none';
+  document.getElementById('pinModalOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('pinModalInput').focus(), 150);
+}
+
+window._pinModoRecuperacion = function() {
+  _pinModoRecup = true;
+  document.getElementById('pinModalIcono').textContent  = '🆘';
+  document.getElementById('pinModalTitulo').textContent = 'PIN DE RECUPERACIÓN';
+  document.getElementById('pinModalSub').textContent    = 'PIN de recuperación para resetear el PIN admin';
+  document.getElementById('pinModalInput').value = '';
+  document.getElementById('pinModalError').textContent = '';
+  document.getElementById('pinRecuperacionLink').style.display = 'none';
+  document.getElementById('pinModalInput').focus();
+};
+
+window._cerrarPinModal = function() {
+  document.getElementById('pinModalOverlay').style.display = 'none';
+  _pinCallback = null; _pinTipo = null; _pinModoRecup = false;
+};
+
+window._confirmarPin = async function() {
+  const ingresado = document.getElementById('pinModalInput').value.trim();
+  const errEl = document.getElementById('pinModalError');
+  if (!ingresado) { errEl.textContent = 'Ingresá el PIN'; return; }
+  const pins = await cargarPins();
+  if (_pinModoRecup) {
+    if (ingresado !== pins.recuperacion) { errEl.textContent = '❌ PIN incorrecto'; document.getElementById('pinModalInput').value=''; return; }
+    await updateDoc(doc(db,'config','cancha'), { pinAdmin: '1234' });
+    window._cerrarPinModal();
+    showToast('✅ PIN admin reseteado a 1234');
+    return;
+  }
+  if (ingresado !== (_pinTipo==='admin' ? pins.admin : pins.operador)) {
+    errEl.textContent = '❌ PIN incorrecto';
+    document.getElementById('pinModalInput').value = '';
+    return;
+  }
+  window._cerrarPinModal();
+  if (_pinCallback) _pinCallback();
+};
+
+document.getElementById('pinModalInput')?.addEventListener('keydown', e => { if(e.key==='Enter') window._confirmarPin(); });
+
 
 let torneoId      = null;
 let torneoData    = null;
@@ -1618,7 +1700,8 @@ function descargarCanvas(canvas, nombre) {
   link.click();
 }
 
-window.generarImagenFixture = async function() {
+window.generarImagenFixture = function() {
+  pedirPin('operador', 'GENERAR IMAGEN FIXTURE', 'Acción de operador requerida', async () => {
   showToast('Generando imagen...');
   const cancha = await cargarConfigCancha();
   const color  = cancha.colorPrincipal || '#1a6abf';
@@ -1886,6 +1969,7 @@ window.generarImagenFixture = async function() {
 
   descargarCanvas(canvas, 'fixture_zonas.png');
   showToast('✅ Imagen descargada');
+  }); // fin pedirPin
 };
 
 // Horarios override para imagen de llave (solo afecta la imagen, no Firebase)
@@ -1923,7 +2007,8 @@ window.abrirPanelHorariosLlave = async function() {
   }).join('');
 };
 
-window.generarImagenLlave = async function() {
+window.generarImagenLlave = function() {
+  pedirPin('operador', 'GENERAR IMAGEN LLAVE', 'Acción de operador requerida', async () => {
   showToast('Generando imagen llave...');
   const cancha = await cargarConfigCancha();
   const color  = cancha.colorPrincipal  || '#1a6abf';
@@ -2377,6 +2462,7 @@ window.generarImagenLlave = async function() {
 
   descargarCanvas(canvas,'llave_eliminatoria.png');
   showToast('✅ Imagen descargada');
+  });
 };
 
 window.showToast=showToast;
@@ -2400,7 +2486,8 @@ if (fotoInputEl) {
   });
 }
 
-window.generarImagenCampeones = async function() {
+window.generarImagenCampeones = function() {
+  pedirPin('operador', 'GENERAR IMAGEN CAMPEONES', 'Acción de operador requerida', async () => {
   const campeon1 = document.getElementById('campeon1').value.trim();
   const campeon2 = document.getElementById('campeon2').value.trim();
   const final1   = document.getElementById('finalista1').value.trim();
@@ -2505,6 +2592,7 @@ window.generarImagenCampeones = async function() {
   ctx.textAlign='left';
   descargarCanvas(canvas,'campeones.png');
   showToast('\u2705 Imagen descargada');
+  });
 };
 
 // ── FONDO LLAVE ──

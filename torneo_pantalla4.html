@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Padel Team — Revisión de Fixture</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
@@ -170,6 +172,25 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   </div>
 </div>
 
+<!-- MODAL PIN UNIFICADO -->
+<div id="pinModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:center;justify-content:center;">
+  <div style="background:#111118;border:1px solid #222230;border-radius:16px;padding:28px 24px;width:300px;text-align:center;">
+    <div id="pinModalIcono" style="font-size:32px;margin-bottom:8px;">🔒</div>
+    <div id="pinModalTitulo" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;color:#fff;margin-bottom:4px;"></div>
+    <div id="pinModalSub" style="font-family:'Oswald',sans-serif;font-size:11px;color:#555570;letter-spacing:1px;margin-bottom:20px;"></div>
+    <input type="password" id="pinModalInput" maxlength="6" inputmode="numeric" placeholder="····"
+      style="width:100%;background:#18181f;border:1px solid #222230;border-radius:8px;padding:14px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none;margin-bottom:8px;">
+    <div id="pinModalError" style="color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;min-height:18px;margin-bottom:10px;"></div>
+    <div id="pinRecuperacionLink" style="display:none;margin-bottom:12px;">
+      <button onclick="window._pinModoRecuperacion()" style="background:none;border:none;color:#555570;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;cursor:pointer;text-decoration:underline;">¿Olvidaste el PIN admin? Usar PIN de recuperación</button>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="window._cerrarPinModal()" style="flex:1;background:none;border:1px solid #222230;border-radius:8px;padding:12px;color:#555570;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
+      <button onclick="window._confirmarPin()" style="flex:1;background:#4a9eff;border:none;border-radius:8px;padding:12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -188,6 +209,90 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
+
+// ── SISTEMA DE PINs ──────────────────────────────────────
+let _pinCallback = null;
+let _pinTipo = null; // 'admin' | 'operador'
+let _pinModoRecup = false;
+
+async function cargarPins() {
+  const snap = await getDoc(doc(db,'config','cancha'));
+  const d = snap.exists() ? snap.data() : {};
+  return {
+    admin:       d.pinAdmin        || '1234',
+    operador:    d.pinOperador     || '0000',
+    recuperacion:d.pinRecuperacion || '9999'
+  };
+}
+
+function pedirPin(tipo, titulo, subtitulo, callback) {
+  _pinCallback  = callback;
+  _pinTipo      = tipo;
+  _pinModoRecup = false;
+  document.getElementById('pinModalIcono').textContent  = tipo === 'admin' ? '🔐' : '🔑';
+  document.getElementById('pinModalTitulo').textContent = titulo;
+  document.getElementById('pinModalSub').textContent    = subtitulo;
+  document.getElementById('pinModalInput').value        = '';
+  document.getElementById('pinModalError').textContent  = '';
+  document.getElementById('pinRecuperacionLink').style.display = tipo === 'admin' ? 'block' : 'none';
+  const overlay = document.getElementById('pinModalOverlay');
+  overlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('pinModalInput').focus(), 150);
+}
+
+window._pinModoRecuperacion = function() {
+  _pinModoRecup = true;
+  document.getElementById('pinModalIcono').textContent  = '🆘';
+  document.getElementById('pinModalTitulo').textContent = 'PIN DE RECUPERACIÓN';
+  document.getElementById('pinModalSub').textContent    = 'Ingresá el PIN de recuperación para resetear el PIN admin';
+  document.getElementById('pinModalInput').value        = '';
+  document.getElementById('pinModalError').textContent  = '';
+  document.getElementById('pinRecuperacionLink').style.display = 'none';
+  document.getElementById('pinModalInput').focus();
+};
+
+window._cerrarPinModal = function() {
+  document.getElementById('pinModalOverlay').style.display = 'none';
+  _pinCallback  = null;
+  _pinTipo      = null;
+  _pinModoRecup = false;
+};
+
+window._confirmarPin = async function() {
+  const ingresado = document.getElementById('pinModalInput').value.trim();
+  const errEl = document.getElementById('pinModalError');
+  if (!ingresado) { errEl.textContent = 'Ingresá el PIN'; return; }
+
+  const pins = await cargarPins();
+
+  if (_pinModoRecup) {
+    if (ingresado !== pins.recuperacion) {
+      errEl.textContent = '❌ PIN de recuperación incorrecto';
+      document.getElementById('pinModalInput').value = '';
+      return;
+    }
+    // Resetear pinAdmin al valor por defecto
+    await updateDoc(doc(db,'config','cancha'), { pinAdmin: '1234' });
+    window._cerrarPinModal();
+    showToast('✅ PIN admin reseteado a 1234 — cambialo en Configuración');
+    return;
+  }
+
+  const pinEsperado = _pinTipo === 'admin' ? pins.admin : pins.operador;
+  if (ingresado !== pinEsperado) {
+    errEl.textContent = '❌ PIN incorrecto';
+    document.getElementById('pinModalInput').value = '';
+    return;
+  }
+
+  window._cerrarPinModal();
+  if (_pinCallback) _pinCallback();
+};
+
+// Enter en el input confirma
+document.getElementById('pinModalInput')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') window._confirmarPin();
+});
 
 // ── MOTOR DE FIXTURE ─────────────────────────────────────
 
@@ -800,10 +905,18 @@ window.renderFixture = function() {
           </div>
           <div class="partido-acciones">
             ${p.esLlave ? '<span style="font-size:11px;color:var(--muted);font-family:Oswald,sans-serif;letter-spacing:1px;">SE ASIGNA<br>DESPUÉS</span>' 
-              : `<button class="btn-mover" onclick="abrirModal('${p.id||p.orden}')" title="Cambiar horario">⇄</button>`}
+              : '<button class="btn-mover" title="Cambiar horario">⇄</button>'}
           </div>
         </div>
         ${p.conflicto?'<span class="conflicto-badge">⚠ Restricción horaria</span>':''}`;
+      // Fix scope ES6: asignar listener al botón ⇄ después de crear el elemento
+      if (!p.esLlave) {
+        const btnMover = card.querySelector('.btn-mover');
+        if (btnMover) {
+          const pid = p.id || p.orden;
+          btnMover.addEventListener('click', () => abrirModal(pid));
+        }
+      }
       wrap.appendChild(card);
     });
 };
@@ -865,7 +978,11 @@ window.abrirModal = function(id) {
         <div class="modal-opcion-hora">${p.hora||'--'}</div>
         <div style="flex:1;font-family:'Oswald',sans-serif;font-size:12px;color:#fff;letter-spacing:1px;">${n1} vs ${n2}</div>
         <div class="modal-opcion-estado" style="color:${conflicto?'var(--rojo)':'var(--verde)'}">${conflicto?'⚠ CONFLICTO':'✓ OK'}</div>`;
-      div.onclick = () => intercambiarHorario(p.id||p.orden, conflicto);
+      div.onclick = () => {
+        pedirPin('operador', 'INTERCAMBIAR HORARIO', 'Acción de operador requerida', () => {
+          intercambiarHorario(p.id||p.orden, conflicto);
+        });
+      };
       opciones.appendChild(div);
     });
   });
@@ -914,12 +1031,10 @@ window.moverPartido = function(hora, cancha) {
 let editZonasActivo = false;
 let editZonasSeleccionado = null; // {parejaId, zonaId}
 
-window.pedirPinEditarZonas = async function() {
-  const snap = await getDoc(doc(db,'config','cancha'));
-  const pinGuardado = snap.exists() ? (snap.data().pinAdmin||'1234') : '1234';
-  const pin = prompt('🔒 PIN de administrador:');
-  if (pin !== pinGuardado) { showToast('❌ PIN incorrecto'); return; }
-  abrirEditZonas();
+window.pedirPinEditarZonas = function() {
+  pedirPin('admin', 'EDITAR ZONAS', 'Solo el administrador puede reasignar parejas entre zonas', () => {
+    abrirEditZonas();
+  });
 };
 
 function abrirEditZonas() {
@@ -987,17 +1102,19 @@ window.moverAZona = function(zonaDestino) {
   showToast('✓ Pareja movida');
 };
 
-window.confirmarEditZonas = function() {
+window.confirmarEditZonas = async function() {
   cerrarEditZonas();
+  const torneoId = sessionStorage.getItem('torneoId');
+
   // Regenerar partidos respetando las zonas editadas (no redistribuir)
   const slots = generarSlots(torneoConfig);
   const dias = torneoConfig.dias || [];
   const ultimoDia = dias.length > 1 ? dias[dias.length-1].fecha : null;
   const slotsZonas = ultimoDia ? slots.filter(s=>s.dia!==ultimoDia) : slots;
-  
+
   let partidos = [];
   let slotIdx = 0;
-  
+
   zonasData.forEach(zona => {
     const parejasObj = zona.parejas.map(pid => parejaMap[pid]).filter(Boolean);
     let partidosZona = [];
@@ -1006,69 +1123,107 @@ window.confirmarEditZonas = function() {
     } else {
       partidosZona = generarRoundRobin(parejasObj, zona.id);
     }
-    // Asignar slots
     partidosZona.forEach(p => {
       const slot = slotsZonas[slotIdx++];
       if (slot) { p.dia=slot.dia; p.hora=slot.hora; p.cancha=slot.cancha; }
     });
     partidos.push(...partidosZona);
   });
-  
+
   fixture = partidos;
+
+  // Guardar en Firebase: borrar partidos/zonas anteriores y reescribir
+  if (torneoId) {
+    try {
+      showToast('Guardando cambios...');
+      // Borrar partidos de zona existentes (no llave)
+      const partidosSnap = await getDocs(collection(db,'torneos',torneoId,'partidos'));
+      await Promise.all(partidosSnap.docs.map(d => deleteDoc(d.ref)));
+      // Borrar zonas existentes
+      const zonasSnap = await getDocs(collection(db,'torneos',torneoId,'zonas'));
+      await Promise.all(zonasSnap.docs.map(d => deleteDoc(d.ref)));
+      // Guardar nuevas zonas
+      await Promise.all(zonasData.map(z =>
+        setDoc(doc(db,'torneos',torneoId,'zonas',z.id), {
+          nombre: z.nombre, parejas: z.parejas
+        })
+      ));
+      // Guardar nuevos partidos
+      await Promise.all(partidos.map((p, i) => {
+        const id = `p${String(i+1).padStart(3,'0')}`;
+        return setDoc(doc(db,'torneos',torneoId,'partidos',id), {...p, orden:i+1, id});
+      }));
+      // Actualizar mapa de id en fixture
+      fixture = partidos.map((p,i) => ({...p, id:`p${String(i+1).padStart(3,'0')}`}));
+    } catch(e) {
+      console.error('Error guardando zonas editadas:', e);
+      showToast('❌ Error al guardar en Firebase');
+    }
+  }
+
   renderTabs();
   renderFixture();
   showToast('✓ Fixture regenerado con zonas editadas');
 };
-window.resetearFixture = async function() {
-  if (!confirm('¿Resetear el fixture? Las parejas y sus restricciones se mantienen. Solo se borran los partidos y zonas generados.')) return;
+window.resetearFixture = function() {
+  pedirPin('admin', 'RESETEAR FIXTURE', 'Solo el administrador puede resetear el fixture', async () => {
+    const torneoId = sessionStorage.getItem('torneoId');
+    if (!torneoId) return;
 
-  const torneoId = sessionStorage.getItem('torneoId');
-  if (!torneoId) return;
+    // Verificar si hay resultados cargados
+    try {
+      const partidosSnap = await getDocs(collection(db,'torneos',torneoId,'partidos'));
+      const conResultado = partidosSnap.docs.filter(d => {
+        const data = d.data();
+        return data.resultado && (data.resultado.set1 || data.resultado.set2 || data.estado === 'jugado');
+      });
+      if (conResultado.length > 0) {
+        showToast(`⚠ Hay ${conResultado.length} resultado(s) cargado(s) — no se puede resetear`);
+        setTimeout(() => {
+          alert(`No se puede resetear el fixture: hay ${conResultado.length} partido(s) con resultado cargado.\n\nDebés borrar los resultados desde "Cargar Resultados" antes de resetear.`);
+        }, 300);
+        return;
+      }
+    } catch(e) { console.error(e); }
 
-  showToast('Reseteando...');
-  try {
-    // Borrar partidos existentes
-    const partidosSnap = await getDocs(collection(db, 'torneos', torneoId, 'partidos'));
-    await Promise.all(partidosSnap.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'partidos', d.id))));
+    if (!confirm('¿Resetear el fixture? Las parejas y sus restricciones se mantienen. Solo se borran los partidos y zonas generados.')) return;
 
-    // Borrar zonas existentes
-    const zonasSnap = await getDocs(collection(db, 'torneos', torneoId, 'zonas'));
-    await Promise.all(zonasSnap.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'zonas', d.id))));
-
-    // Borrar meta del fixture
-    await deleteDoc(doc(db, 'torneos', torneoId, 'fixture', 'meta')).catch(() => {});
-
-    // Volver el torneo a borrador
-    await updateDoc(doc(db, 'torneos', torneoId), { estado: 'borrador', actualizadoEn: serverTimestamp() });
-
-    showToast('✓ Fixture reseteado — redirigiendo a configuración...');
-    setTimeout(() => { window.location.href = 'torneo_pantalla2.html'; }, 1200);
-  } catch(e) {
-    console.error(e);
-    showToast('❌ Error al resetear');
-  }
+    showToast('Reseteando...');
+    try {
+      const partidosSnap2 = await getDocs(collection(db, 'torneos', torneoId, 'partidos'));
+      await Promise.all(partidosSnap2.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'partidos', d.id))));
+      const zonasSnap2 = await getDocs(collection(db, 'torneos', torneoId, 'zonas'));
+      await Promise.all(zonasSnap2.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'zonas', d.id))));
+      await deleteDoc(doc(db, 'torneos', torneoId, 'fixture', 'meta')).catch(() => {});
+      await updateDoc(doc(db, 'torneos', torneoId), { estado: 'borrador', actualizadoEn: serverTimestamp() });
+      showToast('✓ Fixture reseteado — redirigiendo a configuración...');
+      setTimeout(() => { window.location.href = 'torneo_pantalla2.html'; }, 1200);
+    } catch(e) {
+      console.error(e);
+      showToast('❌ Error al resetear');
+    }
+  });
 };
 
 // ── CONFIRMAR ────────────────────────────────────────────
-window.confirmarFixture = async function() {
-  const torneoId = sessionStorage.getItem('torneoId');
-  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
+window.confirmarFixture = function() {
+  pedirPin('operador', 'CONFIRMAR FIXTURE', 'Acción de operador requerida', async () => {
+    const torneoId = sessionStorage.getItem('torneoId');
+    if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
 
-  // Para llave sola: solo guardar parejas con número y activar torneo
-  if (torneoConfig.formato === 'llave_sola') {
-    showToast('Guardando...');
-    try {
-      // Asignar números a parejas
-      await Promise.all(parejas.map((p, i) =>
-        updateDoc(doc(db,'torneos',torneoId,'parejas',p.id), { numFixture: i+1 })
-      ));
-      await setDoc(doc(db,'torneos',torneoId,'fixture','meta'), {
-        confirmado: true, confirmadoEn: serverTimestamp(),
-        formato: 'llave_sola', totalZonas: 0
-      });
-      await updateDoc(doc(db,'torneos',torneoId), { estado:'activo', actualizadoEn: serverTimestamp() });
-      showToast('✓ Confirmado');
-      setTimeout(() => { window.location.href = 'torneo_resultados.html'; }, 1200);
+    if (torneoConfig.formato === 'llave_sola') {
+      showToast('Guardando...');
+      try {
+        await Promise.all(parejas.map((p, i) =>
+          updateDoc(doc(db,'torneos',torneoId,'parejas',p.id), { numFixture: i+1 })
+        ));
+        await setDoc(doc(db,'torneos',torneoId,'fixture','meta'), {
+          confirmado: true, confirmadoEn: serverTimestamp(),
+          formato: 'llave_sola', totalZonas: 0
+        });
+        await updateDoc(doc(db,'torneos',torneoId), { estado:'activo', actualizadoEn: serverTimestamp() });
+        showToast('✓ Confirmado');
+        setTimeout(() => { window.location.href = 'torneo_resultados.html'; }, 1200);
     } catch(e) { console.error(e); showToast('❌ Error: ' + e.message); }
     return;
   }
@@ -1154,6 +1309,7 @@ window.confirmarFixture = async function() {
     console.error(e);
     showToast('❌ Error al guardar: ' + e.message);
   }
+  }); // fin callback pedirPin
 };
 
 function showToast(msg) {
