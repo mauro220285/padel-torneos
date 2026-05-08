@@ -122,7 +122,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
 <div class="app-header">
   <button class="header-back" onclick="window.location.href='index.html'">← INICIO</button>
-  <div class="header-logo">PADEL <span>TEAM</span></div>
+  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span></div>
 </div>
 
 <div class="page-title">
@@ -971,6 +971,27 @@ window.cerrarPanelRecat = function() {
 document.getElementById('modalOverlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modalOverlay')) cerrarModal(); });
 
 cargar();
+
+// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
+(async function() {
+  try {
+    const snap = await getDoc(doc(db,'config','cancha'));
+    if (!snap.exists()) return;
+    const nombre = snap.data().nombre;
+    if (!nombre) return;
+    const n = nombre.toUpperCase();
+    // Título del tab
+    document.title = n + ' — Jugadores';
+    // Header logo
+    const logo = document.getElementById('headerLogo');
+    if (logo) {
+      const partes = n.split(' ');
+      const primera = partes[0];
+      const resto = partes.slice(1).join(' ');
+      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + '';
+    }
+  } catch(e) { console.error('Error cargando nombre cancha:', e); }
+})();
 </script>
 </body>
 </html>

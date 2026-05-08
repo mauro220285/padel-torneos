@@ -152,7 +152,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
 <div class="app-header">
   <a class="header-back" href="index.html">← INICIO</a>
-  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · TORNEOS</div>
   <a class="header-right" href="torneo_publico.html">👁️ PÚBLICA</a>
 </div>
 
@@ -1228,6 +1228,27 @@ window.irAInformes = function() {
   if (tid) window.location.href = 'torneo_pantalla5.html?id=' + tid;
   else alert('No hay torneo activo');
 };
+
+// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
+(async function() {
+  try {
+    const snap = await getDoc(doc(db,'config','cancha'));
+    if (!snap.exists()) return;
+    const nombre = snap.data().nombre;
+    if (!nombre) return;
+    const n = nombre.toUpperCase();
+    // Título del tab
+    document.title = n + ' — Carga de Resultados';
+    // Header logo
+    const logo = document.getElementById('headerLogo');
+    if (logo) {
+      const partes = n.split(' ');
+      const primera = partes[0];
+      const resto = partes.slice(1).join(' ');
+      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + ' · TORNEOS';
+    }
+  } catch(e) { console.error('Error cargando nombre cancha:', e); }
+})();
 </script>
 </body>
 </html>

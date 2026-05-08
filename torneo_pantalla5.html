@@ -262,7 +262,7 @@ body {
 <body>
 
 <div class="app-header">
-  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · TORNEOS</div>
   <a class="header-right" href="torneo_publico.html">👁️ PÚBLICA</a>
 </div>
 
@@ -434,6 +434,13 @@ body {
         <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">🥈 FINALISTAS</div>
         <input type="text" id="finalista1" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;margin-bottom:6px;outline:none;">
         <input type="text" id="finalista2" placeholder="Nombre Apellido" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;">
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;color:var(--azul);margin-bottom:6px;">💬 MENSAJE DE DEDICATORIA</div>
+        <textarea id="dedicatoriaImagen" rows="4" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;outline:none;resize:vertical;line-height:1.5;"></textarea>
+        <div style="font-family:'Oswald',sans-serif;font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:4px;">
+          Podés editar este texto para esta imagen. Al volver a abrir, se restaura el mensaje guardado en Configuración.
+        </div>
       </div>
       <button class="btn-share btn-share-img" onclick="generarImagenCampeones()" style="font-size:16px;padding:14px;">📸 GENERAR IMAGEN</button>
     </div>
@@ -1659,7 +1666,20 @@ window.selExtTab = function(btn, panel) {
 };
 window.toggleCard = function(id) {
   document.getElementById('card-'+id).classList.toggle('open');
+  // Al abrir campeones: cargar dedicatoria desde Firebase (siempre fresca, nunca el editado)
+  if (id === 'campeones' && document.getElementById('card-campeones').classList.contains('open')) {
+    cargarDedicatoria();
+  }
 };
+
+async function cargarDedicatoria() {
+  try {
+    const snap = await getDoc(doc(db,'config','cancha'));
+    const texto = snap.exists() ? (snap.data().dedicatoria || '') : '';
+    const ta = document.getElementById('dedicatoriaImagen');
+    if (ta) ta.value = texto;
+  } catch(e) { console.error('Error cargando dedicatoria:', e); }
+}
 window.selProgTab = function(btn, idx) {
   document.querySelectorAll('.prog-tab').forEach(t=>t.classList.remove('activa'));
   document.querySelectorAll('.programa-panel').forEach(p=>p.classList.remove('visible'));
@@ -1689,7 +1709,17 @@ function showToast(msg) {
 async function cargarConfigCancha() {
   try {
     const snap = await getDoc(doc(db, 'config', 'cancha'));
-    return snap.exists() ? snap.data() : { nombre: 'PADEL TEAM', colorPrincipal: '#4a9eff' };
+    const data = snap.exists() ? snap.data() : { nombre: 'PADEL TEAM', colorPrincipal: '#4a9eff' };
+    // Actualizar título y header logo
+    if (data.nombre) {
+      document.title = data.nombre.toUpperCase() + ' — Informes';
+      const logo = document.getElementById('headerLogo');
+      if (logo) {
+        const partes = data.nombre.toUpperCase().split(' ');
+        logo.innerHTML = partes[0] + (partes.length > 1 ? ' <span>' + partes.slice(1).join(' ') + '</span>' : '') + ' · TORNEOS';
+      }
+    }
+    return data;
   } catch(e) { return { nombre: 'PADEL TEAM', colorPrincipal: '#4a9eff' }; }
 }
 
@@ -2501,11 +2531,66 @@ window.generarImagenCampeones = function() {
   const categoriaManual = document.getElementById('campeonesCategoria')?.value.trim();
   const nombreTorneo = torneoData?.nombre || nombreManual || 'TORNEO';
   const categoriaLabel = categoriaManual ? ` · ${categoriaManual}` : '';
+
+  // ── Helpers de color ──────────────────────────────────
+  function hexToRgb(h) {
+    h = h.replace('#','');
+    if (h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return { r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16) };
+  }
+  function luminancia(hex) {
+    const {r,g,b} = hexToRgb(hex);
+    return 0.299*r + 0.587*g + 0.114*b;
+  }
+  function rgba(hex, alpha) {
+    const {r,g,b} = hexToRgb(hex);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  // Si el color es muy oscuro sobre fondo oscuro, lo aclaramos o usamos blanco
+  function colorSobreFondoOscuro(hex, fallback='#ffffff') {
+    return luminancia(hex) < 40 ? fallback : hex;
+  }
+  // Para texto: si el color es muy claro, devuelve una versión oscura; si muy oscuro, blanco
+  function colorTextoContraste(hex) {
+    const lum = luminancia(hex);
+    if (lum < 40) return '#ffffff';
+    if (lum > 210) return '#1a1a2e';
+    return hex;
+  }
+  // Versión usable del color para elementos sobre fondo oscuro
+  const c1 = colorSobreFondoOscuro(color, '#4a9eff');
+  const c2 = colorSobreFondoOscuro(color2, '#00d4ff');
+  // Colores diferenciados para las dos cajas (si son muy similares, forzar contraste)
+  const c1txt = colorTextoContraste(c1);
+  const c2txt = colorTextoContraste(c2);
+
+  // Sombra de texto para nombres (siempre)
+  function strokeTexto(ctx, text, x, y, color='#000', width=3) {
+    ctx.strokeStyle=color; ctx.lineWidth=width; ctx.strokeText(text,x,y);
+  }
+
   const W = 1080, H = 1350;
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#080c14'; ctx.fillRect(0,0,W,H);
+
+  // ── FONDO BASE ──
+  ctx.fillStyle = '#080c14';
+  ctx.fillRect(0,0,W,H);
+  // Gradiente sutil con colores dinámicos (baja opacidad)
+  const bgGrad = ctx.createLinearGradient(0,0,W,H);
+  bgGrad.addColorStop(0, rgba(c1,0.07));
+  bgGrad.addColorStop(1, rgba(c2,0.07));
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0,0,W,H);
+
+  // Líneas decorativas sutiles
+  ctx.strokeStyle = rgba(c2, 0.05);
+  ctx.lineWidth = 1;
+  for (let i=0; i<W; i+=80) {
+    ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,H); ctx.stroke();
+  }
+
   if (fotoCampeonesBase64) {
     await new Promise(resolve => {
       const img = new Image();
@@ -2518,31 +2603,44 @@ window.generarImagenCampeones = function() {
       img.onerror=resolve; img.src=fotoCampeonesBase64;
     });
   }
-  const topGrad=ctx.createLinearGradient(0,0,0,220);
-  topGrad.addColorStop(0,'rgba(8,12,20,0.95)'); topGrad.addColorStop(1,'rgba(8,12,20,0)');
-  ctx.fillStyle=topGrad; ctx.fillRect(0,0,W,220);
-  let logoY=40;
+
+  // ── GRADIENTE SUPERIOR (siempre visible, semi-oscuro) ──
+  const topGrad = ctx.createLinearGradient(0,0,0,260);
+  topGrad.addColorStop(0,'rgba(8,12,20,0.92)');
+  topGrad.addColorStop(0.6, rgba(c1,0.25));
+  topGrad.addColorStop(1,'rgba(8,12,20,0)');
+  ctx.fillStyle = topGrad;
+  ctx.fillRect(0,0,W,260);
+
+  // ── LOGO / NOMBRE CANCHA ──
+  let logoY = 40;
   if (cancha.logo) {
     await new Promise(resolve => {
       const img=new Image();
       img.onload=()=>{
-        const s=130; ctx.save(); ctx.shadowColor=color2; ctx.shadowBlur=30;
+        const s=130; ctx.save(); ctx.shadowColor=c2; ctx.shadowBlur=30;
         ctx.beginPath(); ctx.arc(W/2,logoY+s/2,s/2,0,Math.PI*2); ctx.clip();
         ctx.drawImage(img,W/2-s/2,logoY,s,s); ctx.restore(); resolve();
       };
       img.onerror=resolve; img.src=cancha.logo;
     });
-    logoY+=150;
+    logoY += 150;
   } else {
-    ctx.font='bold 36px Bebas Neue, Arial'; ctx.fillStyle='#fff'; ctx.textAlign='center';
-    ctx.fillText((cancha.nombre||'PADEL TEAM').toUpperCase(),W/2,logoY+40); logoY+=60;
+    ctx.font='bold 36px Bebas Neue, Arial'; ctx.textAlign='center';
+    // Contorno siempre negro para que se lea sobre cualquier fondo
+    strokeTexto(ctx,(cancha.nombre||'PADEL TEAM').toUpperCase(),W/2,logoY+40,'#000',4);
+    ctx.fillStyle='#ffffff';
+    ctx.fillText((cancha.nombre||'PADEL TEAM').toUpperCase(),W/2,logoY+40);
+    logoY += 60;
   }
+
+  // ── FOTO / PLACEHOLDER ──
   const fotoY=logoY+10, fotoH=520;
   if (fotoCampeonesBase64) {
     await new Promise(resolve => {
       const img=new Image();
       img.onload=()=>{
-        ctx.strokeStyle=color2; ctx.lineWidth=5; ctx.strokeRect(40,fotoY,W-80,fotoH);
+        ctx.strokeStyle=c2; ctx.lineWidth=5; ctx.strokeRect(40,fotoY,W-80,fotoH);
         const scale=Math.max((W-80)/img.width,fotoH/img.height);
         const sw=img.width*scale, sh=img.height*scale;
         ctx.save(); ctx.beginPath(); ctx.rect(42,fotoY+2,W-84,fotoH-4); ctx.clip();
@@ -2552,47 +2650,135 @@ window.generarImagenCampeones = function() {
       img.onerror=resolve; img.src=fotoCampeonesBase64;
     });
   } else {
-    ctx.fillStyle='#1a2a3a'; ctx.fillRect(40,fotoY,W-80,fotoH);
+    // Placeholder con gradiente de color (siempre visible)
+    const pgrd = ctx.createLinearGradient(40,fotoY,W-40,fotoY+fotoH);
+    pgrd.addColorStop(0, rgba(c1,0.18));
+    pgrd.addColorStop(1, rgba(c2,0.10));
+    ctx.fillStyle = pgrd;
+    ctx.fillRect(40,fotoY,W-80,fotoH);
+    ctx.strokeStyle = rgba(c2,0.5);
+    ctx.lineWidth=3; ctx.strokeRect(40,fotoY,W-80,fotoH);
   }
+
+  // Gradiente degradé sobre la foto
   const fg=ctx.createLinearGradient(0,fotoY+fotoH-120,0,fotoY+fotoH+20);
   fg.addColorStop(0,'rgba(8,12,20,0)'); fg.addColorStop(1,'rgba(8,12,20,1)');
   ctx.fillStyle=fg; ctx.fillRect(0,fotoY+fotoH-120,W,140);
-  let y=fotoY+fotoH+28;
-  ctx.textAlign='center'; ctx.fillStyle=color2; ctx.font='bold 30px Oswald, Arial';
-  ctx.fillText('· '+(nombreTorneo+categoriaLabel).toUpperCase()+' ·',W/2,y); y+=62;
+
+  // ── TÍTULO ──
+  let y = fotoY+fotoH+28;
+  ctx.textAlign='center';
+  ctx.font='bold 30px Oswald, Arial';
+  strokeTexto(ctx,'· '+(nombreTorneo+categoriaLabel).toUpperCase()+' ·',W/2,y,'#000',3);
+  ctx.fillStyle = c2txt === '#1a1a2e' ? '#333' : c2;
+  ctx.fillText('· '+(nombreTorneo+categoriaLabel).toUpperCase()+' ·',W/2,y);
+  y += 62;
+
   ctx.fillStyle='#fff'; ctx.font='bold 72px Bebas Neue, Arial';
+  strokeTexto(ctx,'¡Felicitaciones',W/2,y,'#000',4);
   ctx.fillText('¡Felicitaciones',W/2,y); y+=70;
+  strokeTexto(ctx,'Campeones!',W/2,y,'#000',4);
   ctx.fillText('Campeones!',W/2,y); y+=50;
+
+  // ── CAJAS ──
   const boxY=y, boxH=120, boxW=(W-80-60)/2;
-  ctx.fillStyle='rgba(212,170,0,0.15)'; ctx.beginPath(); ctx.roundRect(40,boxY,boxW,boxH,10); ctx.fill();
-  ctx.strokeStyle='#D4AA00'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.roundRect(40,boxY,boxW,boxH,10); ctx.stroke();
-  ctx.textAlign='left'; ctx.fillStyle='#D4AA00'; ctx.font='13px Oswald, Arial';
-  ctx.fillText('\ud83e\udd47  CAMPEONES',56,boxY+26);
-  ctx.fillStyle='#FFD700'; ctx.font='bold 26px Bebas Neue, Arial';
-  ctx.fillText(campeon1,56,boxY+60); ctx.fillText(campeon2,56,boxY+90);
-  ctx.textAlign='center'; ctx.font='36px Arial'; ctx.fillText('\ud83c\udfc6',W/2,boxY+52);
-  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='14px Oswald, Arial'; ctx.fillText('VS',W/2,boxY+80);
-  const box2X=40+boxW+60;
-  ctx.fillStyle='rgba(74,158,255,0.1)'; ctx.beginPath(); ctx.roundRect(box2X,boxY,boxW,boxH,10); ctx.fill();
-  ctx.strokeStyle='rgba(74,158,255,0.4)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.roundRect(box2X,boxY,boxW,boxH,10); ctx.stroke();
-  ctx.textAlign='left'; ctx.fillStyle='rgba(74,158,255,0.8)'; ctx.font='13px Oswald, Arial';
-  ctx.fillText('\ud83e\udd48  FINALISTAS',box2X+16,boxY+26);
-  ctx.fillStyle='#e0e0f0'; ctx.font='bold 26px Bebas Neue, Arial';
-  ctx.fillText(final1||'\u2014',box2X+16,boxY+60); ctx.fillText(final2||'\u2014',box2X+16,boxY+90);
-  y=boxY+boxH+40;
-  ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,0.7)'; ctx.font='22px Oswald, Arial';
-  ctx.fillText('Gracias a todas las parejas y al p\u00fablico',W/2,y); y+=30;
-  ctx.fillText('que fueron parte de este torneo.',W/2,y); y+=38;
-  ctx.fillStyle=color2; ctx.font='bold 24px Oswald, Arial';
-  ctx.fillText('\u00a1Todo esto es posible gracias a ustedes!',W/2,y); y+=36;
-  ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='20px Oswald, Arial';
-  ctx.fillText('Nos vemos en el pr\u00f3ximo... \ud83c\udfbe',W/2,y); y+=40;
-  ctx.fillStyle=color2; ctx.font='bold 22px Bebas Neue, Arial';
-  ctx.fillText('\u2014 '+(cancha.nombre||'Team P\u00e1del')+' \u2014',W/2,y);
+
+  // Caja campeones — c2 como acento, borde siempre visible
+  ctx.fillStyle=rgba(c2,0.15);
+  ctx.beginPath(); ctx.roundRect(40,boxY,boxW,boxH,10); ctx.fill();
+  ctx.strokeStyle=luminancia(color2)<40 ? 'rgba(255,255,255,0.4)' : c2;
+  ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(40,boxY,boxW,boxH,10); ctx.stroke();
   ctx.textAlign='left';
-  descargarCanvas(canvas,'campeones.png');
-  showToast('\u2705 Imagen descargada');
+  const labelC2 = luminancia(color2)<40 ? '#aaaacc' : c2;
+  ctx.fillStyle=labelC2; ctx.font='13px Oswald, Arial';
+  ctx.fillText('🥇  CAMPEONES',56,boxY+26);
+  // Nombres campeones: SIEMPRE blanco con sombra negra
+  ctx.font='bold 26px Bebas Neue, Arial';
+  strokeTexto(ctx,campeon1,56,boxY+60,'#000',3);
+  ctx.fillStyle='#ffffff'; ctx.fillText(campeon1,56,boxY+60);
+  strokeTexto(ctx,campeon2,56,boxY+90,'#000',3);
+  ctx.fillText(campeon2,56,boxY+90);
+
+  // Trofeo y VS
+  ctx.textAlign='center'; ctx.font='36px Arial'; ctx.fillText('🏆',W/2,boxY+52);
+  ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='14px Oswald, Arial'; ctx.fillText('VS',W/2,boxY+80);
+
+  // Caja finalistas — c1 como acento, borde siempre visible
+  const box2X=40+boxW+60;
+  ctx.fillStyle=rgba(c1,0.12);
+  ctx.beginPath(); ctx.roundRect(box2X,boxY,boxW,boxH,10); ctx.fill();
+  ctx.strokeStyle=luminancia(color)<40 ? 'rgba(255,255,255,0.35)' : rgba(c1,0.7);
+  ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(box2X,boxY,boxW,boxH,10); ctx.stroke();
+  ctx.textAlign='left';
+  const labelC1 = luminancia(color)<40 ? '#aaaacc' : rgba(c1,0.9);
+  ctx.fillStyle=labelC1; ctx.font='13px Oswald, Arial';
+  ctx.fillText('🥈  FINALISTAS',box2X+16,boxY+26);
+  // Nombres finalistas: SIEMPRE blanco con sombra negra
+  ctx.font='bold 26px Bebas Neue, Arial';
+  strokeTexto(ctx,final1||'—',box2X+16,boxY+60,'#000',3);
+  ctx.fillStyle='#ffffff'; ctx.fillText(final1||'—',box2X+16,boxY+60);
+  strokeTexto(ctx,final2||'—',box2X+16,boxY+90,'#000',3);
+  ctx.fillText(final2||'—',box2X+16,boxY+90);
+
+  y = boxY+boxH+40;
+
+  // ── DEDICATORIA ──
+  // Leer del textarea (editable por única vez, no se guarda)
+  const c2dedi = luminancia(color2)<40 ? 'rgba(255,255,255,0.8)' : c2;
+  const dedicatoriaTexto = document.getElementById('dedicatoriaImagen')?.value.trim() || '';
+  const lineasDedicatoria = dedicatoriaTexto
+    ? dedicatoriaTexto.split('\n').map(l => l.trim()).filter(Boolean)
+    : ['Gracias a todas las parejas y al público', 'que fueron parte de este torneo.', '¡Todo esto es posible gracias a ustedes!'];
+
+  ctx.textAlign='center';
+  lineasDedicatoria.forEach((linea, i) => {
+    const esUltima = i === lineasDedicatoria.length - 1;
+    if (esUltima) {
+      ctx.fillStyle = c2dedi; ctx.font = 'bold 24px Oswald, Arial';
+    } else if (i === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '22px Oswald, Arial';
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.65)'; ctx.font = '22px Oswald, Arial';
+    }
+    ctx.fillText(linea, W/2, y); y += 34;
   });
+  y += 6;
+  ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.font='20px Oswald, Arial';
+  ctx.fillText('Nos vemos en el próximo... 🎾',W/2,y); y+=40;
+  ctx.fillStyle=c2dedi; ctx.font='bold 22px Bebas Neue, Arial';
+  ctx.fillText('— '+(cancha.nombre||'Team Pádel')+' —',W/2,y);
+  ctx.textAlign='left';
+
+  // ── FOOTER ──
+  // Si c1 es muy oscuro, usar un gris oscuro para que el footer sea visible
+  const footerColor = luminancia(color)<25 ? '#1a2030' : c1;
+  ctx.fillStyle = footerColor;
+  ctx.fillRect(0,H-70,W,70);
+  // Línea separadora siempre visible
+  ctx.strokeStyle = rgba(c2,0.5);
+  ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(0,H-70); ctx.lineTo(W,H-70); ctx.stroke();
+  const tels=(cancha.telefonos||[]);
+  const redes=(cancha.redes||[]);
+  // Texto footer: siempre blanco con sombra para contraste
+  ctx.fillStyle='rgba(255,255,255,0.9)';
+  ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=2;
+  ctx.font='bold 15px Oswald, Arial';
+  const telStr=tels.slice(0,2).map(t=>typeof t==='object'?t.numero:t).filter(Boolean).join('  |  ');
+  if(telStr){ctx.strokeText(`📞 ${telStr}`,20,H-70+22);ctx.fillText(`📞 ${telStr}`,20,H-70+22);}
+  const redStr=(redes||[]).slice(0,2).filter(Boolean).join('  |  ');
+  if(redStr){ctx.strokeText(`📱 ${redStr}`,20,H-70+44);ctx.fillText(`📱 ${redStr}`,20,H-70+44);}
+  ctx.textAlign='right';
+  ctx.font='bold 22px Bebas Neue, Arial';
+  ctx.strokeStyle='rgba(0,0,0,0.8)'; ctx.lineWidth=3;
+  ctx.strokeText(`${(cancha.nombre||'PADEL TEAM').toUpperCase()} · ¡BUENA SUERTE! 🎾`,W-20,H-70+36);
+  ctx.fillStyle='rgba(255,255,255,0.95)';
+  ctx.fillText(`${(cancha.nombre||'PADEL TEAM').toUpperCase()} · ¡BUENA SUERTE! 🎾`,W-20,H-70+36);
+  ctx.textAlign='left';
+
+  descargarCanvas(canvas,'campeones.png');
+  showToast('✅ Imagen descargada');
+  }); // fin pedirPin
 };
 
 // ── FONDO LLAVE ──

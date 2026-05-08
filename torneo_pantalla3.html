@@ -216,7 +216,7 @@ body {
 
 <div class="app-header">
   <button class="header-back" onclick="window.location.href='torneo_pantalla2.html'">← VOLVER</button>
-  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · TORNEOS</div>
 </div>
 
 <div class="steps">
@@ -249,12 +249,33 @@ body {
   <button class="btn-add-pareja" onclick="agregarPareja()">+ AGREGAR PAREJA</button>
 </div>
 
+<!-- AVISO RESTRICCIONES DESACTIVADAS -->
+<div id="restriccionesAviso" style="display:none;margin:0 20px 12px;background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.3);border-radius:10px;padding:10px 14px;">
+  <div style="font-family:'Oswald',sans-serif;font-size:12px;color:var(--amarillo);letter-spacing:1px;">
+    ⚠ Las restricciones horarias están desactivadas para este criterio de armado
+  </div>
+</div>
+
 <!-- DISTRIBUCIÓN AUTOMÁTICA -->
 <div class="section">
   <div class="section-label">Distribución en zonas</div>
   <div class="dist-box">
     <div class="dist-title">⚡ Distribución automática</div>
     <div id="distContent"><span class="dist-empty">Cargá al menos 4 parejas para ver la distribución</span></div>
+  </div>
+</div>
+
+<!-- DISTRIBUCIÓN MANUAL -->
+<div id="seccionDistManual" style="display:none;">
+  <div class="section">
+    <div class="section-label">✋ Asignación manual de zonas</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:12px;">
+      Tocá una pareja y después tocá la zona donde querés ubicarla
+    </div>
+    <div id="distManualParejas" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;min-height:40px;padding:10px;background:var(--bg2);border:1px dashed var(--border);border-radius:10px;">
+      <span style="color:var(--muted);font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;">Cargá las parejas primero</span>
+    </div>
+    <div id="distManualZonas" style="display:flex;flex-direction:column;gap:10px;"></div>
   </div>
 </div>
 
@@ -390,6 +411,10 @@ function crearParejaHTML(n, pareja) {
 
   body.appendChild(j1);
   body.appendChild(j2);
+  // Ocultar restricciones si criterio no es por horarios
+  if (CONFIG.criterioArmado !== 'horarios') {
+    restr.style.display = 'none';
+  }
   body.appendChild(restr);
   body.appendChild(btnDel);
   card.appendChild(header);
@@ -552,6 +577,8 @@ function distribuirZonas() {
   const cont = document.getElementById('distContent');
   if (parejas.length < 2) {
     cont.innerHTML = '<span class="dist-empty">Cargá al menos 4 parejas para ver la distribución</span>';
+    // Actualizar también el panel manual si está activo
+    if (CONFIG.criterioArmado === 'manual') renderDistManual();
     return;
   }
   const zonasConfig = CONFIG.zonasConfig;
@@ -592,11 +619,125 @@ function distribuirZonas() {
     }
   }
   cont.innerHTML = html;
+  // Actualizar panel manual si está activo
+  if (CONFIG.criterioArmado === 'manual') renderDistManual();
 }
+
+// ── DISTRIBUCIÓN MANUAL ──────────────────────────────────
+let distManualMap = {}; // parejaId → zonaId ('A','B','C',...)
+let distManualSeleccionada = null; // parejaId seleccionada
+
+function getZonasManual() {
+  // Calcular cuántas zonas hay según config
+  if (CONFIG.zonasConfig && CONFIG.zonasConfig.length > 0) {
+    return CONFIG.zonasConfig.map((z, i) => ({
+      letra: z.letra || String.fromCharCode(65+i),
+      parejas: z.parejas,
+      clasifican: z.clasifican
+    }));
+  }
+  const porZona = 4;
+  const cantZonas = Math.ceil(parejas.length / porZona);
+  return Array.from({length: cantZonas}, (_, i) => ({
+    letra: String.fromCharCode(65+i),
+    parejas: porZona,
+    clasifican: 2
+  }));
+}
+
+function renderDistManual() {
+  if (CONFIG.criterioArmado !== 'manual') return;
+  const wrapParejas = document.getElementById('distManualParejas');
+  const wrapZonas   = document.getElementById('distManualZonas');
+  if (!wrapParejas || !wrapZonas) return;
+
+  const zonas = getZonasManual();
+
+  // Parejas sin zona asignada
+  const sinZona = parejas.filter(p => !distManualMap[p.id]);
+
+  if (parejas.length < 2) {
+    wrapParejas.innerHTML = '<span style="color:var(--muted);font-family:\'Oswald\',sans-serif;font-size:12px;letter-spacing:1px;">Cargá las parejas primero</span>';
+    wrapZonas.innerHTML = '';
+    return;
+  }
+
+  // Render parejas sin asignar
+  if (sinZona.length === 0) {
+    wrapParejas.innerHTML = '<span style="color:var(--verde);font-family:\'Oswald\',sans-serif;font-size:12px;letter-spacing:1px;">✅ Todas las parejas asignadas</span>';
+  } else {
+    wrapParejas.innerHTML = sinZona.map(p => {
+      const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
+      const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
+      const nombre = (n1 && n2) ? `${n1} / ${n2}` : `Pareja ${parejas.indexOf(p)+1}`;
+      const sel = distManualSeleccionada === p.id;
+      return `<span onclick="seleccionarPareja('${p.id}')" style="
+        display:inline-block;padding:6px 12px;border-radius:8px;cursor:pointer;
+        font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:1px;
+        background:${sel?'rgba(74,158,255,0.2)':'rgba(255,255,255,0.06)'};
+        border:1.5px solid ${sel?'var(--azul)':'var(--border)'};
+        color:${sel?'var(--azul)':'var(--text)'};
+        transition:all 0.15s;">${nombre}</span>`;
+    }).join('');
+  }
+
+  // Render zonas
+  wrapZonas.innerHTML = zonas.map(z => {
+    const enZona = parejas.filter(p => distManualMap[p.id] === z.letra);
+    const chips = enZona.map(p => {
+      const n1 = document.getElementById(`j1-nombre-${p.id}`)?.value || '';
+      const n2 = document.getElementById(`j2-nombre-${p.id}`)?.value || '';
+      const nombre = (n1 && n2) ? `${n1} / ${n2}` : `Pareja ${parejas.indexOf(p)+1}`;
+      return `<span onclick="quitarDeZona('${p.id}')" style="
+        display:inline-block;padding:5px 10px;border-radius:6px;cursor:pointer;
+        font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;
+        background:rgba(255,255,255,0.08);border:1px solid var(--border);
+        color:var(--text);" title="Tocar para quitar de la zona">${nombre} ✕</span>`;
+    }).join('');
+    const disponible = distManualSeleccionada && !distManualMap[distManualSeleccionada];
+    return `<div onclick="asignarAZona('${z.letra}')" style="
+      background:var(--bg2);border:1.5px solid ${disponible?'var(--azul)':'var(--border)'};
+      border-radius:10px;padding:12px 14px;cursor:${disponible?'pointer':'default'};
+      transition:border-color 0.15s;min-height:60px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:3px;color:#fff;margin-bottom:8px;">
+        ZONA ${z.letra} <span style="font-size:12px;color:var(--muted);letter-spacing:1px;">${enZona.length}/${z.parejas} parejas</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${chips || '<span style="color:var(--muted);font-size:11px;font-family:Oswald,sans-serif;">Tocá aquí para asignar la pareja seleccionada</span>'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.seleccionarPareja = function(id) {
+  distManualSeleccionada = distManualSeleccionada === id ? null : id;
+  renderDistManual();
+};
+
+window.asignarAZona = function(letra) {
+  if (!distManualSeleccionada) return;
+  if (distManualMap[distManualSeleccionada]) return; // ya asignada
+  distManualMap[distManualSeleccionada] = letra;
+  distManualSeleccionada = null;
+  renderDistManual();
+};
+
+window.quitarDeZona = function(id) {
+  delete distManualMap[id];
+  renderDistManual();
+};
 
 // ── GUARDAR Y SEGUIR ──
 window.guardarYSeguir = async function() {
   if (parejas.length < 4) { showToast('⚠️ Necesitás al menos 4 parejas'); return; }
+  // Verificar distribución manual completa
+  if (CONFIG.criterioArmado === 'manual') {
+    const sinAsignar = parejas.filter(p => !distManualMap[p.id]);
+    if (sinAsignar.length > 0) {
+      showToast(`⚠️ Faltan ${sinAsignar.length} pareja(s) sin zona asignada`);
+      return;
+    }
+  }
   // Verificar errores de categoría
   const erroresCat = document.querySelectorAll('[id^="err-cat-"]');
   if (erroresCat.length > 0) {
@@ -695,7 +836,16 @@ window.guardarYSeguir = async function() {
 
     await Promise.all(datosParejas.map((p, i) => {
       const id = `pareja_${String(i+1).padStart(2,'0')}`;
-      return setDoc(doc(fbDb, 'torneos', torneoId, 'parejas', id), p);
+      // Si criterio manual, agregar zona asignada a cada pareja
+      const datos = { ...p };
+      if (CONFIG.criterioArmado === 'manual') {
+        // Buscar el id original de la pareja por índice
+        const parejaOrig = parejas[i];
+        if (parejaOrig && distManualMap[parejaOrig.id]) {
+          datos.zonaManual = distManualMap[parejaOrig.id];
+        }
+      }
+      return setDoc(doc(fbDb, 'torneos', torneoId, 'parejas', id), datos);
     }));
 
     showToast('✓ Parejas guardadas');
@@ -1008,6 +1158,7 @@ if (storedTorneoId) {
         });
         CONFIG.zonasConfig = t.zonasConfig || null;
         CONFIG.categoria   = t.categoria || null;
+        CONFIG.criterioArmado = t.criterioArmado || 'horarios';
         recalcularHorariosTodos();
         parejasTotal = CONFIG.totalParejas;
         document.getElementById('total').textContent = parejasTotal;
@@ -1017,6 +1168,14 @@ if (storedTorneoId) {
         if (CONFIG.formato === 'llave_sola') {
           const distSection = document.querySelector('.section:has(#distContent)');
           if (distSection) distSection.style.display = 'none';
+        }
+        // Ocultar restricciones horarias si criterio es manual o ranking
+        if (CONFIG.criterioArmado === 'manual' || CONFIG.criterioArmado === 'ranking') {
+          document.getElementById('restriccionesAviso').style.display = 'block';
+        }
+        // Mostrar sección distribución manual si corresponde
+        if (CONFIG.criterioArmado === 'manual') {
+          document.getElementById('seccionDistManual').style.display = 'block';
         }
       }
     } catch(e) { console.error('Error cargando torneo:', e); }
@@ -1108,6 +1267,37 @@ if (storedTorneoId) {
   for (let i = 0; i < CONFIG.totalParejas; i++) agregarPareja();
   document.querySelectorAll('.pareja-card').forEach((c, i) => { if (i > 0) c.classList.remove('open'); });
 }
+
+// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
+(async function() {
+  try {
+    const { initializeApp, getApps } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getFirestore, doc, getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const fbConf = {
+      apiKey: "AIzaSyClQCeB0wyX12KcsSSgIT1pdvh3jTS20qA",
+      authDomain: "padel-team-76749.firebaseapp.com",
+      projectId: "padel-team-76749",
+      storageBucket: "padel-team-76749.firebasestorage.app",
+      messagingSenderId: "449257104174",
+      appId: "1:449257104174:web:7f72b5d62c2d92813dd0bf"
+    };
+    const fbApp = getApps().find(a=>a.name==='p3-app') || initializeApp(fbConf, 'p3-app');
+    const fbDb = getFirestore(fbApp);
+    const snap = await getDoc(doc(fbDb,'config','cancha'));
+    if (!snap.exists()) return;
+    const nombre = snap.data().nombre;
+    if (!nombre) return;
+    const n = nombre.toUpperCase();
+    document.title = n + ' — Carga de Parejas';
+    const logo = document.getElementById('headerLogo');
+    if (logo) {
+      const partes = n.split(' ');
+      const primera = partes[0];
+      const resto = partes.slice(1).join(' ');
+      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + ' · TORNEOS';
+    }
+  } catch(e) { console.error('Error cargando nombre cancha:', e); }
+})();
 </script>
 </body>
 </html>

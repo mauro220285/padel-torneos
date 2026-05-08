@@ -101,7 +101,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
 <div class="app-header">
   <button class="header-back" onclick="window.location.href='torneo_pantalla3.html'">← VOLVER</button>
-  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · TORNEOS</div>
 </div>
 
 <div class="steps">
@@ -507,6 +507,54 @@ function distribuirEnZonas(parejas, zonasConfig, slots) {
   return zonas;
 }
 
+// Distribución por ranking — serpentina
+function distribuirEnZonasSerpentina(parejas, zonasConfig) {
+  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  // Ordenar por puntos descendente
+  const ordenadas = [...parejas].sort((a, b) => (b.puntos||b.puntosAnuales||0) - (a.puntos||a.puntosAnuales||0));
+  const zonas = zonasConfig.map((zc, zi) => ({
+    id: `zona_${letras[zi] || 'Z'+zi}`,
+    nombre: letras[zi] || 'Z'+zi,
+    parejas: [],
+    capacidad: zc.parejas,
+    clasifican: zc.clasifican
+  }));
+  const nZonas = zonas.length;
+  let dir = 1, zonaIdx = 0;
+  ordenadas.forEach((pareja, i) => {
+    const zona = zonas[zonaIdx];
+    if (zona.parejas.length < zona.capacidad) zona.parejas.push(pareja);
+    // Avanzar en serpentina
+    if (zonaIdx === nZonas - 1) dir = -1;
+    if (zonaIdx === 0 && i > 0) dir = 1;
+    zonaIdx = Math.max(0, Math.min(nZonas - 1, zonaIdx + dir));
+  });
+  return zonas;
+}
+
+// Distribución manual — usa el campo zonaManual guardado en cada pareja
+function distribuirEnZonasManual(parejas, zonasConfig) {
+  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const zonas = zonasConfig.map((zc, zi) => ({
+    id: `zona_${letras[zi] || 'Z'+zi}`,
+    nombre: letras[zi] || 'Z'+zi,
+    parejas: [],
+    capacidad: zc.parejas,
+    clasifican: zc.clasifican
+  }));
+  parejas.forEach(pareja => {
+    const letra = pareja.zonaManual;
+    const zona = zonas.find(z => z.nombre === letra);
+    if (zona) zona.parejas.push(pareja);
+    else {
+      // Si no tiene zona asignada, poner en la primera disponible
+      const libre = zonas.find(z => z.parejas.length < z.capacidad);
+      if (libre) libre.parejas.push(pareja);
+    }
+  });
+  return zonas;
+}
+
 // Asigna horarios respetando descanso mínimo entre partidos
 function asignarHorarios(partidos, slots, pMap) {
   const resultado = [];
@@ -697,39 +745,50 @@ function generarFixture(parejas) {
 
   if (formato === 'zonas_llave') {
     const zonasConfig = torneoConfig.zonasConfig;
-    console.log('zonasConfig length:', zonasConfig?.length, 'parejas.length:', parejas.length);
-    if (zonasConfig?.length > 0) {
-      const zonas = distribuirEnZonas(parejas, zonasConfig, slotsZonas);
-      zonasData = zonas.map(z => ({...z, parejas: z.parejas.map(p => p.id || p)}));
-      zonas.forEach(zona => {
-        // Zona de 4 usa formato especial
-        if (zona.parejas.length === 4) {
-          partidos.push(...generarZona4Especial(zona.parejas, zona.id));
-        } else {
-          partidos.push(...generarRoundRobin(zona.parejas, zona.id));
-        }
-      });
-    } else {
+    const criterio = torneoConfig.criterioArmado || 'horarios';
+    console.log('zonasConfig length:', zonasConfig?.length, 'parejas.length:', parejas.length, 'criterio:', criterio);
+
+    const getZonasConfigAuto = () => {
       const porZona = 4;
       const nZonas = Math.ceil(parejas.length / porZona);
-      const zonasConfigAuto = Array.from({length: nZonas}, () => ({ parejas: porZona, clasifican: 2 }));
-      const zonas = distribuirEnZonas(parejas, zonasConfigAuto, slotsZonas);
-      zonasData = zonas;
-      zonas.forEach(zona => {
-        if (zona.parejas.length === 4) {
-          partidos.push(...generarZona4Especial(zona.parejas, zona.id));
-        } else {
-          partidos.push(...generarRoundRobin(zona.parejas, zona.id));
-        }
-      });
+      return Array.from({length: nZonas}, () => ({ parejas: porZona, clasifican: 2 }));
+    };
+    const zc = (zonasConfig && zonasConfig.length > 0) ? zonasConfig : getZonasConfigAuto();
+
+    let zonas;
+    if (criterio === 'ranking') {
+      zonas = distribuirEnZonasSerpentina(parejas, zc);
+    } else if (criterio === 'manual') {
+      zonas = distribuirEnZonasManual(parejas, zc);
+    } else {
+      zonas = distribuirEnZonas(parejas, zc, slotsZonas);
     }
+
+    zonasData = zonas.map(z => ({...z, parejas: z.parejas.map(p => p.id || p)}));
+    zonas.forEach(zona => {
+      if (zona.parejas.length === 4) {
+        partidos.push(...generarZona4Especial(zona.parejas, zona.id));
+      } else {
+        partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+      }
+    });
   } else {
-    // Round robin zona única
-    zonasData = [{ id:'zona_A', nombre:'A', parejas: parejas.map(p => p.id) }];
-    partidos  = generarRoundRobin(parejas, 'zona_A');
+    // Round robin zona única — criterio ranking ordena las parejas pero zona sigue siendo única
+    const criterio = torneoConfig.criterioArmado || 'horarios';
+    let parejasOrdenadas = parejas;
+    if (criterio === 'ranking') {
+      parejasOrdenadas = [...parejas].sort((a,b) => (b.puntos||b.puntosAnuales||0) - (a.puntos||a.puntosAnuales||0));
+    }
+    zonasData = [{ id:'zona_A', nombre:'A', parejas: parejasOrdenadas.map(p => p.id) }];
+    partidos  = generarRoundRobin(parejasOrdenadas, 'zona_A');
   }
 
-  fixture = asignarHorarios(partidos, slotsZonas, parejaMap);
+  // Si criterio manual: no asignar horarios (el operador los asigna desde P4 con ⇄)
+  if (torneoConfig.criterioArmado === 'manual') {
+    fixture = partidos.map(p => ({...p, hora: null, cancha: null, dia: null, conflicto: false}));
+  } else {
+    fixture = asignarHorarios(partidos, slotsZonas, parejaMap);
+  }
   console.log('Partidos zona:', partidos.length, 'Slots zona:', slotsZonas.length, 'Fixture:', fixture.length);
   fixture.forEach((p,i) => { p.id = `partido_${String(i+1).padStart(3,'0')}`; p.orden = i+1; });
 
@@ -1338,6 +1397,27 @@ window.irAInformes = function() {
   if (!tid) { alert('No hay torneo activo'); return; }
   window.location.href = 'torneo_pantalla5.html?id=' + tid;
 };
+
+// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
+(async function() {
+  try {
+    const snap = await getDoc(doc(db,'config','cancha'));
+    if (!snap.exists()) return;
+    const nombre = snap.data().nombre;
+    if (!nombre) return;
+    const n = nombre.toUpperCase();
+    // Título del tab
+    document.title = n + ' — Revisión de Fixture';
+    // Header logo
+    const logo = document.getElementById('headerLogo');
+    if (logo) {
+      const partes = n.split(' ');
+      const primera = partes[0];
+      const resto = partes.slice(1).join(' ');
+      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + ' · TORNEOS';
+    }
+  } catch(e) { console.error('Error cargando nombre cancha:', e); }
+})();
 </script>
 </body>
 </html>

@@ -406,7 +406,7 @@ body {
 <!-- HEADER -->
 <div class="app-header">
   <button class="header-back" onclick="window.location.href='index.html'">← INICIO</button>
-  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · TORNEOS</div>
 </div>
 
 <!-- STEPS -->
@@ -563,6 +563,20 @@ body {
 </div>
 
 <div class="divider"></div>
+
+<!-- DEDICATORIA -->
+<div class="section" style="margin-top:0;">
+  <div class="section-label">Mensaje de dedicatoria</div>
+  <div class="field">
+    <label>Texto que aparece en la imagen de campeones</label>
+    <textarea id="dedicatoria" rows="4" placeholder="Ej: Gracias a todas las parejas y al público que fueron parte de este torneo. ¡Todo esto es posible gracias a ustedes!" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:#fff;font-family:'Oswald',sans-serif;font-size:14px;outline:none;resize:vertical;line-height:1.5;"></textarea>
+  </div>
+  <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:-8px;margin-bottom:8px;">
+    Este texto se puede editar al momento de generar la imagen, pero solo este queda guardado.
+  </div>
+</div>
+
+<div class="divider"></div>
 <div style="width:100%;max-width:500px;padding:0 20px;">
   <button class="btn-siguiente" onclick="guardarYSeguir()">SIGUIENTE → CREAR TORNEO</button>
   <button class="btn-siguiente" onclick="guardarYVolver()" style="background:transparent;border:1px solid var(--azul);color:var(--azul);box-shadow:none;margin-top:10px;">GUARDAR Y VOLVER AL INICIO</button>
@@ -676,6 +690,8 @@ window.guardarYSeguir = async function() {
   if (pinOp.length >= 4) config.pinOperador = pinOp;
   const pinRec = document.getElementById('pinRecuperacion').value.trim();
   if (pinRec.length >= 4) config.pinRecuperacion = pinRec;
+  const dedicatoria = document.getElementById('dedicatoria').value.trim();
+  if (dedicatoria) config.dedicatoria = dedicatoria;
 
   try {
     await setDoc(doc(db, 'config', 'cancha'), config);
@@ -715,6 +731,8 @@ window.guardarYVolver = async function() {
   if (pinOpV.length >= 4) config.pinOperador = pinOpV;
   const pinRecV = document.getElementById('pinRecuperacion').value.trim();
   if (pinRecV.length >= 4) config.pinRecuperacion = pinRecV;
+  const dedicatoriaV = document.getElementById('dedicatoria').value.trim();
+  if (dedicatoriaV) config.dedicatoria = dedicatoriaV;
   try {
     await setDoc(doc(db, 'config', 'cancha'), config);
     showToast('✓ Configuración guardada');
@@ -750,6 +768,7 @@ async function cargarConfig() {
     if (c.pinAdmin) document.getElementById('pinAdmin').value = c.pinAdmin;
     if (c.pinOperador) document.getElementById('pinOperador').value = c.pinOperador;
     if (c.pinRecuperacion) document.getElementById('pinRecuperacion').value = c.pinRecuperacion;
+    if (c.dedicatoria) document.getElementById('dedicatoria').value = c.dedicatoria;
     if (c.telefonos) {
       const wrap = document.getElementById('telefonos');
       wrap.innerHTML = '';
@@ -789,6 +808,27 @@ document.querySelectorAll('.wa-toggle').forEach(btn => {
 });
 
 cargarConfig();
+
+// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
+(async function() {
+  try {
+    const snap = await getDoc(doc(db,'config','cancha'));
+    if (!snap.exists()) return;
+    const nombre = snap.data().nombre;
+    if (!nombre) return;
+    const n = nombre.toUpperCase();
+    // Título del tab
+    document.title = n + ' — Configuración';
+    // Header logo
+    const logo = document.getElementById('headerLogo');
+    if (logo) {
+      const partes = n.split(' ');
+      const primera = partes[0];
+      const resto = partes.slice(1).join(' ');
+      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + ' · TORNEOS';
+    }
+  } catch(e) { console.error('Error cargando nombre cancha:', e); }
+})();
 </script>
 </body>
 </html>

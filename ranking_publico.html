@@ -182,7 +182,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Oswald', sans-se
 
 <div class="app-header">
   <div>
-    <div class="header-logo">PADEL <span>TEAM</span> · RANKING</div>
+    <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · RANKING</div>
     <div class="header-cancha" id="headerCancha">Cargando...</div>
   </div>
 </div>
@@ -239,6 +239,13 @@ async function cargar() {
     const cSnap = await getDoc(doc(db, 'config', 'cancha'));
     if (cSnap.exists()) {
       nombreCancha = cSnap.data().nombre || 'PADEL TEAM';
+      // Actualizar título y header logo
+      document.title = nombreCancha.toUpperCase() + ' — Ranking';
+      const logo = document.getElementById('headerLogo');
+      if (logo) {
+        const partes = nombreCancha.toUpperCase().split(' ');
+        logo.innerHTML = partes[0] + (partes.length > 1 ? ' <span>' + partes.slice(1).join(' ') + '</span>' : '') + ' · RANKING';
+      }
       const color = cSnap.data().colorPrincipal;
       if (color) document.documentElement.style.setProperty('--azul', color);
       document.getElementById('headerCancha').textContent = nombreCancha;
