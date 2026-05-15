@@ -706,6 +706,23 @@ async function cargarYGenerar() {
     parejas.forEach(p => { parejaMap[p.id] = p; });
     const pSnap2 = await getDocs(query(collection(db,'torneos',torneoId,'partidos'),orderBy('orden')));
     fixture = pSnap2.docs.map(d => ({id:d.id,...d.data()}));
+
+    // Reconstruir zonasData desde los partidos guardados (necesario para editar zonas)
+    const zonasMap = {};
+    fixture.filter(p => !p.esLlave && p.zonaId).forEach(p => {
+      if (!zonasMap[p.zonaId]) {
+        const letra = p.zonaId.replace('zona_','');
+        zonasMap[p.zonaId] = { id: p.zonaId, nombre: letra, parejas: [], clasifican: torneoConfig.zonasConfig?.find(z => z.letra === letra)?.clasifican || 2 };
+      }
+      // Agregar pareja1 y pareja2 si no están ya (evitar duplicados)
+      [p.pareja1Id, p.pareja2Id].forEach(pid => {
+        if (pid && !pid.startsWith('G_') && !pid.startsWith('P_') && !zonasMap[p.zonaId].parejas.includes(pid)) {
+          zonasMap[p.zonaId].parejas.push(pid);
+        }
+      });
+    });
+    zonasData = Object.values(zonasMap);
+    console.log('zonasData reconstruido desde fixture confirmado:', zonasData.length, 'zonas');
   } else {
     generarFixture(parejas);
   }
@@ -1097,7 +1114,17 @@ window.pedirPinEditarZonas = function() {
 };
 
 function abrirEditZonas() {
-  if (zonasData.length === 0) { showToast('⚠️ Primero generá el fixture'); return; }
+  if (zonasData.length === 0) {
+    console.warn('zonasData vacío. Formato:', torneoConfig?.formato, 'Fixture length:', fixture.length);
+    if (torneoConfig?.formato === 'llave_sola') {
+      showToast('⚠️ Formato Llave Sola no tiene zonas para editar');
+    } else if (torneoConfig?.formato === 'round_robin') {
+      showToast('⚠️ Round Robin no tiene zonas — hay una sola zona');
+    } else {
+      showToast('⚠️ No se encontraron zonas — regenerá el fixture primero');
+    }
+    return;
+  }
   editZonasActivo = true;
   editZonasSeleccionado = null;
   document.getElementById('panelEditarZonas').style.display = 'block';
