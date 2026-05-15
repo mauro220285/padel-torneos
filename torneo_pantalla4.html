@@ -451,12 +451,7 @@ function zonaEsViable(zona, nuevaPareja, slots, minSlotsComun) {
 // Distribuye parejas en zonas garantizando que cada par tenga slots en común
 function distribuirEnZonas(parejas, zonasConfig, slots) {
   const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const MIN_SLOTS_COMUN = 2; // mínimo de slots en común para que dos parejas puedan estar en la misma zona
-  
-  // Ordenar parejas de MAYOR a MENOR restricción (las más restringidas primero)
-  const parejasOrdenadas = [...parejas].sort((a, b) => {
-    return slotsDisponiblesPareja(a, slots) - slotsDisponiblesPareja(b, slots);
-  });
+  const MIN_SLOTS_COMUN = 2;
 
   // Inicializar zonas vacías
   const zonas = zonasConfig.map((zc, zi) => ({
@@ -467,43 +462,76 @@ function distribuirEnZonas(parejas, zonasConfig, slots) {
     clasifican: zc.clasifican
   }));
 
-  parejasOrdenadas.forEach(pareja => {
+  // Clasificar parejas por nivel de restricción
+  const slotsTotal = slots.length;
+  const sinRestriccion = [];
+  const conRestriccion = [];
+  parejas.forEach(p => {
+    const disponibles = slotsDisponiblesPareja(p, slots);
+    if (disponibles < slotsTotal) conRestriccion.push(p);
+    else sinRestriccion.push(p);
+  });
+
+  // PASO 1: Distribuir parejas restringidas — una por zona, rotando
+  // Ordenar de MÁS a MENOS restringida
+  conRestriccion.sort((a, b) => slotsDisponiblesPareja(a, slots) - slotsDisponiblesPareja(b, slots));
+  
+  console.log('Parejas restringidas:', conRestriccion.map(p => nombrePareja(p.id)));
+  
+  // Repartir las restringidas una por zona (serpentina)
+  let zonaIdx = 0;
+  conRestriccion.forEach(pareja => {
+    // Buscar zona con espacio que sea viable con esta pareja
+    let asignada = false;
+    // Intentar desde zonaIdx rotando
+    for (let i = 0; i < zonas.length; i++) {
+      const z = zonas[(zonaIdx + i) % zonas.length];
+      if (z.parejas.length >= z.capacidad) continue;
+      if (z.parejas.length > 0 && !zonaEsViable(z, pareja, slots, MIN_SLOTS_COMUN)) continue;
+      z.parejas.push(pareja);
+      zonaIdx = (zonas.indexOf(z) + 1) % zonas.length;
+      asignada = true;
+      break;
+    }
+    if (!asignada) {
+      // Último recurso: zona con más espacio
+      const libre = zonas.filter(z => z.parejas.length < z.capacidad)
+        .sort((a, b) => a.parejas.length - b.parejas.length)[0];
+      if (libre) libre.parejas.push(pareja);
+    }
+  });
+
+  // PASO 2: Completar zonas con parejas sin restricción
+  // Ordenar zonas de menor a mayor ocupación para balancear
+  sinRestriccion.forEach(pareja => {
     let mejorZona = null;
     let mejorScore = -1;
 
     zonas.forEach(zona => {
       if (zona.parejas.length >= zona.capacidad) return;
-      
-      // Verificar viabilidad — que haya slots suficientes con todas las parejas de la zona
       if (zona.parejas.length > 0 && !zonaEsViable(zona, pareja, slots, MIN_SLOTS_COMUN)) return;
 
-      if (zona.parejas.length === 0) {
-        // Zona vacía — score base
-        const score = 1;
-        if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
-        return;
+      // Score: más slots en común con las parejas ya asignadas = mejor
+      let totalComun = slots.length * zona.parejas.length; // máximo posible si vacía
+      if (zona.parejas.length > 0) {
+        totalComun = 0;
+        zona.parejas.forEach(p => { totalComun += slotsEnComun(p, pareja, slots); });
+        totalComun = totalComun / zona.parejas.length;
       }
-
-      // Score = promedio de slots en común con cada pareja de la zona
-      let totalComun = 0;
-      zona.parejas.forEach(p => {
-        totalComun += slotsEnComun(p, pareja, slots);
-      });
-      const score = totalComun / zona.parejas.length;
+      // Penalizar zonas más llenas para balancear
+      const score = totalComun - (zona.parejas.length * 0.1);
       if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
     });
 
-    // Si no encontró zona viable, asignar a la zona con más espacio disponible (último recurso)
     if (!mejorZona) {
-      console.warn('Sin zona viable para:', nombrePareja(pareja.id), '— asignando a zona con más espacio');
-      mejorZona = zonas
-        .filter(z => z.parejas.length < z.capacidad)
-        .sort((a, b) => b.capacidad - b.parejas.length - (a.capacidad - a.parejas.length))[0];
+      mejorZona = zonas.filter(z => z.parejas.length < z.capacidad)
+        .sort((a, b) => a.parejas.length - b.parejas.length)[0];
     }
-
     if (mejorZona) mejorZona.parejas.push(pareja);
   });
 
+  // Log resultado
+  zonas.forEach(z => console.log(`Zona ${z.nombre}:`, z.parejas.map(p => nombrePareja(p.id||p))));
   return zonas;
 }
 
