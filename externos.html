@@ -2,8 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Padel Team - Puntos Externos</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
@@ -51,7 +49,7 @@ body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;mi
 <body>
 <div class="app-header">
   <button class="btn-back" onclick="window.location.href='index.html'">&#8592; INICIO</button>
-  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span></div>
+  <div class="header-logo">PADEL <span>TEAM</span></div>
 </div>
 <div class="page-title">
   <h2>PUNTOS EXTERNOS</h2>
@@ -363,27 +361,6 @@ window.eliminarTorneoExterno = async function(key) {
   showToast('Torneo eliminado');
   await cargarTorneosExternos();
 };
-
-// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
-(async function() {
-  try {
-    const snap = await getDoc(doc(db,'config','cancha'));
-    if (!snap.exists()) return;
-    const nombre = snap.data().nombre;
-    if (!nombre) return;
-    const n = nombre.toUpperCase();
-    // Título del tab
-    document.title = n + ' — Puntos Externos';
-    // Header logo
-    const logo = document.getElementById('headerLogo');
-    if (logo) {
-      const partes = n.split(' ');
-      const primera = partes[0];
-      const resto = partes.slice(1).join(' ');
-      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + '';
-    }
-  } catch(e) { console.error('Error cargando nombre cancha:', e); }
-})();
 </script>
 </body>
 </html>

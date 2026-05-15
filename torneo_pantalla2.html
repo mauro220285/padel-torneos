@@ -2,8 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Padel Team — Crear Torneo</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
@@ -163,7 +161,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
 <div class="app-header">
   <button class="header-back" onclick="window.location.href='index.html'">← INICIO</button>
-  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
 </div>
 
 <div class="steps">
@@ -195,25 +193,6 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
     </div>
     <div id="toggleRanking" onclick="toggleAcredita()" style="width:48px;height:26px;border-radius:13px;background:var(--azul);cursor:pointer;position:relative;transition:background 0.2s;">
       <div id="toggleRankingCircle" style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:3px;right:4px;transition:right 0.2s;"></div>
-    </div>
-  </div>
-
-  <!-- CRITERIO DE ARMADO DE ZONAS -->
-  <div style="margin-top:10px;">
-    <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--label);letter-spacing:2px;margin-bottom:8px;">CRITERIO DE ARMADO DE ZONAS</div>
-    <div style="display:flex;flex-direction:column;gap:6px;" id="criterioWrap">
-      <div class="criterio-card selected" onclick="selCriterio(this,'horarios')" style="background:var(--bg3);border:1.5px solid var(--azul);border-radius:10px;padding:10px 14px;cursor:pointer;transition:all 0.2s;">
-        <div style="font-family:'Oswald',sans-serif;font-size:13px;color:var(--text);letter-spacing:1px;">⏰ POR HORARIOS</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);margin-top:2px;">Distribuye respetando restricciones horarias de cada pareja</div>
-      </div>
-      <div class="criterio-card" onclick="selCriterio(this,'ranking')" style="background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;transition:all 0.2s;">
-        <div style="font-family:'Oswald',sans-serif;font-size:13px;color:var(--text);letter-spacing:1px;">🏆 POR RANKING (SERPENTINA)</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);margin-top:2px;">Ordena por puntos y distribuye en zigzag para equilibrar zonas</div>
-      </div>
-      <div class="criterio-card" onclick="selCriterio(this,'manual')" style="background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;cursor:pointer;transition:all 0.2s;">
-        <div style="font-family:'Oswald',sans-serif;font-size:13px;color:var(--text);letter-spacing:1px;">✋ MANUAL</div>
-        <div style="font-family:'Oswald',sans-serif;font-size:11px;color:var(--muted);margin-top:2px;">Asignás vos cada pareja a su zona. Los horarios se asignan después en la revisión</div>
-      </div>
     </div>
   </div>
 </div>
@@ -730,16 +709,6 @@ window.toggleAcredita = function() {
   circle.style.right = acreditaPuntos ? '4px' : '24px';
 };
 
-// ── CRITERIO DE ARMADO ──
-let criterioArmado = 'horarios';
-window.selCriterio = function(card, criterio) {
-  document.querySelectorAll('.criterio-card').forEach(c => {
-    c.style.borderColor = 'var(--border)';
-  });
-  card.style.borderColor = 'var(--azul)';
-  criterioArmado = criterio;
-};
-
 // ── GUARDAR Y SEGUIR ──
 window.guardarYSeguir = async function() {
   const nombre = document.getElementById('nombreTorneo').value.trim();
@@ -799,7 +768,6 @@ window.guardarYSeguir = async function() {
     tercerSet:          'superTiebreak',
     dias,
     acreditaPuntos,
-    criterioArmado,
     escalaPuntos: { 1:100, 2:90, 3:80, 5:70, 9:60, 99:50 },
     estado: 'borrador'
   };
@@ -870,12 +838,6 @@ calcular();
       if (fmtCard) selFormato(fmtCard, t.formato);
     }
 
-    // Criterio de armado
-    if (t.criterioArmado) {
-      const criterioCard = [...document.querySelectorAll('.criterio-card')].find(c => c.getAttribute('onclick')?.includes(`'${t.criterioArmado}'`));
-      if (criterioCard) selCriterio(criterioCard, t.criterioArmado);
-    }
-
     // Clasificados RR
     if (t.clasificadosLlave && t.formato === 'round_robin_llave') {
       document.getElementById('clasificados').value = t.clasificadosLlave;
@@ -942,27 +904,6 @@ calcular();
 
     calcular();
   } catch(e) { console.error('Error cargando torneo en P2:', e); }
-})();
-
-// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
-(async function() {
-  try {
-    const snap = await getDoc(doc(db,'config','cancha'));
-    if (!snap.exists()) return;
-    const nombre = snap.data().nombre;
-    if (!nombre) return;
-    const n = nombre.toUpperCase();
-    // Título del tab
-    document.title = n + ' — Crear Torneo';
-    // Header logo
-    const logo = document.getElementById('headerLogo');
-    if (logo) {
-      const partes = n.split(' ');
-      const primera = partes[0];
-      const resto = partes.slice(1).join(' ');
-      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + ' · TORNEOS';
-    }
-  } catch(e) { console.error('Error cargando nombre cancha:', e); }
 })();
 </script>
 </body>

@@ -2,8 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Padel Team — Revisión de Fixture</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
@@ -101,7 +99,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
 <div class="app-header">
   <button class="header-back" onclick="window.location.href='torneo_pantalla3.html'">← VOLVER</button>
-  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span> · TORNEOS</div>
+  <div class="header-logo">PADEL <span>TEAM</span> · TORNEOS</div>
 </div>
 
 <div class="steps">
@@ -172,25 +170,6 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
   </div>
 </div>
 
-<!-- MODAL PIN UNIFICADO -->
-<div id="pinModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:center;justify-content:center;">
-  <div style="background:#111118;border:1px solid #222230;border-radius:16px;padding:28px 24px;width:300px;text-align:center;">
-    <div id="pinModalIcono" style="font-size:32px;margin-bottom:8px;">🔒</div>
-    <div id="pinModalTitulo" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;color:#fff;margin-bottom:4px;"></div>
-    <div id="pinModalSub" style="font-family:'Oswald',sans-serif;font-size:11px;color:#555570;letter-spacing:1px;margin-bottom:20px;"></div>
-    <input type="password" id="pinModalInput" maxlength="6" inputmode="numeric" placeholder="····"
-      style="width:100%;background:#18181f;border:1px solid #222230;border-radius:8px;padding:14px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none;margin-bottom:8px;">
-    <div id="pinModalError" style="color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;min-height:18px;margin-bottom:10px;"></div>
-    <div id="pinRecuperacionLink" style="display:none;margin-bottom:12px;">
-      <button onclick="window._pinModoRecuperacion()" style="background:none;border:none;color:#555570;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;cursor:pointer;text-decoration:underline;">¿Olvidaste el PIN admin? Usar PIN de recuperación</button>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button onclick="window._cerrarPinModal()" style="flex:1;background:none;border:1px solid #222230;border-radius:8px;padding:12px;color:#555570;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
-      <button onclick="window._confirmarPin()" style="flex:1;background:#4a9eff;border:none;border-radius:8px;padding:12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CONFIRMAR</button>
-    </div>
-  </div>
-</div>
-
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -209,90 +188,6 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
-
-// ── SISTEMA DE PINs ──────────────────────────────────────
-let _pinCallback = null;
-let _pinTipo = null; // 'admin' | 'operador'
-let _pinModoRecup = false;
-
-async function cargarPins() {
-  const snap = await getDoc(doc(db,'config','cancha'));
-  const d = snap.exists() ? snap.data() : {};
-  return {
-    admin:       d.pinAdmin        || '1234',
-    operador:    d.pinOperador     || '0000',
-    recuperacion:d.pinRecuperacion || '9999'
-  };
-}
-
-function pedirPin(tipo, titulo, subtitulo, callback) {
-  _pinCallback  = callback;
-  _pinTipo      = tipo;
-  _pinModoRecup = false;
-  document.getElementById('pinModalIcono').textContent  = tipo === 'admin' ? '🔐' : '🔑';
-  document.getElementById('pinModalTitulo').textContent = titulo;
-  document.getElementById('pinModalSub').textContent    = subtitulo;
-  document.getElementById('pinModalInput').value        = '';
-  document.getElementById('pinModalError').textContent  = '';
-  document.getElementById('pinRecuperacionLink').style.display = tipo === 'admin' ? 'block' : 'none';
-  const overlay = document.getElementById('pinModalOverlay');
-  overlay.style.display = 'flex';
-  setTimeout(() => document.getElementById('pinModalInput').focus(), 150);
-}
-
-window._pinModoRecuperacion = function() {
-  _pinModoRecup = true;
-  document.getElementById('pinModalIcono').textContent  = '🆘';
-  document.getElementById('pinModalTitulo').textContent = 'PIN DE RECUPERACIÓN';
-  document.getElementById('pinModalSub').textContent    = 'Ingresá el PIN de recuperación para resetear el PIN admin';
-  document.getElementById('pinModalInput').value        = '';
-  document.getElementById('pinModalError').textContent  = '';
-  document.getElementById('pinRecuperacionLink').style.display = 'none';
-  document.getElementById('pinModalInput').focus();
-};
-
-window._cerrarPinModal = function() {
-  document.getElementById('pinModalOverlay').style.display = 'none';
-  _pinCallback  = null;
-  _pinTipo      = null;
-  _pinModoRecup = false;
-};
-
-window._confirmarPin = async function() {
-  const ingresado = document.getElementById('pinModalInput').value.trim();
-  const errEl = document.getElementById('pinModalError');
-  if (!ingresado) { errEl.textContent = 'Ingresá el PIN'; return; }
-
-  const pins = await cargarPins();
-
-  if (_pinModoRecup) {
-    if (ingresado !== pins.recuperacion) {
-      errEl.textContent = '❌ PIN de recuperación incorrecto';
-      document.getElementById('pinModalInput').value = '';
-      return;
-    }
-    // Resetear pinAdmin al valor por defecto
-    await updateDoc(doc(db,'config','cancha'), { pinAdmin: '1234' });
-    window._cerrarPinModal();
-    showToast('✅ PIN admin reseteado a 1234 — cambialo en Configuración');
-    return;
-  }
-
-  const pinEsperado = _pinTipo === 'admin' ? pins.admin : pins.operador;
-  if (ingresado !== pinEsperado) {
-    errEl.textContent = '❌ PIN incorrecto';
-    document.getElementById('pinModalInput').value = '';
-    return;
-  }
-
-  window._cerrarPinModal();
-  if (_pinCallback) _pinCallback();
-};
-
-// Enter en el input confirma
-document.getElementById('pinModalInput')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') window._confirmarPin();
-});
 
 // ── MOTOR DE FIXTURE ─────────────────────────────────────
 
@@ -451,7 +346,12 @@ function zonaEsViable(zona, nuevaPareja, slots, minSlotsComun) {
 // Distribuye parejas en zonas garantizando que cada par tenga slots en común
 function distribuirEnZonas(parejas, zonasConfig, slots) {
   const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const MIN_SLOTS_COMUN = 2;
+  const MIN_SLOTS_COMUN = 2; // mínimo de slots en común para que dos parejas puedan estar en la misma zona
+  
+  // Ordenar parejas de MAYOR a MENOR restricción (las más restringidas primero)
+  const parejasOrdenadas = [...parejas].sort((a, b) => {
+    return slotsDisponiblesPareja(a, slots) - slotsDisponiblesPareja(b, slots);
+  });
 
   // Inicializar zonas vacías
   const zonas = zonasConfig.map((zc, zi) => ({
@@ -462,124 +362,43 @@ function distribuirEnZonas(parejas, zonasConfig, slots) {
     clasifican: zc.clasifican
   }));
 
-  // Clasificar parejas por nivel de restricción
-  const slotsTotal = slots.length;
-  const sinRestriccion = [];
-  const conRestriccion = [];
-  parejas.forEach(p => {
-    const disponibles = slotsDisponiblesPareja(p, slots);
-    if (disponibles < slotsTotal) conRestriccion.push(p);
-    else sinRestriccion.push(p);
-  });
-
-  // PASO 1: Distribuir parejas restringidas — una por zona, rotando
-  // Ordenar de MÁS a MENOS restringida
-  conRestriccion.sort((a, b) => slotsDisponiblesPareja(a, slots) - slotsDisponiblesPareja(b, slots));
-  
-  console.log('Parejas restringidas:', conRestriccion.map(p => nombrePareja(p.id)));
-  
-  // Repartir las restringidas una por zona (serpentina)
-  let zonaIdx = 0;
-  conRestriccion.forEach(pareja => {
-    // Buscar zona con espacio que sea viable con esta pareja
-    let asignada = false;
-    // Intentar desde zonaIdx rotando
-    for (let i = 0; i < zonas.length; i++) {
-      const z = zonas[(zonaIdx + i) % zonas.length];
-      if (z.parejas.length >= z.capacidad) continue;
-      if (z.parejas.length > 0 && !zonaEsViable(z, pareja, slots, MIN_SLOTS_COMUN)) continue;
-      z.parejas.push(pareja);
-      zonaIdx = (zonas.indexOf(z) + 1) % zonas.length;
-      asignada = true;
-      break;
-    }
-    if (!asignada) {
-      // Último recurso: zona con más espacio
-      const libre = zonas.filter(z => z.parejas.length < z.capacidad)
-        .sort((a, b) => a.parejas.length - b.parejas.length)[0];
-      if (libre) libre.parejas.push(pareja);
-    }
-  });
-
-  // PASO 2: Completar zonas con parejas sin restricción
-  // Ordenar zonas de menor a mayor ocupación para balancear
-  sinRestriccion.forEach(pareja => {
+  parejasOrdenadas.forEach(pareja => {
     let mejorZona = null;
     let mejorScore = -1;
 
     zonas.forEach(zona => {
       if (zona.parejas.length >= zona.capacidad) return;
+      
+      // Verificar viabilidad — que haya slots suficientes con todas las parejas de la zona
       if (zona.parejas.length > 0 && !zonaEsViable(zona, pareja, slots, MIN_SLOTS_COMUN)) return;
 
-      // Score: más slots en común con las parejas ya asignadas = mejor
-      let totalComun = slots.length * zona.parejas.length; // máximo posible si vacía
-      if (zona.parejas.length > 0) {
-        totalComun = 0;
-        zona.parejas.forEach(p => { totalComun += slotsEnComun(p, pareja, slots); });
-        totalComun = totalComun / zona.parejas.length;
+      if (zona.parejas.length === 0) {
+        // Zona vacía — score base
+        const score = 1;
+        if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
+        return;
       }
-      // Penalizar zonas más llenas para balancear
-      const score = totalComun - (zona.parejas.length * 0.1);
+
+      // Score = promedio de slots en común con cada pareja de la zona
+      let totalComun = 0;
+      zona.parejas.forEach(p => {
+        totalComun += slotsEnComun(p, pareja, slots);
+      });
+      const score = totalComun / zona.parejas.length;
       if (score > mejorScore) { mejorScore = score; mejorZona = zona; }
     });
 
+    // Si no encontró zona viable, asignar a la zona con más espacio disponible (último recurso)
     if (!mejorZona) {
-      mejorZona = zonas.filter(z => z.parejas.length < z.capacidad)
-        .sort((a, b) => a.parejas.length - b.parejas.length)[0];
+      console.warn('Sin zona viable para:', nombrePareja(pareja.id), '— asignando a zona con más espacio');
+      mejorZona = zonas
+        .filter(z => z.parejas.length < z.capacidad)
+        .sort((a, b) => b.capacidad - b.parejas.length - (a.capacidad - a.parejas.length))[0];
     }
+
     if (mejorZona) mejorZona.parejas.push(pareja);
   });
 
-  // Log resultado
-  zonas.forEach(z => console.log(`Zona ${z.nombre}:`, z.parejas.map(p => nombrePareja(p.id||p))));
-  return zonas;
-}
-
-// Distribución por ranking — serpentina
-function distribuirEnZonasSerpentina(parejas, zonasConfig) {
-  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  // Ordenar por puntos descendente
-  const ordenadas = [...parejas].sort((a, b) => (b.puntos||b.puntosAnuales||0) - (a.puntos||a.puntosAnuales||0));
-  const zonas = zonasConfig.map((zc, zi) => ({
-    id: `zona_${letras[zi] || 'Z'+zi}`,
-    nombre: letras[zi] || 'Z'+zi,
-    parejas: [],
-    capacidad: zc.parejas,
-    clasifican: zc.clasifican
-  }));
-  const nZonas = zonas.length;
-  let dir = 1, zonaIdx = 0;
-  ordenadas.forEach((pareja, i) => {
-    const zona = zonas[zonaIdx];
-    if (zona.parejas.length < zona.capacidad) zona.parejas.push(pareja);
-    // Avanzar en serpentina
-    if (zonaIdx === nZonas - 1) dir = -1;
-    if (zonaIdx === 0 && i > 0) dir = 1;
-    zonaIdx = Math.max(0, Math.min(nZonas - 1, zonaIdx + dir));
-  });
-  return zonas;
-}
-
-// Distribución manual — usa el campo zonaManual guardado en cada pareja
-function distribuirEnZonasManual(parejas, zonasConfig) {
-  const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const zonas = zonasConfig.map((zc, zi) => ({
-    id: `zona_${letras[zi] || 'Z'+zi}`,
-    nombre: letras[zi] || 'Z'+zi,
-    parejas: [],
-    capacidad: zc.parejas,
-    clasifican: zc.clasifican
-  }));
-  parejas.forEach(pareja => {
-    const letra = pareja.zonaManual;
-    const zona = zonas.find(z => z.nombre === letra);
-    if (zona) zona.parejas.push(pareja);
-    else {
-      // Si no tiene zona asignada, poner en la primera disponible
-      const libre = zonas.find(z => z.parejas.length < z.capacidad);
-      if (libre) libre.parejas.push(pareja);
-    }
-  });
   return zonas;
 }
 
@@ -703,10 +522,6 @@ let diaActivo = 0;
 let partidoSeleccionado = null;
 let torneoConfig = null;
 
-// Exponer funciones de editar zonas en window (necesario por scope de modulo ES6)
-window.abrirEditZonas = function() { abrirEditZonas(); };
-window.renderEditZonas = function() { renderEditZonas(); };
-
 // ── CARGA INICIAL ────────────────────────────────────────
 async function cargarYGenerar() {
   const torneoId = sessionStorage.getItem('torneoId');
@@ -738,23 +553,6 @@ async function cargarYGenerar() {
     parejas.forEach(p => { parejaMap[p.id] = p; });
     const pSnap2 = await getDocs(query(collection(db,'torneos',torneoId,'partidos'),orderBy('orden')));
     fixture = pSnap2.docs.map(d => ({id:d.id,...d.data()}));
-
-    // Reconstruir zonasData desde los partidos guardados (necesario para editar zonas)
-    const zonasMap = {};
-    fixture.filter(p => !p.esLlave && p.zonaId).forEach(p => {
-      if (!zonasMap[p.zonaId]) {
-        const letra = p.zonaId.replace('zona_','');
-        zonasMap[p.zonaId] = { id: p.zonaId, nombre: letra, parejas: [], clasifican: torneoConfig.zonasConfig?.find(z => z.letra === letra)?.clasifican || 2 };
-      }
-      // Agregar pareja1 y pareja2 si no están ya (evitar duplicados)
-      [p.pareja1Id, p.pareja2Id].forEach(pid => {
-        if (pid && !pid.startsWith('G_') && !pid.startsWith('P_') && !zonasMap[p.zonaId].parejas.includes(pid)) {
-          zonasMap[p.zonaId].parejas.push(pid);
-        }
-      });
-    });
-    zonasData = Object.values(zonasMap);
-    console.log('zonasData reconstruido desde fixture confirmado:', zonasData.length, 'zonas');
   } else {
     generarFixture(parejas);
   }
@@ -794,50 +592,39 @@ function generarFixture(parejas) {
 
   if (formato === 'zonas_llave') {
     const zonasConfig = torneoConfig.zonasConfig;
-    const criterio = torneoConfig.criterioArmado || 'horarios';
-    console.log('zonasConfig length:', zonasConfig?.length, 'parejas.length:', parejas.length, 'criterio:', criterio);
-
-    const getZonasConfigAuto = () => {
+    console.log('zonasConfig length:', zonasConfig?.length, 'parejas.length:', parejas.length);
+    if (zonasConfig?.length > 0) {
+      const zonas = distribuirEnZonas(parejas, zonasConfig, slotsZonas);
+      zonasData = zonas.map(z => ({...z, parejas: z.parejas.map(p => p.id || p)}));
+      zonas.forEach(zona => {
+        // Zona de 4 usa formato especial
+        if (zona.parejas.length === 4) {
+          partidos.push(...generarZona4Especial(zona.parejas, zona.id));
+        } else {
+          partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+        }
+      });
+    } else {
       const porZona = 4;
       const nZonas = Math.ceil(parejas.length / porZona);
-      return Array.from({length: nZonas}, () => ({ parejas: porZona, clasifican: 2 }));
-    };
-    const zc = (zonasConfig && zonasConfig.length > 0) ? zonasConfig : getZonasConfigAuto();
-
-    let zonas;
-    if (criterio === 'ranking') {
-      zonas = distribuirEnZonasSerpentina(parejas, zc);
-    } else if (criterio === 'manual') {
-      zonas = distribuirEnZonasManual(parejas, zc);
-    } else {
-      zonas = distribuirEnZonas(parejas, zc, slotsZonas);
+      const zonasConfigAuto = Array.from({length: nZonas}, () => ({ parejas: porZona, clasifican: 2 }));
+      const zonas = distribuirEnZonas(parejas, zonasConfigAuto, slotsZonas);
+      zonasData = zonas;
+      zonas.forEach(zona => {
+        if (zona.parejas.length === 4) {
+          partidos.push(...generarZona4Especial(zona.parejas, zona.id));
+        } else {
+          partidos.push(...generarRoundRobin(zona.parejas, zona.id));
+        }
+      });
     }
-
-    zonasData = zonas.map(z => ({...z, parejas: z.parejas.map(p => p.id || p)}));
-    zonas.forEach(zona => {
-      if (zona.parejas.length === 4) {
-        partidos.push(...generarZona4Especial(zona.parejas, zona.id));
-      } else {
-        partidos.push(...generarRoundRobin(zona.parejas, zona.id));
-      }
-    });
   } else {
-    // Round robin zona única — criterio ranking ordena las parejas pero zona sigue siendo única
-    const criterio = torneoConfig.criterioArmado || 'horarios';
-    let parejasOrdenadas = parejas;
-    if (criterio === 'ranking') {
-      parejasOrdenadas = [...parejas].sort((a,b) => (b.puntos||b.puntosAnuales||0) - (a.puntos||a.puntosAnuales||0));
-    }
-    zonasData = [{ id:'zona_A', nombre:'A', parejas: parejasOrdenadas.map(p => p.id) }];
-    partidos  = generarRoundRobin(parejasOrdenadas, 'zona_A');
+    // Round robin zona única
+    zonasData = [{ id:'zona_A', nombre:'A', parejas: parejas.map(p => p.id) }];
+    partidos  = generarRoundRobin(parejas, 'zona_A');
   }
 
-  // Si criterio manual: no asignar horarios (el operador los asigna desde P4 con ⇄)
-  if (torneoConfig.criterioArmado === 'manual') {
-    fixture = partidos.map(p => ({...p, hora: null, cancha: null, dia: null, conflicto: false}));
-  } else {
-    fixture = asignarHorarios(partidos, slotsZonas, parejaMap);
-  }
+  fixture = asignarHorarios(partidos, slotsZonas, parejaMap);
   console.log('Partidos zona:', partidos.length, 'Slots zona:', slotsZonas.length, 'Fixture:', fixture.length);
   fixture.forEach((p,i) => { p.id = `partido_${String(i+1).padStart(3,'0')}`; p.orden = i+1; });
 
@@ -1001,30 +788,22 @@ window.renderFixture = function() {
       card.className = 'partido-card' + (p.conflicto?' conflicto':'') + (p.esLlave?' llave-placeholder':'');
       card.innerHTML = `
         <div class="partido-header">
-          <div class="partido-hora" style="${p.esLlave&&!p.hora?'font-size:14px;color:var(--muted);padding-top:4px;':''}">
-            ${p.esLlave && !p.hora ? '⏳ S/H' : (p.hora||'--:--')}
+          <div class="partido-hora" style="${p.esLlave?'font-size:14px;color:var(--muted);padding-top:4px;':''}">
+            ${p.esLlave ? '⏳ S/H' : (p.hora||'--:--')}
           </div>
           <div class="partido-info">
             <div class="partido-zona">${zonaLabel}</div>
-            <div class="partido-parejas" style="${p.esLlave&&!p.hora?'color:var(--muted);font-style:italic;':''}">
+            <div class="partido-parejas" style="${p.esLlave?'color:var(--muted);font-style:italic;':''}">
               ${p.label ? `<span style="color:var(--amarillo);font-size:12px;letter-spacing:1px;">${p.label}</span>` 
                 : `${nombrePareja(p.pareja1Id)} <span style="color:var(--muted)">vs</span> ${nombrePareja(p.pareja2Id)}`}
             </div>
           </div>
           <div class="partido-acciones">
-            ${p.esLlave && !p.hora ? '<span style="font-size:11px;color:var(--muted);font-family:Oswald,sans-serif;letter-spacing:1px;">SE ASIGNA<br>DESPUÉS</span>' 
-              : '<button class="btn-mover" title="Cambiar horario">⇄</button>'}
+            ${p.esLlave ? '<span style="font-size:11px;color:var(--muted);font-family:Oswald,sans-serif;letter-spacing:1px;">SE ASIGNA<br>DESPUÉS</span>' 
+              : `<button class="btn-mover" onclick="abrirModal('${p.id||p.orden}')" title="Cambiar horario">⇄</button>`}
           </div>
         </div>
         ${p.conflicto?'<span class="conflicto-badge">⚠ Restricción horaria</span>':''}`;
-      // Fix scope ES6: asignar listener al botón ⇄ (zona Y llave con hora asignada)
-      if (!p.esLlave || p.hora) {
-        const btnMover = card.querySelector('.btn-mover');
-        if (btnMover) {
-          const pid = p.id || p.orden;
-          btnMover.addEventListener('click', () => abrirModal(pid));
-        }
-      }
       wrap.appendChild(card);
     });
 };
@@ -1086,11 +865,7 @@ window.abrirModal = function(id) {
         <div class="modal-opcion-hora">${p.hora||'--'}</div>
         <div style="flex:1;font-family:'Oswald',sans-serif;font-size:12px;color:#fff;letter-spacing:1px;">${n1} vs ${n2}</div>
         <div class="modal-opcion-estado" style="color:${conflicto?'var(--rojo)':'var(--verde)'}">${conflicto?'⚠ CONFLICTO':'✓ OK'}</div>`;
-      div.onclick = () => {
-        pedirPin('operador', 'INTERCAMBIAR HORARIO', 'Acción de operador requerida', () => {
-          intercambiarHorario(p.id||p.orden, conflicto);
-        });
-      };
+      div.onclick = () => intercambiarHorario(p.id||p.orden, conflicto);
       opciones.appendChild(div);
     });
   });
@@ -1139,28 +914,20 @@ window.moverPartido = function(hora, cancha) {
 let editZonasActivo = false;
 let editZonasSeleccionado = null; // {parejaId, zonaId}
 
-window.pedirPinEditarZonas = function() {
-  pedirPin('admin', 'EDITAR ZONAS', 'Solo el administrador puede reasignar parejas entre zonas', () => {
-    abrirEditZonas();
-  });
+window.pedirPinEditarZonas = async function() {
+  const snap = await getDoc(doc(db,'config','cancha'));
+  const pinGuardado = snap.exists() ? (snap.data().pinAdmin||'1234') : '1234';
+  const pin = prompt('🔒 PIN de administrador:');
+  if (pin !== pinGuardado) { showToast('❌ PIN incorrecto'); return; }
+  abrirEditZonas();
 };
 
 function abrirEditZonas() {
-  console.log('abrirEditZonas llamada. zonasData.length:', zonasData.length, 'formato:', torneoConfig?.formato);
-  if (zonasData.length === 0) {
-    console.warn('zonasData vacío — no hay zonas para editar');
-    showToast('⚠️ No se encontraron zonas — regenerá el fixture primero');
-    return;
-  }
+  if (zonasData.length === 0) { showToast('⚠️ Primero generá el fixture'); return; }
   editZonasActivo = true;
   editZonasSeleccionado = null;
-  const panel = document.getElementById('panelEditarZonas');
-  console.log('panel encontrado:', !!panel);
-  if (!panel) { showToast('⚠️ Error: panel no encontrado'); return; }
-  panel.style.display = 'block';
-  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('panelEditarZonas').style.display = 'block';
   renderEditZonas();
-  console.log('renderEditZonas ejecutado');
 }
 
 window.cerrarEditZonas = function() {
@@ -1220,19 +987,17 @@ window.moverAZona = function(zonaDestino) {
   showToast('✓ Pareja movida');
 };
 
-window.confirmarEditZonas = async function() {
+window.confirmarEditZonas = function() {
   cerrarEditZonas();
-  const torneoId = sessionStorage.getItem('torneoId');
-
   // Regenerar partidos respetando las zonas editadas (no redistribuir)
   const slots = generarSlots(torneoConfig);
   const dias = torneoConfig.dias || [];
   const ultimoDia = dias.length > 1 ? dias[dias.length-1].fecha : null;
   const slotsZonas = ultimoDia ? slots.filter(s=>s.dia!==ultimoDia) : slots;
-
+  
   let partidos = [];
   let slotIdx = 0;
-
+  
   zonasData.forEach(zona => {
     const parejasObj = zona.parejas.map(pid => parejaMap[pid]).filter(Boolean);
     let partidosZona = [];
@@ -1241,113 +1006,69 @@ window.confirmarEditZonas = async function() {
     } else {
       partidosZona = generarRoundRobin(parejasObj, zona.id);
     }
+    // Asignar slots
     partidosZona.forEach(p => {
       const slot = slotsZonas[slotIdx++];
       if (slot) { p.dia=slot.dia; p.hora=slot.hora; p.cancha=slot.cancha; }
     });
     partidos.push(...partidosZona);
   });
-
-  // Preservar partidos de llave existentes (no se tocan al editar zonas)
-  const partidosLlave = fixture.filter(p => p.esLlave);
-  fixture = [...partidos, ...partidosLlave];
-
-  // Guardar en Firebase: borrar solo partidos de zona (preservar llave)
-  if (torneoId) {
-    try {
-      showToast('Guardando cambios...');
-      // Borrar solo partidos de zona (no llave)
-      const partidosSnap = await getDocs(collection(db,'torneos',torneoId,'partidos'));
-      const soloZona = partidosSnap.docs.filter(d => !d.data().esLlave);
-      await Promise.all(soloZona.map(d => deleteDoc(d.ref)));
-      // Borrar zonas existentes
-      const zonasSnap = await getDocs(collection(db,'torneos',torneoId,'zonas'));
-      await Promise.all(zonasSnap.docs.map(d => deleteDoc(d.ref)));
-      // Guardar nuevas zonas
-      await Promise.all(zonasData.map(z =>
-        setDoc(doc(db,'torneos',torneoId,'zonas',z.id), {
-          nombre: z.nombre, parejas: z.parejas
-        })
-      ));
-      // Guardar nuevos partidos de zona
-      await Promise.all(partidos.map((p, i) => {
-        const id = `p${String(i+1).padStart(3,'0')}`;
-        return setDoc(doc(db,'torneos',torneoId,'partidos',id), {...p, orden:i+1, id});
-      }));
-      // Actualizar ids en fixture (solo zona)
-      fixture = [
-        ...partidos.map((p,i) => ({...p, id:`p${String(i+1).padStart(3,'0')}`})),
-        ...partidosLlave
-      ];
-    } catch(e) {
-      console.error('Error guardando zonas editadas:', e);
-      showToast('❌ Error al guardar en Firebase');
-    }
-  }
-
+  
+  fixture = partidos;
   renderTabs();
   renderFixture();
   showToast('✓ Fixture regenerado con zonas editadas');
 };
-window.resetearFixture = function() {
-  pedirPin('admin', 'RESETEAR FIXTURE', 'Solo el administrador puede resetear el fixture', async () => {
-    const torneoId = sessionStorage.getItem('torneoId');
-    if (!torneoId) return;
+window.resetearFixture = async function() {
+  if (!confirm('¿Resetear el fixture? Las parejas y sus restricciones se mantienen. Solo se borran los partidos y zonas generados.')) return;
 
-    // Verificar si hay resultados cargados
-    try {
-      const partidosSnap = await getDocs(collection(db,'torneos',torneoId,'partidos'));
-      const conResultado = partidosSnap.docs.filter(d => {
-        const data = d.data();
-        return data.resultado && (data.resultado.set1 || data.resultado.set2 || data.estado === 'jugado');
-      });
-      if (conResultado.length > 0) {
-        showToast(`⚠ Hay ${conResultado.length} resultado(s) cargado(s) — no se puede resetear`);
-        setTimeout(() => {
-          alert(`No se puede resetear el fixture: hay ${conResultado.length} partido(s) con resultado cargado.\n\nDebés borrar los resultados desde "Cargar Resultados" antes de resetear.`);
-        }, 300);
-        return;
-      }
-    } catch(e) { console.error(e); }
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) return;
 
-    if (!confirm('¿Resetear el fixture? Las parejas y sus restricciones se mantienen. Solo se borran los partidos y zonas generados.')) return;
+  showToast('Reseteando...');
+  try {
+    // Borrar partidos existentes
+    const partidosSnap = await getDocs(collection(db, 'torneos', torneoId, 'partidos'));
+    await Promise.all(partidosSnap.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'partidos', d.id))));
 
-    showToast('Reseteando...');
-    try {
-      const partidosSnap2 = await getDocs(collection(db, 'torneos', torneoId, 'partidos'));
-      await Promise.all(partidosSnap2.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'partidos', d.id))));
-      const zonasSnap2 = await getDocs(collection(db, 'torneos', torneoId, 'zonas'));
-      await Promise.all(zonasSnap2.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'zonas', d.id))));
-      await deleteDoc(doc(db, 'torneos', torneoId, 'fixture', 'meta')).catch(() => {});
-      await updateDoc(doc(db, 'torneos', torneoId), { estado: 'borrador', actualizadoEn: serverTimestamp() });
-      showToast('✓ Fixture reseteado — redirigiendo a configuración...');
-      setTimeout(() => { window.location.href = 'torneo_pantalla2.html'; }, 1200);
-    } catch(e) {
-      console.error(e);
-      showToast('❌ Error al resetear');
-    }
-  });
+    // Borrar zonas existentes
+    const zonasSnap = await getDocs(collection(db, 'torneos', torneoId, 'zonas'));
+    await Promise.all(zonasSnap.docs.map(d => deleteDoc(doc(db, 'torneos', torneoId, 'zonas', d.id))));
+
+    // Borrar meta del fixture
+    await deleteDoc(doc(db, 'torneos', torneoId, 'fixture', 'meta')).catch(() => {});
+
+    // Volver el torneo a borrador
+    await updateDoc(doc(db, 'torneos', torneoId), { estado: 'borrador', actualizadoEn: serverTimestamp() });
+
+    showToast('✓ Fixture reseteado — redirigiendo a configuración...');
+    setTimeout(() => { window.location.href = 'torneo_pantalla2.html'; }, 1200);
+  } catch(e) {
+    console.error(e);
+    showToast('❌ Error al resetear');
+  }
 };
 
 // ── CONFIRMAR ────────────────────────────────────────────
-window.confirmarFixture = function() {
-  pedirPin('operador', 'CONFIRMAR FIXTURE', 'Acción de operador requerida', async () => {
-    const torneoId = sessionStorage.getItem('torneoId');
-    if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
+window.confirmarFixture = async function() {
+  const torneoId = sessionStorage.getItem('torneoId');
+  if (!torneoId) { showToast('⚠️ No hay torneo activo'); return; }
 
-    if (torneoConfig.formato === 'llave_sola') {
-      showToast('Guardando...');
-      try {
-        await Promise.all(parejas.map((p, i) =>
-          updateDoc(doc(db,'torneos',torneoId,'parejas',p.id), { numFixture: i+1 })
-        ));
-        await setDoc(doc(db,'torneos',torneoId,'fixture','meta'), {
-          confirmado: true, confirmadoEn: serverTimestamp(),
-          formato: 'llave_sola', totalZonas: 0
-        });
-        await updateDoc(doc(db,'torneos',torneoId), { estado:'activo', actualizadoEn: serverTimestamp() });
-        showToast('✓ Confirmado');
-        setTimeout(() => { window.location.href = 'torneo_resultados.html'; }, 1200);
+  // Para llave sola: solo guardar parejas con número y activar torneo
+  if (torneoConfig.formato === 'llave_sola') {
+    showToast('Guardando...');
+    try {
+      // Asignar números a parejas
+      await Promise.all(parejas.map((p, i) =>
+        updateDoc(doc(db,'torneos',torneoId,'parejas',p.id), { numFixture: i+1 })
+      ));
+      await setDoc(doc(db,'torneos',torneoId,'fixture','meta'), {
+        confirmado: true, confirmadoEn: serverTimestamp(),
+        formato: 'llave_sola', totalZonas: 0
+      });
+      await updateDoc(doc(db,'torneos',torneoId), { estado:'activo', actualizadoEn: serverTimestamp() });
+      showToast('✓ Confirmado');
+      setTimeout(() => { window.location.href = 'torneo_resultados.html'; }, 1200);
     } catch(e) { console.error(e); showToast('❌ Error: ' + e.message); }
     return;
   }
@@ -1433,7 +1154,6 @@ window.confirmarFixture = function() {
     console.error(e);
     showToast('❌ Error al guardar: ' + e.message);
   }
-  }); // fin callback pedirPin
 };
 
 function showToast(msg) {
@@ -1456,27 +1176,6 @@ window.irAInformes = function() {
   if (!tid) { alert('No hay torneo activo'); return; }
   window.location.href = 'torneo_pantalla5.html?id=' + tid;
 };
-
-// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
-(async function() {
-  try {
-    const snap = await getDoc(doc(db,'config','cancha'));
-    if (!snap.exists()) return;
-    const nombre = snap.data().nombre;
-    if (!nombre) return;
-    const n = nombre.toUpperCase();
-    // Título del tab
-    document.title = n + ' — Revisión de Fixture';
-    // Header logo
-    const logo = document.getElementById('headerLogo');
-    if (logo) {
-      const partes = n.split(' ');
-      const primera = partes[0];
-      const resto = partes.slice(1).join(' ');
-      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + ' · TORNEOS';
-    }
-  } catch(e) { console.error('Error cargando nombre cancha:', e); }
-})();
 </script>
 </body>
 </html>

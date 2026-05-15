@@ -2,8 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎾</text></svg>">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Padel Team — Jugadores</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600&family=Rajdhani:wght@400;500;600&display=swap" rel="stylesheet">
@@ -122,7 +120,7 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 
 <div class="app-header">
   <button class="header-back" onclick="window.location.href='index.html'">← INICIO</button>
-  <div class="header-logo" id="headerLogo">PADEL <span>TEAM</span></div>
+  <div class="header-logo">PADEL <span>TEAM</span></div>
 </div>
 
 <div class="page-title">
@@ -220,21 +218,15 @@ body { background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-seri
 </div>
 
 <!-- PIN Modal -->
-<!-- MODAL PIN UNIFICADO -->
-<div id="pinModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:center;justify-content:center;">
-  <div style="background:#111118;border:1px solid #222230;border-radius:16px;padding:28px 24px;width:300px;text-align:center;">
-    <div id="pinModalIcono" style="font-size:32px;margin-bottom:8px;">🔒</div>
-    <div id="pinModalTitulo" style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:4px;color:#fff;margin-bottom:4px;"></div>
-    <div id="pinModalSub" style="font-family:'Oswald',sans-serif;font-size:11px;color:#555570;letter-spacing:1px;margin-bottom:20px;"></div>
-    <input type="password" id="pinModalInput" maxlength="6" inputmode="numeric" placeholder="····"
-      style="width:100%;background:#18181f;border:1px solid #222230;border-radius:8px;padding:14px;color:#fff;font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:8px;text-align:center;outline:none;margin-bottom:8px;">
-    <div id="pinModalError" style="color:#e63946;font-family:'Oswald',sans-serif;font-size:12px;min-height:18px;margin-bottom:10px;"></div>
-    <div id="pinRecuperacionLink" style="display:none;margin-bottom:12px;">
-      <button onclick="window._pinModoRecuperacion()" style="background:none;border:none;color:#555570;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:1px;cursor:pointer;text-decoration:underline;">¿Olvidaste el PIN admin? Usar PIN de recuperación</button>
-    </div>
-    <div style="display:flex;gap:8px;">
-      <button onclick="window._cerrarPinModal()" style="flex:1;background:none;border:1px solid #222230;border-radius:8px;padding:12px;color:#555570;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CANCELAR</button>
-      <button onclick="window._confirmarPin()" style="flex:1;background:#4a9eff;border:none;border-radius:8px;padding:12px;color:#fff;font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;cursor:pointer;">CONFIRMAR</button>
+<div class="pin-modal" id="pinModal">
+  <div class="pin-box">
+    <div class="pin-titulo">🔒 ACCESO ADMIN</div>
+    <div class="pin-sub" id="pinSub">Ingresá el PIN de administrador</div>
+    <input type="password" class="pin-input" id="pinInput" maxlength="6" inputmode="numeric" placeholder="····">
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-btns">
+      <button class="pin-cancel" onclick="cerrarPin()">CANCELAR</button>
+      <button class="pin-ok" onclick="verificarPin()">CONFIRMAR</button>
     </div>
   </div>
 </div>
@@ -464,122 +456,51 @@ window.guardarJugador = async function() {
   } catch(e) { showToast('❌ Error al guardar'); }
 };
 
-// ── SISTEMA DE PINs ──────────────────────────────────────
-let _pinCallback = null;
-let _pinTipo = null;
-let _pinModoRecup = false;
-
-async function cargarPins() {
+// ── PIN ──
+window.pedirPinYEjecutar = async function(accion) {
   const snap = await getDoc(doc(db,'config','cancha'));
-  const d = snap.exists() ? snap.data() : {};
-  return {
-    admin:        d.pinAdmin        || '1234',
-    operador:     d.pinOperador     || '0000',
-    recuperacion: d.pinRecuperacion || '9999'
-  };
-}
-
-function pedirPin(tipo, titulo, subtitulo, callback) {
-  _pinCallback  = callback;
-  _pinTipo      = tipo;
-  _pinModoRecup = false;
-  document.getElementById('pinModalIcono').textContent  = tipo === 'admin' ? '🔐' : '🔑';
-  document.getElementById('pinModalTitulo').textContent = titulo;
-  document.getElementById('pinModalSub').textContent    = subtitulo;
-  document.getElementById('pinModalInput').value        = '';
-  document.getElementById('pinModalError').textContent  = '';
-  document.getElementById('pinRecuperacionLink').style.display = tipo === 'admin' ? 'block' : 'none';
-  const overlay = document.getElementById('pinModalOverlay');
-  overlay.style.display = 'flex';
-  setTimeout(() => document.getElementById('pinModalInput').focus(), 150);
-}
-
-window._pinModoRecuperacion = function() {
-  _pinModoRecup = true;
-  document.getElementById('pinModalIcono').textContent  = '🆘';
-  document.getElementById('pinModalTitulo').textContent = 'PIN DE RECUPERACIÓN';
-  document.getElementById('pinModalSub').textContent    = 'Ingresá el PIN de recuperación para resetear el PIN admin';
-  document.getElementById('pinModalInput').value        = '';
-  document.getElementById('pinModalError').textContent  = '';
-  document.getElementById('pinRecuperacionLink').style.display = 'none';
-  document.getElementById('pinModalInput').focus();
-};
-
-window._cerrarPinModal = function() {
-  document.getElementById('pinModalOverlay').style.display = 'none';
-  _pinCallback  = null;
-  _pinTipo      = null;
-  _pinModoRecup = false;
-};
-
-window._confirmarPin = async function() {
-  const ingresado = document.getElementById('pinModalInput').value.trim();
-  const errEl = document.getElementById('pinModalError');
-  if (!ingresado) { errEl.textContent = 'Ingresá el PIN'; return; }
-  const pins = await cargarPins();
-  if (_pinModoRecup) {
-    if (ingresado !== pins.recuperacion) {
-      errEl.textContent = '❌ PIN de recuperación incorrecto';
-      document.getElementById('pinModalInput').value = '';
-      return;
-    }
-    await updateDoc(doc(db,'config','cancha'), { pinAdmin: '1234' });
-    window._cerrarPinModal();
-    showToast('✅ PIN admin reseteado a 1234 — cambialo en Configuración');
-    return;
-  }
-  const pinEsperado = _pinTipo === 'admin' ? pins.admin : pins.operador;
-  if (ingresado !== pinEsperado) {
-    errEl.textContent = '❌ PIN incorrecto';
-    document.getElementById('pinModalInput').value = '';
-    return;
-  }
-  window._cerrarPinModal();
-  if (_pinCallback) _pinCallback();
-};
-
-document.getElementById('pinModalInput')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') window._confirmarPin();
-});
-
-// ── ACCIONES PROTEGIDAS ──
-window.pedirPinYEjecutar = function(accion) {
-  // Determinar tipo y textos según acción
-  const esAdmin = ['fusion','eliminar','recalcular','recategorizar'].includes(accion);
-  const tipo = esAdmin ? 'admin' : 'operador';
-  const titulos = {
-    fusion:        'FUSIONAR JUGADORES',
-    importar:      'IMPORTAR CSV',
-    eliminar:      'ELIMINAR JUGADOR',
-    recalcular:    'RECALCULAR PUNTOS',
-    recategorizar: 'RECATEGORIZAR'
-  };
-  const subs = {
-    fusion:        'Solo el administrador puede fusionar jugadores',
-    importar:      'Acción de operador requerida',
-    eliminar:      'Solo el administrador puede eliminar jugadores',
-    recalcular:    'Solo el administrador puede recalcular puntos',
-    recategorizar: 'Solo el administrador puede recategorizar jugadores'
-  };
-  pedirPin(tipo, titulos[accion] || 'CONFIRMAR', subs[accion] || 'PIN requerido', () => {
+  const pinGuardado = snap.exists() ? (snap.data().pinAdmin||'1234') : '1234';
+  window._pinGuardado = pinGuardado;
+  pinCallback = (ok) => {
+    if (!ok) return;
     if (accion==='fusion') activarModoFusion();
     else if (accion==='importar') abrirCsv();
     else if (accion==='eliminar') ejecutarEliminar();
     else if (accion==='recalcular') recalcularPuntos();
     else if (accion==='recategorizar') abrirPanelRecategorizacion();
-  });
+  };
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').textContent = '';
+  document.getElementById('pinSub').textContent = 
+    accion==='eliminar'    ? 'PIN requerido para eliminar' :
+    accion==='fusion'      ? 'PIN requerido para fusionar' :
+    accion==='recategorizar' ? 'PIN requerido para recategorizar' :
+    'PIN requerido para importar';
+  document.getElementById('pinModal').classList.add('visible');
+  setTimeout(()=>document.getElementById('pinInput').focus(),200);
 };
+
+window.verificarPin = function() {
+  const ing = document.getElementById('pinInput').value.trim();
+  if (ing===window._pinGuardado) {
+    document.getElementById('pinModal').classList.remove('visible');
+    if (pinCallback) pinCallback(true);
+  } else {
+    document.getElementById('pinError').textContent = '❌ PIN incorrecto';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinInput').focus();
+  }
+};
+
+window.cerrarPin = function() { document.getElementById('pinModal').classList.remove('visible'); if(pinCallback) pinCallback(false); pinCallback=null; };
+document.getElementById('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') window.verificarPin(); });
 
 // ── ELIMINAR ──
 async function ejecutarEliminar() {
   if (!jugadorEditandoId) return;
   const j = JUGADORES.find(x=>x.id===jugadorEditandoId);
   const pts = j?.puntosAnuales||j?.puntos||0;
-  const nombre = j?.nombreDisplay || 'este jugador';
-  const msg = pts > 0
-    ? `⚠️ ELIMINAR JUGADOR\n\n"${nombre}" tiene ${pts} puntos en el ranking.\n\nSi lo eliminás, se pierden todos sus puntos e historial.\nEsta acción NO se puede deshacer.\n\n¿Confirmás la eliminación?`
-    : `ELIMINAR JUGADOR\n\n¿Eliminár a "${nombre}" permanentemente?\n\nEsta acción NO se puede deshacer.`;
-  if (!confirm(msg)) return;
+  if (!confirm(pts>0?`⚠️ ${j?.nombreDisplay} tiene ${pts} puntos. ¿Eliminar igual?`:`¿Eliminar a ${j?.nombreDisplay}?`)) return;
   try { await deleteDoc(doc(db,'jugadores',jugadorEditandoId)); showToast('✓ Eliminado'); cerrarModal(); await cargar(); }
   catch(e) { showToast('❌ Error'); }
 }
@@ -640,9 +561,6 @@ window.confirmarFusion = async function() {
   const conservar=fusionSeleccionados[fusionNombreElegido];
   const eliminar=fusionSeleccionados[fusionNombreElegido===0?1:0];
   const ptsTotal=(conservar.puntosAnuales||conservar.puntos||0)+(eliminar.puntosAnuales||eliminar.puntos||0);
-  const ptsEliminar = eliminar.puntosAnuales||eliminar.puntos||0;
-  const msg = `FUSIONAR JUGADORES\n\n"${eliminar.nombreDisplay}" (${ptsEliminar} pts) se fusionará con "${conservar.nombreDisplay}".\n\nResultado: "${conservar.nombreDisplay}" con ${ptsTotal} pts.\nEl registro de "${eliminar.nombreDisplay}" será eliminado.\n\nEsta acción NO se puede deshacer. ¿Confirmás?`;
-  if (!confirm(msg)) return;
   try {
     await updateDoc(doc(db,'jugadores',conservar.id), {puntosAnuales:ptsTotal, puntos:ptsTotal});
     await deleteDoc(doc(db,'jugadores',eliminar.id));
@@ -803,7 +721,7 @@ window.importarCsv = async function() {
 };
 
 async function recalcularPuntos() {
-  if (!confirm('RECALCULAR PUNTOS\n\nEsto va a recorrer el historial de TODOS los jugadores y recalcular sus puntos anuales y totales desde cero.\n\nLos valores actuales serán reemplazados.\nEsta acción NO se puede deshacer.\n\n¿Confirmás?')) return;
+  if (!confirm('¿Recalcular puntos desde el historial real de cada jugador?\nEsto corrige puntosAnuales y puntos para todos.')) return;
   let ok = 0, errores = 0;
 
   for (const j of JUGADORES) {
@@ -945,7 +863,6 @@ window.confirmarRecategorizacion = async function() {
   const catNueva = document.getElementById('recatNuevaCat').value;
   const motivo = document.getElementById('recatMotivo').value.trim();
   if (catNueva === catAnterior) { showToast('⚠️ Elegí una categoría diferente'); return; }
-  if (!confirm(`RECATEGORIZAR JUGADOR\n\n"${j.nombreDisplay}"\n${catAnterior} → ${catNueva}\n\n${motivo ? `Motivo: ${motivo}\n\n` : ''}¿Confirmás el cambio?`)) return;
   try {
     const histRecat = j.historialRecategorizacion || [];
     histRecat.push({
@@ -971,27 +888,6 @@ window.cerrarPanelRecat = function() {
 document.getElementById('modalOverlay').addEventListener('click',e=>{ if(e.target===document.getElementById('modalOverlay')) cerrarModal(); });
 
 cargar();
-
-// ── NOMBRE DINÁMICO DE CANCHA ────────────────────────────
-(async function() {
-  try {
-    const snap = await getDoc(doc(db,'config','cancha'));
-    if (!snap.exists()) return;
-    const nombre = snap.data().nombre;
-    if (!nombre) return;
-    const n = nombre.toUpperCase();
-    // Título del tab
-    document.title = n + ' — Jugadores';
-    // Header logo
-    const logo = document.getElementById('headerLogo');
-    if (logo) {
-      const partes = n.split(' ');
-      const primera = partes[0];
-      const resto = partes.slice(1).join(' ');
-      logo.innerHTML = primera + (resto ? ' <span>' + resto + '</span>' : '') + '';
-    }
-  } catch(e) { console.error('Error cargando nombre cancha:', e); }
-})();
 </script>
 </body>
 </html>
