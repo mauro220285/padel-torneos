@@ -675,6 +675,10 @@ let diaActivo = 0;
 let partidoSeleccionado = null;
 let torneoConfig = null;
 
+// Exponer funciones de editar zonas en window (necesario por scope de modulo ES6)
+window.abrirEditZonas = function() { abrirEditZonas(); };
+window.renderEditZonas = function() { renderEditZonas(); };
+
 // ── CARGA INICIAL ────────────────────────────────────────
 async function cargarYGenerar() {
   const torneoId = sessionStorage.getItem('torneoId');
@@ -1114,21 +1118,21 @@ window.pedirPinEditarZonas = function() {
 };
 
 function abrirEditZonas() {
+  console.log('abrirEditZonas llamada. zonasData.length:', zonasData.length, 'formato:', torneoConfig?.formato);
   if (zonasData.length === 0) {
-    console.warn('zonasData vacío. Formato:', torneoConfig?.formato, 'Fixture length:', fixture.length);
-    if (torneoConfig?.formato === 'llave_sola') {
-      showToast('⚠️ Formato Llave Sola no tiene zonas para editar');
-    } else if (torneoConfig?.formato === 'round_robin') {
-      showToast('⚠️ Round Robin no tiene zonas — hay una sola zona');
-    } else {
-      showToast('⚠️ No se encontraron zonas — regenerá el fixture primero');
-    }
+    console.warn('zonasData vacío — no hay zonas para editar');
+    showToast('⚠️ No se encontraron zonas — regenerá el fixture primero');
     return;
   }
   editZonasActivo = true;
   editZonasSeleccionado = null;
-  document.getElementById('panelEditarZonas').style.display = 'block';
+  const panel = document.getElementById('panelEditarZonas');
+  console.log('panel encontrado:', !!panel);
+  if (!panel) { showToast('⚠️ Error: panel no encontrado'); return; }
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   renderEditZonas();
+  console.log('renderEditZonas ejecutado');
 }
 
 window.cerrarEditZonas = function() {
